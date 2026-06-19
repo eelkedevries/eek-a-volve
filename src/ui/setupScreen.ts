@@ -54,7 +54,7 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const params: SimulationParameters = { ...DEFAULT_PARAMETERS };
-    const target = params as Record<string, unknown>;
+    const target = params as unknown as Record<string, unknown>;
     for (const [key, input] of inputs) {
       const fallback = DEFAULT_PARAMETERS[key as keyof SimulationParameters];
       target[key] = typeof fallback === 'boolean' ? input.checked : Number(input.value);
