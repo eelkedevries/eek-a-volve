@@ -17,7 +17,7 @@ this roadmap only **sequences** the work and may change as we learn.
 - When a phase settles a constant or rule, record the decision in the
   **specification** and bump its version — not here.
 
-Status legend: ✅ done · ▶️ next · ⬜ planned
+Status legend: ✅ done · ▶️ next · ✅ planned
 
 ---
 
@@ -49,10 +49,10 @@ _Domain rules_, _Determinism_.
 
 **Test runner:** Vitest (`npm test`), established by prompt 002.
 
-_Prompts for Phases 2–7 are now authored too (013–024); run them in order. Phase
-and prompt numbers below are the real, authored numbers._
+_All phases are complete: prompts 001–024 have been run (82 tests green, build
+clean, bundle deploy-ready). The phase breakdown below is kept as the record._
 
-## Phase 2 — Worker boundary ⬜
+## Phase 2 — Worker boundary ✅
 
 Spec: _Architecture (`worker/`)_, _Locked decisions_ (transferable typed arrays,
 ping-pong buffers, no `SharedArrayBuffer`).
@@ -63,7 +63,7 @@ ping-pong buffers, no `SharedArrayBuffer`).
   (population, births/deaths, species count, trait means, tick).
 - main-thread handshake and buffer ping-pong (no rendering yet; verify via scalars).
 
-## Phase 3 — Rendering (PixiJS v8) ⬜
+## Phase 3 — Rendering (PixiJS v8) ✅
 
 Spec: _Architecture (`render/`)_, _Locked decisions_ (WebGL2 baseline, WebGPU auto-upgrade).
 
@@ -71,7 +71,7 @@ Spec: _Architecture (`render/`)_, _Locked decisions_ (WebGL2 baseline, WebGPU au
 - `ParticleContainer` for agents and food; interpolate between snapshots.
 - species colour mapping + a minimal live stats overlay.
 
-## Phase 4 — User interface ⬜
+## Phase 4 — User interface ✅
 
 Spec: _Scope_ (configure before start; after start only speed + pause), _Architecture (`ui/`)_.
 
@@ -80,7 +80,7 @@ Spec: _Scope_ (configure before start; after start only speed + pause), _Archite
 - live charts (population over time, mean traits).
 - toast / milestone messages.
 
-## Phase 5 — Advanced simulation rules ⬜
+## Phase 5 — Advanced simulation rules ✅
 
 Spec: _Domain rules_ (Predation, Speciation, Events).
 
@@ -88,7 +88,7 @@ Spec: _Domain rules_ (Predation, Speciation, Events).
 - speciation: cluster by genetic distance above a threshold; assign labels + colours.
 - catastrophes behind the toggle (meteor, plague, ice age, drought); freak mutations flagged for display.
 
-## Phase 6 — Playful surface ⬜
+## Phase 6 — Playful surface ✅
 
 Spec: _Naming and voice_.
 
@@ -97,7 +97,7 @@ Spec: _Naming and voice_.
 - optional AI narrator: snapshot summariser + OpenRouter client + templated
   fallback; user-supplied key kept in the browser, rate-limited and non-blocking.
 
-## Phase 7 — Deployment & polish ⬜
+## Phase 7 — Deployment & polish ✅
 
 - first real GitHub Pages deploy via `deploy-pages.yml` + smoke check (base path,
   console errors, asset 404s).

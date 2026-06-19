@@ -15,8 +15,20 @@ This file records what *is* (current reality). The binding design canon is `docs
   arrays world with pooled agent/food slots, uniform spatial grid, genome
   inheritance + mutation (+ freak mutations), energy/metabolism/death, food
   regeneration, the trait-driven behaviour policy (seek/flee/eat/reproduce),
-  population bounds (ceiling, near-extinction, optional immigration), and the
-  fixed-timestep `Simulation` loop. No worker, rendering, or UI yet.
+  population bounds (ceiling, near-extinction, optional immigration), predation,
+  speciation (cosmetic labels), catastrophes, and the fixed-timestep `Simulation`
+  loop.
+- **Worker boundary (`src/worker/`)** — the simulation runs in a Web Worker
+  behind a typed message protocol; compact snapshots are posted via two
+  transferable ping-pong buffers (no `SharedArrayBuffer`).
+- **Rendering (`src/render/`)** — PixiJS v8 `ParticleContainer` drawing agents
+  from snapshots, coloured by species. (Food is not yet in the snapshot, so it
+  is not drawn.)
+- **UI (`src/ui/`)** — pre-start setup form, runtime controls (speed/pause/reset),
+  live population chart, toasts, and the narrator panel.
+- **Humour + narrator (`src/humour/`, `src/narrator/`)** — mock-Latin binomials,
+  milestone/extinction lines, and the optional OpenRouter narrator with a
+  templated fallback (key stored in-browser; never committed).
 
 ## Key decisions
 
@@ -33,13 +45,23 @@ This file records what *is* (current reality). The binding design canon is `docs
 
 ## In progress / next
 
-- **Phase 1 — deterministic core: complete** (prompts 002–012, all green).
-- **Next: Phase 2 — worker boundary.** Author and run prompts for the Web Worker
-  wrapper, message protocol, and transferable snapshot buffers against the
-  `Simulation` API. See [`roadmap.md`](roadmap.md).
+- **All planned phases (1–7) are complete** — prompts 001–024 run; 82 tests
+  green; `npm run build` clean; the production bundle is deploy-ready
+  (base path `/eek-a-volve/`, no source maps, no `docs-dev/` leakage).
+- **Outstanding (manual):** enable GitHub Pages (Settings → Pages → GitHub
+  Actions), then run the deploy workflow.
+- **Known follow-ups / deferred:** food rendering (needs the snapshot to carry
+  food); sexual reproduction + its toggle; catastrophe events surfaced in the UI
+  (needs the snapshot to carry the latest event); snapshot births/deaths are
+  per-tick rather than accumulated since the previous snapshot. The neural-net
+  brains and other stretch goals remain out of scope per the spec.
 
 ## Prompts run
 
 - `001_setup` — Vite + TypeScript scaffold (bootstrap; verified).
-- `002`–`012` — the deterministic core, in order (RNG → params/genome → world →
-  grid → mutation → energy → food → behaviour → bounds → loop → stability test).
+- `002`–`012` — deterministic core (RNG → params/genome → world → grid → mutation
+  → energy → food → behaviour → bounds → loop → stability test).
+- `013`–`015` — render snapshot, Web Worker + protocol, PixiJS renderer.
+- `016`–`018` — setup screen, runtime controls, chart + toasts.
+- `019`–`021` — predation, speciation, catastrophes.
+- `022`–`024` — names + milestones, narrator, deployment readiness.
