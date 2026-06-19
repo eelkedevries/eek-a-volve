@@ -33,4 +33,12 @@ export class Rng {
   int(n: number): number {
     return Math.floor(this.next() * n);
   }
+
+  /** Standard-normal sample (mean 0, variance 1) via the Box–Muller transform. */
+  gaussian(): number {
+    let u1 = this.next();
+    if (u1 < 1e-12) u1 = 1e-12; // avoid log(0)
+    const u2 = this.next();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
 }

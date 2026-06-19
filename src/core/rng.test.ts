@@ -52,4 +52,26 @@ describe('Rng (mulberry32)', () => {
       expect(v).toBeLessThan(6);
     }
   });
+
+  it('gaussian() approximates N(0, 1)', () => {
+    const rng = new Rng(2024);
+    const n = 100000;
+    let sum = 0;
+    let sumSq = 0;
+    for (let i = 0; i < n; i++) {
+      const g = rng.gaussian();
+      sum += g;
+      sumSq += g * g;
+    }
+    const mean = sum / n;
+    const variance = sumSq / n - mean * mean;
+    expect(Math.abs(mean)).toBeLessThan(0.02);
+    expect(Math.abs(variance - 1)).toBeLessThan(0.05);
+  });
+
+  it('gaussian() is deterministic for a given seed', () => {
+    const a = new Rng(9);
+    const b = new Rng(9);
+    for (let i = 0; i < 100; i++) expect(a.gaussian()).toBe(b.gaussian());
+  });
 });
