@@ -26,7 +26,8 @@ describe('Milestones', () => {
 
   it('notes a new lineage when the species count rises', () => {
     const m = new Milestones();
-    m.update({ tick: 1, population: 100, speciesCount: 2 });
-    expect(m.update({ tick: 2, population: 100, speciesCount: 3 })).toContain('lineage');
+    // Population below the first mark, so only the species change is notable.
+    m.update({ tick: 1, population: 30, speciesCount: 2 });
+    expect(m.update({ tick: 2, population: 30, speciesCount: 3 })).toContain('lineage');
   });
 });
