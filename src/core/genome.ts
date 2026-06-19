@@ -19,6 +19,14 @@ export type TraitName = (typeof TRAITS)[number];
 
 export const TRAIT_COUNT = TRAITS.length;
 
+// Trait column indices, matching the order of `TRAITS`.
+export const SIZE = 0;
+export const SPEED = 1;
+export const SENSE_RADIUS = 2;
+export const METABOLIC_EFFICIENCY = 3;
+export const DIET = 4;
+export const COLOUR_HUE = 5;
+
 export interface TraitRange {
   readonly min: number;
   readonly max: number;
