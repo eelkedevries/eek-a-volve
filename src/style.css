@@ -147,3 +147,42 @@ canvas {
 .toast.fade {
   opacity: 0;
 }
+
+.narrator {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  max-width: 22rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(11, 14, 17, 0.85);
+  border: 1px solid #2b3440;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.narrator-line {
+  font-style: italic;
+  color: #cdd9e5;
+  min-height: 1.2em;
+}
+
+.narrator details {
+  margin-top: 0.5rem;
+}
+
+.narrator summary {
+  cursor: pointer;
+  color: #9aa7b4;
+  font-size: 0.8rem;
+}
+
+.narrator input {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.25rem 0.4rem;
+  background: #0b0e11;
+  color: #e6edf3;
+  border: 1px solid #2b3440;
+  border-radius: 4px;
+}
