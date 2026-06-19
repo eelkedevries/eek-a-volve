@@ -9,8 +9,14 @@ This file records what *is* (current reality). The binding design canon is `docs
 ## Systems
 
 - **Project scaffold** — Vite + TypeScript static site (Vite 8 / TS 6), base path
-  `/eek-a-volve/`, reproducible install via committed `package-lock.json`. Builds
-  with `npm run build`. No simulation code yet (default Vite demo page).
+  `/eek-a-volve/`, reproducible install via committed `package-lock.json`.
+- **Deterministic core (`src/core/`)** — a complete, headless, tested simulation:
+  seeded `mulberry32` RNG, parameters + genome trait definitions, structure-of-
+  arrays world with pooled agent/food slots, uniform spatial grid, genome
+  inheritance + mutation (+ freak mutations), energy/metabolism/death, food
+  regeneration, the trait-driven behaviour policy (seek/flee/eat/reproduce),
+  population bounds (ceiling, near-extinction, optional immigration), and the
+  fixed-timestep `Simulation` loop. No worker, rendering, or UI yet.
 
 ## Key decisions
 
@@ -19,14 +25,21 @@ This file records what *is* (current reality). The binding design canon is `docs
 - Sequencing is planned in [`roadmap.md`](roadmap.md) (non-binding); the core is
   trait-only, continuous, energy-driven selection per the spec.
 - Test runner: **Vitest** (`npm test`), established by prompt 002.
+- **Reproduction is asexual** for the first version (single parent + mutation);
+  sexual crossover and its toggle are deferred.
+- Tuning constants (`MAX_POPULATION`, `MAX_AGE`, food energy, mutation scaling,
+  `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
+  — default runs hold ~200–500 agents over 20k+ ticks, no extinction or explosion.
 
 ## In progress / next
 
-- **Phase 1 — deterministic core.** Prompts **002–012 are authored** in
-  `../agent/prompts/`. Next action: run **002** (seeded `mulberry32` RNG +
-  determinism test, which also sets up the Vitest harness). See
-  [`roadmap.md`](roadmap.md).
+- **Phase 1 — deterministic core: complete** (prompts 002–012, all green).
+- **Next: Phase 2 — worker boundary.** Author and run prompts for the Web Worker
+  wrapper, message protocol, and transferable snapshot buffers against the
+  `Simulation` API. See [`roadmap.md`](roadmap.md).
 
 ## Prompts run
 
-- `001_setup` — Vite + TypeScript scaffold (satisfied by the bootstrap commit; verified).
+- `001_setup` — Vite + TypeScript scaffold (bootstrap; verified).
+- `002`–`012` — the deterministic core, in order (RNG → params/genome → world →
+  grid → mutation → energy → food → behaviour → bounds → loop → stability test).
