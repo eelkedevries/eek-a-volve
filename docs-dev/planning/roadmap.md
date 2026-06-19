@@ -26,7 +26,10 @@ Status legend: ✅ done · ▶️ next · ⬜ planned
 - **001_setup** — default Vite + TypeScript scaffold, base path `/eek-a-volve/`,
   reproducible install (lockfile). _Completed by the bootstrap commit._
 
-## Phase 1 — Deterministic core (headless, tested) ▶️
+## Phase 1 — Deterministic core (headless, tested) ✅
+
+**Complete** — prompts 002–012 run; the headless ecosystem is deterministic and
+stable (no extinction or explosion over 20k+ ticks), 54 tests green.
 
 Goal: a headless ecosystem that runs from a seed to a stable population and is
 bit-for-bit reproducible. Spec: _Architecture (`core/`)_, _Data schemas_,
@@ -44,9 +47,10 @@ _Domain rules_, _Determinism_.
 - **011** fixed-timestep tick loop integrating the above (accumulator; hard cap on ticks per frame later).
 - **012** population-stability test: long headless run asserts neither extinction nor unbounded growth.
 
-_Prompts 002–012 are authored in [`../agent/prompts/`](../agent/prompts/); run them one at a time, in order._
+**Test runner:** Vitest (`npm test`), established by prompt 002.
 
-**Test runner:** resolved — prompt 002 establishes **Vitest** (`npm test`) and records it in `AGENTS.md`.
+_Prompts for Phases 2–7 are now authored too (013–024); run them in order. Phase
+and prompt numbers below are the real, authored numbers._
 
 ## Phase 2 — Worker boundary ⬜
 
