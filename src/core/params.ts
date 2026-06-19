@@ -36,6 +36,8 @@ export interface SimulationParameters {
   predation: boolean;
   /** Whether catastrophe events may occur. */
   catastrophes: boolean;
+  /** Whether a trickle of fresh-genome immigrants is introduced over time. */
+  immigration: boolean;
 
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
@@ -62,6 +64,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   mutationMagnitude: 0.1,
   predation: true,
   catastrophes: false,
+  immigration: false,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
