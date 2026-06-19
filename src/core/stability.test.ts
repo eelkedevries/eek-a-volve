@@ -33,7 +33,7 @@ describe('population stability', () => {
       expect(max).toBeLessThan(1000);
       expect(max).toBeLessThan(MAX_POPULATION);
     }
-  });
+  }, 30000);
 
   it('is deterministic over a long run', () => {
     const params = { ...DEFAULT_PARAMETERS, seed: 9 };

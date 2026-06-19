@@ -1,6 +1,7 @@
 import { World } from './world.ts';
 import { SpatialGrid } from './grid.ts';
 import { Behaviour } from './behaviour.ts';
+import { Predation } from './predation.ts';
 import { Rng } from './rng.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
@@ -24,6 +25,7 @@ export class Simulation {
   private readonly agentGrid: SpatialGrid;
   private readonly foodGrid: SpatialGrid;
   private readonly behaviour: Behaviour;
+  private readonly predation: Predation;
 
   tick = 0;
   /** Births during the most recent tick. */
@@ -41,6 +43,7 @@ export class Simulation {
     this.agentGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, MAX_POPULATION);
     this.foodGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, foodCapacity);
     this.behaviour = new Behaviour(MAX_POPULATION);
+    this.predation = new Predation();
     this.seed();
   }
 
@@ -52,8 +55,14 @@ export class Simulation {
     this.rebuildFoodGrid();
     // 2. Behaviour: movement, eating, asexual reproduction.
     let births = behaviour.step(world, params, foodGrid, agentGrid, rng);
-    // 3. Metabolism, ageing, death.
-    const deaths = metaboliseAndReap(world, params);
+    // 3. Predation: carnivores eat smaller neighbours (positions have moved).
+    let deaths = 0;
+    if (params.predation) {
+      agentGrid.rebuildFromAgents(world);
+      deaths += this.predation.step(world, params, agentGrid);
+    }
+    // 4. Metabolism, ageing, death.
+    deaths += metaboliseAndReap(world, params);
     // 4. Food regeneration.
     regenerateFood(world, params, rng);
     // 5. Immigration (optional).
