@@ -31,8 +31,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Verify (project's verify command, if defined)
-        run: npm run check --if-present
+      - name: Test (core/)
+        run: npm test
 
       - name: Run public-build safety check
         run: bash scripts/check-public-build.sh dist

@@ -44,7 +44,7 @@ Recorded at setup; these override the defaults above where they differ.
 - **Language / locale:** British English in comments, docs, and user-facing text; standard identifier casing in code.
 - **Workflow:** commit-to-`main`, one commit per prompt.
 - **Verify command:** `npm run build`.
-- **Testing policy:** tests required for `core/` (headless determinism and population-stability checks); rendering and UI need not be unit-tested.
+- **Testing policy:** tests required for `core/` (headless determinism and population-stability checks); rendering and UI need not be unit-tested. Run with `npm test` (Vitest).
 - **Deploy base path:** `/eek-a-volve/`.
 
 ## Supporting guides
