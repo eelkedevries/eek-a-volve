@@ -3,6 +3,7 @@ import { SpatialGrid } from './grid.ts';
 import { Behaviour } from './behaviour.ts';
 import { Predation } from './predation.ts';
 import { Speciation } from './speciation.ts';
+import { Events, type CatastropheEvent } from './events.ts';
 import { Rng } from './rng.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
@@ -31,6 +32,7 @@ export class Simulation {
   private readonly behaviour: Behaviour;
   private readonly predation: Predation;
   private readonly speciation: Speciation;
+  private readonly events = new Events();
 
   tick = 0;
   /** Births during the most recent tick. */
@@ -39,6 +41,11 @@ export class Simulation {
   deaths = 0;
   /** Whether the population is currently near extinction. */
   nearExtinction = false;
+
+  /** The most recent catastrophe event, if any (for display/narration). */
+  get lastEvent(): CatastropheEvent | null {
+    return this.events.last;
+  }
 
   constructor(params: SimulationParameters) {
     this.params = params;
@@ -69,6 +76,8 @@ export class Simulation {
     }
     // 4. Metabolism, ageing, death.
     deaths += metaboliseAndReap(world, params);
+    // 5. Catastrophes (optional, behind the toggle).
+    deaths += this.events.step(world, params, rng, this.tick);
     // 4. Food regeneration.
     regenerateFood(world, params, rng);
     // 5. Immigration (optional).
