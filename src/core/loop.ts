@@ -2,6 +2,7 @@ import { World } from './world.ts';
 import { SpatialGrid } from './grid.ts';
 import { Behaviour } from './behaviour.ts';
 import { Predation } from './predation.ts';
+import { Speciation } from './speciation.ts';
 import { Rng } from './rng.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
@@ -10,6 +11,9 @@ import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from '.
 
 /** Spatial-grid cell size; a few times the typical sense radius keeps queries cheap. */
 const GRID_CELL_SIZE = 32;
+
+/** Re-cluster species every this many ticks (labels only; not every tick). */
+const SPECIATION_INTERVAL = 60;
 
 /**
  * One fixed-timestep simulation. It owns the world, the reused spatial grids,
@@ -26,6 +30,7 @@ export class Simulation {
   private readonly foodGrid: SpatialGrid;
   private readonly behaviour: Behaviour;
   private readonly predation: Predation;
+  private readonly speciation: Speciation;
 
   tick = 0;
   /** Births during the most recent tick. */
@@ -44,6 +49,7 @@ export class Simulation {
     this.foodGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, foodCapacity);
     this.behaviour = new Behaviour(MAX_POPULATION);
     this.predation = new Predation();
+    this.speciation = new Speciation();
     this.seed();
   }
 
@@ -72,6 +78,7 @@ export class Simulation {
     this.births = births;
     this.deaths = deaths;
     this.tick++;
+    if (this.tick % SPECIATION_INTERVAL === 0) this.speciation.cluster(world);
   }
 
   /** Advance the simulation by `ticks` ticks. */
@@ -85,6 +92,7 @@ export class Simulation {
     const target = Math.min(params.initialPopulation, world.agentCapacity);
     for (let i = 0; i < target; i++) spawnRandomAgent(world, params, rng, i % species);
     seedFood(world, params, rng);
+    this.speciation.cluster(world);
   }
 
   private rebuildFoodGrid(): void {
