@@ -32,7 +32,7 @@ Goal: a headless ecosystem that runs from a seed to a stable population and is
 bit-for-bit reproducible. Spec: _Architecture (`core/`)_, _Data schemas_,
 _Domain rules_, _Determinism_.
 
-- **002** seeded RNG (`mulberry32`) + determinism test (same seed ⇒ identical sequence).
+- **002** seeded RNG (`mulberry32`) + determinism test (same seed ⇒ identical sequence); also establishes the Vitest test harness.
 - **003** simulation parameter set + trait/genome definitions (trait list, ranges, clamping).
 - **004** structure-of-arrays world state + object pools (spawn/kill, slot reuse, no per-tick allocation).
 - **005** uniform spatial grid for neighbour queries (food, threats, mates).
@@ -44,8 +44,9 @@ _Domain rules_, _Determinism_.
 - **011** fixed-timestep tick loop integrating the above (accumulator; hard cap on ticks per frame later).
 - **012** population-stability test: long headless run asserts neither extinction nor unbounded growth.
 
-**Decision to confirm before 002:** a headless test runner and a `test` script —
-Vitest is the natural fit for Vite + TS; record it in `AGENTS.md` (verify/test).
+_Prompts 002–012 are authored in [`../agent/prompts/`](../agent/prompts/); run them one at a time, in order._
+
+**Test runner:** resolved — prompt 002 establishes **Vitest** (`npm test`) and records it in `AGENTS.md`.
 
 ## Phase 2 — Worker boundary ⬜
 
@@ -102,7 +103,7 @@ Spec: _Naming and voice_.
 
 ## Open questions / decisions to confirm
 
-- **Test runner + command** (Vitest?) — needed before prompt 002; then update `AGENTS.md`.
+- ~~**Test runner + command**~~ — resolved: Vitest (`npm test`), established by prompt 002.
 - **Trait ranges, energy constants, carrying-capacity tuning** — emerge during
   Phase 1; record the settled values in the specification.
 - **Default narrator model** on OpenRouter — choose a low-cost default in Phase 6.

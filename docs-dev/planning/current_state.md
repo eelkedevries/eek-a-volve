@@ -18,13 +18,14 @@ This file records what *is* (current reality). The binding design canon is `docs
   binding design is `reference/primary_authoritative/specification.md`.
 - Sequencing is planned in [`roadmap.md`](roadmap.md) (non-binding); the core is
   trait-only, continuous, energy-driven selection per the spec.
-- _Open:_ headless test runner + `test` command (Vitest likely) — to confirm
-  before Phase 1 prompt 002.
+- Test runner: **Vitest** (`npm test`), established by prompt 002.
 
 ## In progress / next
 
-- **Phase 1 — deterministic core.** Next prompt: **002**, the seeded `mulberry32`
-  RNG with a headless determinism test. See [`roadmap.md`](roadmap.md).
+- **Phase 1 — deterministic core.** Prompts **002–012 are authored** in
+  `../agent/prompts/`. Next action: run **002** (seeded `mulberry32` RNG +
+  determinism test, which also sets up the Vitest harness). See
+  [`roadmap.md`](roadmap.md).
 
 ## Prompts run
 
