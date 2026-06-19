@@ -8,16 +8,24 @@ This file records what *is* (current reality). The binding design canon is `docs
 
 ## Systems
 
-_None yet — project initialised._
+- **Project scaffold** — Vite + TypeScript static site (Vite 8 / TS 6), base path
+  `/eek-a-volve/`, reproducible install via committed `package-lock.json`. Builds
+  with `npm run build`. No simulation code yet (default Vite demo page).
 
 ## Key decisions
 
-_None recorded yet._
+- Follow the eek-a-dev workflow: commit-to-`main`, one commit per prompt; the
+  binding design is `reference/primary_authoritative/specification.md`.
+- Sequencing is planned in [`roadmap.md`](roadmap.md) (non-binding); the core is
+  trait-only, continuous, energy-driven selection per the spec.
+- _Open:_ headless test runner + `test` command (Vitest likely) — to confirm
+  before Phase 1 prompt 002.
 
 ## In progress / next
 
-_Nothing in progress yet._
+- **Phase 1 — deterministic core.** Next prompt: **002**, the seeded `mulberry32`
+  RNG with a headless determinism test. See [`roadmap.md`](roadmap.md).
 
 ## Prompts run
 
-_A running list of completed prompts, newest last. Add the prompt filename as each is run._
+- `001_setup` — Vite + TypeScript scaffold (satisfied by the bootstrap commit; verified).
