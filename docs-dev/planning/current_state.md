@@ -45,16 +45,19 @@ This file records what *is* (current reality). The binding design canon is `docs
 
 ## In progress / next
 
-- **All planned phases (1–7) are complete** — prompts 001–024 run; 82 tests
-  green; `npm run build` clean; the production bundle is deploy-ready
-  (base path `/eek-a-volve/`, no source maps, no `docs-dev/` leakage).
-- **Outstanding (manual):** enable GitHub Pages (Settings → Pages → GitHub
-  Actions), then run the deploy workflow.
-- **Known follow-ups / deferred:** food rendering (needs the snapshot to carry
-  food); sexual reproduction + its toggle; catastrophe events surfaced in the UI
-  (needs the snapshot to carry the latest event); snapshot births/deaths are
-  per-tick rather than accumulated since the previous snapshot. The neural-net
-  brains and other stretch goals remain out of scope per the spec.
+- **Phases 1–7 complete** — prompts 001–024 run; deployed live at
+  `https://eelkedevries.github.io/eek-a-volve/`.
+- **Phases 8–13 — "fun & legibility" overhaul (in progress).** Prompts **025–042**
+  authored and reviewed (independent coherence review applied; identity is the
+  keystone). Goal: make behaviour *recognisable* (eat/hunt/flee/sex/birth/death)
+  and creatures *relatable* (genome-driven bodies, faces, names, emotes,
+  adopt/follow, director, records), with a community/swarm mode toggle. Several
+  of the earlier "deferred" items are now folded in: food rendering, sexual
+  reproduction, life stages, carrion, and catastrophe/event surfacing.
+  - **Watch points while implementing:** keep the 012 stability test green as
+    sexual reproduction (default-on, with a documented default-off fallback),
+    life stages, and carrion change the default dynamics; preserve determinism;
+    keep the snapshot append-only; bound the detail render layer.
 
 ## Prompts run
 
