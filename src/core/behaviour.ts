@@ -13,8 +13,9 @@ import {
   SPECIES_TRAIT_COUNT,
   TRAIT_RANGES,
 } from './genome.ts';
-import { feed } from './energy.ts';
+import { feed, energyCapacity } from './energy.ts';
 import { consumeFood, PLANT, CARRION } from './food.ts';
+import { evaluate, BRAIN_INPUTS, BRAIN_OUTPUTS, BRAIN_WEIGHT_COUNT } from './brain.ts';
 import { breed, breedSexual } from './mutation.ts';
 import type { PheromoneField } from './pheromone.ts';
 import { PHEROMONE_GRADIENT_EPSILON } from './pheromone.ts';
@@ -54,6 +55,9 @@ export class Behaviour {
   private readonly live: Int32Array;
   private readonly mated: Uint8Array;
   private readonly selfNorm = new Float64Array(TRAIT_COUNT);
+  // Reused neural-net I/O buffers (allocation-free; only used when brains are on).
+  private readonly brainInputs = new Float32Array(BRAIN_INPUTS);
+  private readonly brainOutputs = new Float32Array(BRAIN_OUTPUTS);
 
   /** Slots of offspring born with a freak mutation this tick (drained by the Simulation). */
   readonly freakBirths: Int32Array;
@@ -196,10 +200,41 @@ export class Behaviour {
       agentGrid.query(this.px, this.py, sense, this.onAgent);
       foodGrid.query(this.px, this.py, sense, this.onFood);
 
-      // Heading: flee, else court a mate, else seek food, else wander.
+      // Heading: a learned net when brains are on, else flee / court / seek / wander.
       let dx: number;
       let dy: number;
-      if (this.hasThreat) {
+      if (world.brainWeights !== null) {
+        // Sensory inputs: normalised nearest-food and threat directions, energy, bias.
+        let fdx = 0;
+        let fdy = 0;
+        if (this.bestFood !== -1) {
+          fdx = world.foodX[this.bestFood] - this.px;
+          fdy = world.foodY[this.bestFood] - this.py;
+          const l = Math.sqrt(fdx * fdx + fdy * fdy) || 1;
+          fdx /= l;
+          fdy /= l;
+        }
+        let tdx = 0;
+        let tdy = 0;
+        if (this.hasThreat) {
+          tdx = this.px - this.threatX;
+          tdy = this.py - this.threatY;
+          const l = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+          tdx /= l;
+          tdy /= l;
+        }
+        const inp = this.brainInputs;
+        inp[0] = fdx;
+        inp[1] = fdy;
+        inp[2] = tdx;
+        inp[3] = tdy;
+        inp[4] = energy[s] / energyCapacity(sizeCol[s]);
+        inp[5] = 1;
+        evaluate(world.brainWeights, s * BRAIN_WEIGHT_COUNT, inp, this.brainOutputs);
+        dx = this.brainOutputs[0];
+        dy = this.brainOutputs[1];
+        world.action[s] = this.hasThreat ? FLEEING : this.bestFood !== -1 ? SEEKING : IDLE;
+      } else if (this.hasThreat) {
         dx = this.px - this.threatX;
         dy = this.py - this.threatY;
         world.action[s] = FLEEING;

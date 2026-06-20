@@ -36,6 +36,9 @@ export class World {
   /** What the agent is doing this tick (see `state.ts`). */
   readonly action: Uint8Array;
 
+  /** Per-creature neural-net weights (optional capability); null when brains are off. */
+  brainWeights: Float32Array | null = null;
+
   // Food columns, indexed by slot.
   readonly foodX: Float32Array;
   readonly foodY: Float32Array;
@@ -92,6 +95,11 @@ export class World {
     this.freeFood = new Int32Array(foodCapacity);
     for (let i = 0; i < foodCapacity; i++) this.freeFood[i] = i;
     this.freeFoodCount = foodCapacity;
+  }
+
+  /** Allocate the per-creature brain-weight store (optional capability). Called once. */
+  enableBrains(weightCount: number): void {
+    this.brainWeights = new Float32Array(this.agentCapacity * weightCount);
   }
 
   /** Allocate an agent slot (resetting age, marking alive), or -1 if at capacity. */

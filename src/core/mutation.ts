@@ -2,6 +2,33 @@ import type { Rng } from './rng.ts';
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import { TRAIT_COUNT, TRAIT_RANGES, clampTrait } from './genome.ts';
+import { BRAIN_WEIGHT_COUNT } from './brain.ts';
+
+/**
+ * Inherit a child's neural-net weights from one parent (asexual) or two (sexual),
+ * with the same per-gene Gaussian mutation as traits. Only runs when brains are
+ * enabled (`brainWeights !== null`), so the default path is untouched.
+ */
+function inheritBrain(
+  world: World,
+  child: number,
+  parentA: number,
+  parentB: number,
+  mutationRate: number,
+  mutationMagnitude: number,
+  rng: Rng,
+): void {
+  const wts = world.brainWeights;
+  if (wts === null) return;
+  const cb = child * BRAIN_WEIGHT_COUNT;
+  const ab = parentA * BRAIN_WEIGHT_COUNT;
+  const bb = parentB * BRAIN_WEIGHT_COUNT;
+  for (let k = 0; k < BRAIN_WEIGHT_COUNT; k++) {
+    let v = rng.next() < 0.5 ? wts[ab + k] : wts[bb + k];
+    if (rng.next() < mutationRate) v += rng.gaussian() * mutationMagnitude;
+    wts[cb + k] = v;
+  }
+}
 
 /**
  * Probability that an offspring carries a freak mutation: an out-of-distribution
@@ -40,6 +67,7 @@ export function breed(
     }
     cols[t][child] = value;
   }
+  inheritBrain(world, child, parent, parent, mutationRate, mutationMagnitude, rng);
 
   if (rng.next() < FREAK_MUTATION_RATE) {
     const t = rng.int(TRAIT_COUNT);
@@ -75,6 +103,7 @@ export function breedSexual(
     }
     cols[t][child] = value;
   }
+  inheritBrain(world, child, a, b, mutationRate, mutationMagnitude, rng);
 
   if (rng.next() < FREAK_MUTATION_RATE) {
     const t = rng.int(TRAIT_COUNT);

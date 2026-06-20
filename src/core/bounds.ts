@@ -2,6 +2,10 @@ import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import type { Rng } from './rng.ts';
 import { TRAIT_COUNT, TRAIT_RANGES } from './genome.ts';
+import { BRAIN_WEIGHT_COUNT } from './brain.ts';
+
+/** Spread of a founder/immigrant's initial neural-net weights, when brains are on. */
+const BRAIN_INIT_SCALE = 0.6;
 
 /** Population at or below which a run is flagged as near-extinction. */
 export const NEAR_EXTINCTION_THRESHOLD = 5;
@@ -37,6 +41,12 @@ export function spawnRandomAgent(
   for (let t = 0; t < TRAIT_COUNT; t++) {
     const r = TRAIT_RANGES[t];
     world.traits[t][slot] = r.min + rng.next() * (r.max - r.min);
+  }
+  if (world.brainWeights !== null) {
+    const base = slot * BRAIN_WEIGHT_COUNT;
+    for (let k = 0; k < BRAIN_WEIGHT_COUNT; k++) {
+      world.brainWeights[base + k] = (rng.next() * 2 - 1) * BRAIN_INIT_SCALE;
+    }
   }
   world.x[slot] = rng.next() * params.worldWidth;
   world.y[slot] = rng.next() * params.worldHeight;

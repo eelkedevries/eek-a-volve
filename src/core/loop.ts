@@ -13,6 +13,7 @@ import type { SimulationParameters } from './params.ts';
 import type { PopulationRecord } from './population.ts';
 import { TRAIT_COUNT, SIZE, clampTrait } from './genome.ts';
 import { metaboliseAndReap, energyCapacity } from './energy.ts';
+import { BRAIN_WEIGHT_COUNT } from './brain.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
@@ -83,6 +84,7 @@ export class Simulation {
     this.behaviour = new Behaviour(MAX_POPULATION);
     this.predation = new Predation();
     this.speciation = new Speciation();
+    if (params.neuralBrains) this.world.enableBrains(BRAIN_WEIGHT_COUNT);
     if (population !== undefined && population.length > 0) this.seedFromPopulation(population);
     else this.seed();
   }
@@ -187,6 +189,11 @@ export class Simulation {
       world.generation[slot] = r.generation;
       world.vx[slot] = 0;
       world.vy[slot] = 0;
+      // The save carries no brain weights, so give imported creatures fresh ones.
+      if (world.brainWeights !== null) {
+        const b = slot * BRAIN_WEIGHT_COUNT;
+        for (let k = 0; k < BRAIN_WEIGHT_COUNT; k++) world.brainWeights[b + k] = rng.next() * 2 - 1;
+      }
     }
     seedFood(world, params, rng);
     this.prevSpeciesCount = this.speciation.cluster(world);

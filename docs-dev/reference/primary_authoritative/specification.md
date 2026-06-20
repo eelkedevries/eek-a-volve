@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.4.0
+Version: 0.4.1
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -56,7 +56,7 @@ The genome is a fixed-length array of real-valued, clamped traits, one array per
 
 The first six traits are the species-defining ("ecological") set used for the genetic-distance gate and speciation; `display` and `matePreference` sit after them and are deliberately excluded from that distance.
 
-World state uses a structure-of-arrays layout: parallel typed arrays for position (x, y), velocity or heading, current energy, age, genome traits, species identifier, a stable creature id, and that creature's parent id (0 for founders and immigrants), indexed by a stable agent slot. Agent and food slots are drawn from pre-allocated pools and reused on death and birth; nothing on the per-tick path allocates.
+World state uses a structure-of-arrays layout: parallel typed arrays for position (x, y), velocity or heading, current energy, age, genome traits, species identifier, a stable creature id, and that creature's parent id (0 for founders and immigrants), indexed by a stable agent slot. When the optional neural-brains capability is enabled, a further per-creature weight block (a fixed-size genome of network weights) is allocated; it is absent by default. Agent and food slots are drawn from pre-allocated pools and reused on death and birth; nothing on the per-tick path allocates.
 
 Lineage is tracked for display: alongside the per-creature parent id, a bounded, pre-allocated registry remembers recent `id → parent id` links (a fixed-capacity ring; old links are evicted, never grown). It lets the inspector resolve a creature's short ancestry chain back through ancestors that have since died, and is observational metadata only (v0.3.3).
 
@@ -74,7 +74,7 @@ These are the binding simulation laws. They are fixed during a run; only the tim
 
 Energy budget. Each tick subtracts a baseline metabolic drain scaled by `size`, `speed`, and `metabolicEfficiency`. Eating food adds energy. An agent dies when its energy reaches zero or when it exceeds a maximum age. Selection is therefore implicit and continuous: there is no explicit fitness function and there are no generation boundaries.
 
-Behaviour. A hand-coded policy parameterised by the agent's traits, not a learned controller: move toward the nearest food within `senseRadius`; if a larger, more carnivorous agent is within range, flee; if energy exceeds the reproduction threshold and a compatible neighbour is present, reproduce sexually, or asexually if the configuration selects it.
+Behaviour. By default a hand-coded policy parameterised by the agent's traits: move toward the nearest food within `senseRadius`; if a larger, more carnivorous agent is within range, flee; if energy exceeds the reproduction threshold and a compatible neighbour is present, reproduce sexually, or asexually if the configuration selects it. Optionally (the `neuralBrains` capability, default off, v0.4.1), the per-tick movement *heading* is instead produced by a small fixed-topology neural network whose weights are part of the genome and evolve; eating, reproduction, energy, and predation are unchanged. The hand-coded policy is the default and the fallback (optional-capability principle).
 
 Reproduction and mutation. Reproduction requires crossing the energy threshold and pays an energy cost shared with the offspring. Offspring traits are inherited and then perturbed: each trait mutates with the configured probability by a Gaussian step of the configured magnitude, after which all traits are clamped to valid ranges to prevent the propagation of invalid values.
 

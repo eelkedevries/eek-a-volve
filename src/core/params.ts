@@ -62,6 +62,9 @@ export interface SimulationParameters {
   /** Length of one seasonal cycle, in ticks. */
   seasonPeriod: number;
 
+  /** Optional capability: drive movement with an evolvable neural net (default off). */
+  neuralBrains: boolean;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -98,6 +101,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   biomeStrength: 0,
   seasonAmplitude: 0,
   seasonPeriod: 1200,
+  neuralBrains: false,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

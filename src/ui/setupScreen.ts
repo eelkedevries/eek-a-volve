@@ -32,6 +32,9 @@ const HELP: Record<string, string> = {
   pheromoneDiffusion: 'How much trails spread to neighbouring cells each tick (0–1).',
   pheromoneDeposit: 'How much scent a creature drops when it eats.',
   biomeStrength: 'How strongly food clusters into fertile regions (0 = spread evenly).',
+  seasonAmplitude: 'How much food regeneration swings with the seasons (0 = no seasons).',
+  seasonPeriod: 'Length of one seasonal cycle, in ticks.',
+  neuralBrains: 'Experimental: drive movement with a small evolvable neural network instead of the hand-coded rules. Off keeps the tried-and-tested behaviour.',
   minTimeMultiplier: 'Slowest post-start speed (ticks per frame).',
   maxTimeMultiplier: 'Fastest post-start speed (ticks per frame).',
 };
