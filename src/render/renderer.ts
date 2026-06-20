@@ -39,6 +39,25 @@ import { Emotes, EMOTE_NONE, EMOTE_SCARED, EMOTE_AMOROUS, EMOTE_HUNGRY } from '.
 import { EATING, HUNTING, FLEEING, COURTING } from '../core/state.ts';
 import { ELDER } from '../core/lifestage.ts';
 import { fertilityAt } from '../core/biome.ts';
+import { SIZE, TRAIT_RANGES } from '../core/genome.ts';
+
+/** Colour mode for creature bodies: species (default) or a trait ramp. */
+export type ColourMode = 'species' | 'diet' | 'size' | 'sense';
+
+/** A perceptual, colour-blind-friendly ramp (viridis anchors), low → high. */
+const TRAIT_RAMP = [0x440154, 0x31688e, 0x35b779, 0xfde725];
+
+function rampColour(t: number): number {
+  const x = (t < 0 ? 0 : t > 1 ? 1 : t) * (TRAIT_RAMP.length - 1);
+  const i = Math.floor(x);
+  const f = x - i;
+  const a = TRAIT_RAMP[i];
+  const b = TRAIT_RAMP[Math.min(i + 1, TRAIT_RAMP.length - 1)];
+  const r = Math.round(((a >> 16) & 255) + (((b >> 16) & 255) - ((a >> 16) & 255)) * f);
+  const g = Math.round(((a >> 8) & 255) + (((b >> 8) & 255) - ((a >> 8) & 255)) * f);
+  const bl = Math.round((a & 255) + ((b & 255) - (a & 255)) * f);
+  return (r << 16) | (g << 8) | bl;
+}
 import type { SimulationParameters } from '../core/params.ts';
 
 /** Selectable species palettes. The "safe" set is Okabe–Ito, designed to stay
@@ -166,6 +185,9 @@ export class Renderer {
   private pheromoneRows = 0;
   private pheromoneW = 1;
   private pheromoneH = 1;
+
+  /** How creature bodies are coloured: by species (default) or a trait ramp. */
+  private colourMode: ColourMode = 'species';
 
   // Behaviour-cue bookkeeping: previous-frame trace per stable id, and a frame counter.
   private readonly trace = new Map<number, AgentTrace>();
@@ -358,6 +380,27 @@ export class Renderer {
   /** Whether reduced motion is currently active (to seed a manual toggle). */
   isReducedMotion(): boolean {
     return this.reducedMotion;
+  }
+
+  /** Choose how creature bodies are coloured (species or a trait ramp). */
+  setColourMode(mode: ColourMode): void {
+    this.colourMode = mode;
+  }
+
+  /** Body colour for the agent at offset `o`: species palette, or a trait ramp. */
+  private bodyColour(view: Float32Array, o: number): number {
+    switch (this.colourMode) {
+      case 'diet':
+        return rampColour(view[o + A_DIET]);
+      case 'sense':
+        return rampColour(view[o + A_SENSE]);
+      case 'size': {
+        const r = TRAIT_RANGES[SIZE];
+        return rampColour((view[o + A_SCALE] - r.min) / (r.max - r.min));
+      }
+      default:
+        return colourFor(view[o + A_COLOUR] | 0);
+    }
   }
 
   /** Set the field overlay mode (off / fertility / pheromone) and redraw it. */
@@ -674,7 +717,7 @@ export class Renderer {
         view[o + A_SENSE],
         energy,
         stage,
-        colourFor(view[o + A_COLOUR] | 0),
+        this.bodyColour(view, o),
         1,
         pop,
         flash,
@@ -705,7 +748,7 @@ export class Renderer {
         const scale = view[o + A_SCALE] * 0.5;
         p.scaleX = scale;
         p.scaleY = scale;
-        p.tint = colourFor(view[o + A_COLOUR] | 0);
+        p.tint = this.bodyColour(view, o);
       } else {
         p.scaleX = 0;
         p.scaleY = 0;

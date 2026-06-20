@@ -18,6 +18,8 @@ export interface ControlsConfig {
   onCharts: () => void;
   /** Cycle the field overlay (off → fertility → pheromone). */
   onOverlay: (mode: 'off' | 'fertility' | 'pheromone') => void;
+  /** Choose how creature bodies are coloured. */
+  onColourMode: (mode: 'species' | 'diet' | 'size' | 'sense') => void;
   /** Selectable species palette names; index passed back on change. */
   palettes: string[];
   onPalette: (index: number) => void;
@@ -105,6 +107,25 @@ export function createControls(config: ControlsConfig): HTMLElement {
     config.onOverlay(overlayModes[overlayIndex]);
   });
 
+  const colourLabel = document.createElement('label');
+  colourLabel.className = 'control-select';
+  const colour = document.createElement('select');
+  for (const [value, text] of [
+    ['species', 'Species'],
+    ['diet', 'Diet'],
+    ['size', 'Size'],
+    ['sense', 'Sense'],
+  ] as const) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = text;
+    colour.appendChild(option);
+  }
+  colour.addEventListener('change', () =>
+    config.onColourMode(colour.value as 'species' | 'diet' | 'size' | 'sense'),
+  );
+  colourLabel.append('Colour', colour);
+
   const paletteLabel = document.createElement('label');
   paletteLabel.className = 'control-select';
   const palette = document.createElement('select');
@@ -162,6 +183,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     recordsBtn,
     chartsBtn,
     overlayBtn,
+    colourLabel,
     paletteLabel,
     qualityLabel,
     motionLabel,

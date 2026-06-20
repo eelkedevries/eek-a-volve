@@ -106,6 +106,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
         renderer.setOverlayMode(mode);
         client.setOverlay(mode === 'pheromone');
       },
+      onColourMode: (mode) => renderer.setColourMode(mode),
       palettes: PALETTES.map((p) => p.name),
       onPalette: (index) => renderer.setPalette(index),
       onQuality: (level) => renderer.setQuality(level),
