@@ -39,7 +39,7 @@
   --edge: 0.85rem;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
-  --dock-h: 11.5rem; /* the single toolbar's height (canvas gets the rest) */
+  --dock-h: min(8.5rem, 20vh); /* the toolbar is capped at 20% of the viewport */
 
   --font-display: 'Fredoka', system-ui, sans-serif;
   --font-body: 'Space Grotesk', system-ui, -apple-system, sans-serif;
@@ -247,9 +247,9 @@ button {
   flex: 0 0 auto;
   height: var(--dock-h);
   display: flex;
-  gap: 0.9rem;
-  padding: 0.6rem 0.85rem;
-  padding-bottom: max(0.6rem, var(--safe-b));
+  gap: 0.7rem;
+  padding: 0.4rem 0.7rem;
+  padding-bottom: max(0.4rem, var(--safe-b));
   background: var(--panel);
   border-top: 1px solid var(--border);
   box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -263,7 +263,7 @@ button {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.35rem;
   overflow: hidden;
 }
 
@@ -271,13 +271,13 @@ button {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.45rem 0.9rem;
+  gap: 0.3rem 0.65rem;
 }
 
 .dock-brand {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 1.2rem;
+  font-size: 1rem;
   letter-spacing: -0.02em;
   background: linear-gradient(100deg, #8dffb0, var(--lime) 75%);
   -webkit-background-clip: text;
@@ -294,8 +294,8 @@ button {
 .dock-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  padding: 0.3rem 0.6rem;
+  gap: 0.05rem;
+  padding: 0.18rem 0.5rem;
   background: var(--field-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -303,7 +303,7 @@ button {
 
 .dock-stat-label {
   color: var(--muted-dim);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -311,7 +311,7 @@ button {
 .dock-stat-value {
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -353,7 +353,7 @@ button {
   flex-wrap: wrap;
   justify-content: flex-start;
   align-items: center;
-  gap: 0.45rem 0.6rem;
+  gap: 0.3rem 0.45rem;
 }
 
 .controls .control-select,
@@ -380,13 +380,14 @@ button {
 }
 
 .controls select {
-  padding: 0.35rem 0.55rem;
+  padding: 0.28rem 0.45rem;
   border-radius: var(--radius);
 }
 
 .controls button {
-  padding: 0.4rem 0.85rem;
+  padding: 0.3rem 0.7rem;
   font-weight: 500;
+  font-size: 0.85rem;
 }
 
 .controls button:hover,
@@ -447,11 +448,11 @@ button {
 /* --- The message log (the only scrollable element) --------------------- */
 
 .dock-log {
-  flex: 0 0 21rem;
+  flex: 0 0 19rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   border-left: 1px solid var(--border);
-  padding-left: 0.85rem;
+  padding-left: 0.7rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(92, 255, 143, 0.28) transparent;
 }
@@ -480,12 +481,12 @@ button {
 }
 
 .feed-line {
-  padding: 0.4rem 0.6rem;
+  padding: 0.28rem 0.5rem;
   background: rgba(92, 255, 143, 0.05);
   border-left: 3px solid var(--blue);
   border-radius: 0 var(--radius) var(--radius) 0;
-  font-size: 0.82rem;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  line-height: 1.3;
   color: #cdeada;
   animation: eav-rise 0.25s ease both;
 }
@@ -853,25 +854,48 @@ button {
 @media (max-width: 880px) {
   :root {
     --edge: 0.5rem;
-    --dock-h: 56vh;
+    --dock-h: min(20vh, 11rem); /* keep the whole dock within 20% of the screen */
   }
 
   .dock {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.35rem;
   }
 
   .dock-main {
+    flex: 0 0 auto;
+    gap: 0.3rem;
+  }
+
+  /* Drop decoration so the compact dock fits stats + controls + log in 20%. */
+  .dock-brand,
+  .dock-narr {
+    display: none;
+  }
+
+  /* Controls collapse to one row that swipes sideways, leaving the vertical
+     space for the message log (still the only vertical scroller). */
+  .dock-controls {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dock-controls .controls {
+    flex-wrap: nowrap;
+  }
+
+  .dock-controls .controls > * {
     flex: 0 0 auto;
   }
 
   .dock-log {
     flex: 1 1 auto;
-    min-height: 4rem;
+    min-height: 3rem;
     border-left: 0;
     border-top: 1px solid var(--border);
     padding-left: 0;
-    padding-top: 0.5rem;
+    padding-top: 0.4rem;
   }
 
   .stats-popover,
@@ -890,7 +914,7 @@ button {
 
   .controls button,
   .controls select {
-    min-height: 2.3rem;
+    min-height: 2rem;
   }
 
   .setup-form,
