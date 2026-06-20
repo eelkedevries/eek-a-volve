@@ -40,14 +40,30 @@ import { EATING, HUNTING, FLEEING, COURTING } from '../core/state.ts';
 import { ELDER } from '../core/lifestage.ts';
 import type { SimulationParameters } from '../core/params.ts';
 
-/** Palette indexed by species colour index; -1 (unassigned/immigrant) renders pale grey. */
-export const SPECIES_COLOURS = [
-  0xff5d5d, 0x5dff7a, 0x5d9bff, 0xffd14d, 0xc77dff, 0x46d8c4, 0xff8fc4, 0x9aa7b4,
+/** Selectable species palettes. The "safe" set is Okabe–Ito, designed to stay
+ *  distinct under the common colour-vision deficiencies; role/state never relies
+ *  on colour alone (maw, eyes, crown, emotes, and labels back it up). */
+export const PALETTES: { name: string; colours: number[] }[] = [
+  { name: 'Vivid', colours: [0xff5d5d, 0x5dff7a, 0x5d9bff, 0xffd14d, 0xc77dff, 0x46d8c4, 0xff8fc4, 0x9aa7b4] },
+  {
+    name: 'Colour-blind safe',
+    colours: [0xe69f00, 0x56b4e9, 0x009e73, 0xf0e442, 0x0072b2, 0xd55e00, 0xcc79a7, 0xbbbbbb],
+  },
 ];
+
+/** The default (Vivid) palette, exported for the legend. */
+export const SPECIES_COLOURS = PALETTES[0].colours;
+
+/** Module-level active palette (one renderer instance), switched at runtime. */
+let activePalette = PALETTES[0].colours;
+
+function setActivePalette(index: number): void {
+  activePalette = (PALETTES[index] ?? PALETTES[0]).colours;
+}
 
 function colourFor(index: number): number {
   if (index < 0) return 0xdddddd;
-  return SPECIES_COLOURS[index % SPECIES_COLOURS.length];
+  return activePalette[index % activePalette.length];
 }
 
 /** Food tints by type: green plants, muted brown carrion. */
@@ -68,8 +84,9 @@ const SWARM_DETAIL_ZOOM = 1.5;
 const EMOTE_MIN_ZOOM = 1.2;
 /** Energy fraction below which a creature shows the hungry emote. */
 const HUNGRY_FRACTION = 0.3;
-/** Hard cap on detailed creature objects per frame (the rest stay batched/culled). */
-const MAX_DETAILED = 600;
+/** Detailed-creature budgets per quality level; overflow falls back to the haze. */
+const DETAIL_BUDGET = { low: 150, medium: 500, high: 900 } as const;
+export type QualityLevel = keyof typeof DETAIL_BUDGET;
 /** World-unit margin around the viewport kept when culling, so edge creatures still draw. */
 const CULL_MARGIN = 24;
 /** Screen-pixel radius within which a click selects a creature; converted to world units. */
@@ -148,6 +165,10 @@ export class Renderer {
   // Visual juice, all honouring reduced motion.
   private reducedMotion = false;
   private shakeAmp = 0;
+
+  // Quality/scale: cap detailed creatures and toggle effects; overflow → haze.
+  private detailBudget: number = DETAIL_BUDGET.medium;
+  private effectsEnabled = true;
 
   // Latest snapshot, kept so pointer events can pick and follow between frames.
   private lastView: Float32Array | null = null;
@@ -297,13 +318,29 @@ export class Renderer {
     this.setNameplate(-1);
   }
 
-  /** Turn motion juice (shake, trails, flash, squash) on or off — for a manual toggle (041). */
+  /** Turn motion (shake, trails, flash, squash, cues, eased cuts) on or off. */
   setReducedMotion(on: boolean): void {
     this.reducedMotion = on;
     if (on) {
       this.shakeAmp = 0;
       this.app.stage.position.set(0, 0);
     }
+  }
+
+  /** Whether reduced motion is currently active (to seed a manual toggle). */
+  isReducedMotion(): boolean {
+    return this.reducedMotion;
+  }
+
+  /** Choose a species palette (0 = Vivid, 1 = colour-blind safe). */
+  setPalette(index: number): void {
+    setActivePalette(index);
+  }
+
+  /** Set the quality/scale level: caps detailed creatures and toggles effect cues. */
+  setQuality(level: QualityLevel): void {
+    this.detailBudget = DETAIL_BUDGET[level];
+    this.effectsEnabled = level !== 'low';
   }
 
   /** Draw a snapshot: keep it for picking, move the camera, then food + the LOD strategy. */
@@ -349,9 +386,11 @@ export class Renderer {
     };
     const detailed = this.mode === 'community' || this.camera.scale >= SWARM_DETAIL_ZOOM;
     if (detailed) {
-      this.agents.visible = false;
       this.creatureLayer.visible = true;
-      this.drawDetailed(view, count, bounds, this.camera.scale >= EMOTE_MIN_ZOOM);
+      const capped = this.drawDetailed(view, count, bounds, this.camera.scale >= EMOTE_MIN_ZOOM);
+      // Graceful degradation: when over the detail budget, draw the rest as haze.
+      this.agents.visible = capped;
+      if (capped) this.drawSwarmHaze(view, count);
     } else {
       this.creatureLayer.visible = false;
       this.agents.visible = true;
@@ -365,7 +404,8 @@ export class Renderer {
 
   /** Ease the camera centre and zoom toward the director's current target. */
   private easeCameraToDirector(vw: number, vh: number, dt: number): void {
-    const k = 1 - Math.exp(-dt * DIRECTOR_EASE_RATE);
+    // Under reduced motion, cut instantly (no smooth camera travel).
+    const k = this.reducedMotion ? 1 : 1 - Math.exp(-dt * DIRECTOR_EASE_RATE);
     const cx = this.camera.screenToWorldX(vw / 2);
     const cy = this.camera.screenToWorldY(vh / 2);
     let target = Math.min(vw, vh) / this.directorSpan;
@@ -420,6 +460,11 @@ export class Renderer {
    * shown in detail, so a zoomed-out haze does not flood the pool).
    */
   private updateEffects(view: Float32Array, count: number, detailed: boolean, dt: number): void {
+    // The trace is always maintained (so re-enabling does not burst), but spawning
+    // cues is gated: off under reduced motion or low quality. Squash/flash pulses
+    // are cheap and gated only by reduced motion.
+    const cues = this.effectsEnabled && !this.reducedMotion;
+    const juice = !this.reducedMotion;
     const f = ++this.frameNo;
     for (let i = 0; i < count; i++) {
       const o = HEADER_LENGTH + i * AGENT_STRIDE;
@@ -430,28 +475,30 @@ export class Renderer {
       const e = this.trace.get(id);
       if (e === undefined) {
         // Birth: pop the newborn, sparkle, and link it to its parent.
-        this.trace.set(id, { action, x, y, seen: f, squashUntil: this.now + SQUASH_MS, flashUntil: 0 });
-        this.effects.spawnBirth(x, y);
-        if (this.effects.canLineage()) {
-          const parent = this.findParent(view, count, i, x, y);
-          if (parent !== -1) this.effects.spawnLineage(parent, id);
+        this.trace.set(id, { action, x, y, seen: f, squashUntil: juice ? this.now + SQUASH_MS : 0, flashUntil: 0 });
+        if (cues) {
+          this.effects.spawnBirth(x, y);
+          if (this.effects.canLineage()) {
+            const parent = this.findParent(view, count, i, x, y);
+            if (parent !== -1) this.effects.spawnLineage(parent, id);
+          }
         }
       } else {
         if (action !== e.action) {
           if (action === EATING) {
-            e.squashUntil = this.now + SQUASH_MS;
-            if (detailed) this.effects.spawnMunch(x, y);
+            if (juice) e.squashUntil = this.now + SQUASH_MS;
+            if (cues && detailed) this.effects.spawnMunch(x, y);
           } else if (action === HUNTING) {
-            e.flashUntil = this.now + FLASH_MS;
-            if (detailed) this.effects.spawnHunt(x, y);
+            if (juice) e.flashUntil = this.now + FLASH_MS;
+            if (cues && detailed) this.effects.spawnHunt(x, y);
           } else if (action === FLEEING) {
-            if (detailed) this.effects.spawnFlee(x, y, view[o + A_HEADING]);
+            if (cues && detailed) this.effects.spawnFlee(x, y, view[o + A_HEADING]);
           } else if (action === COURTING) {
-            if (detailed) this.effects.spawnCourt(x, y);
+            if (cues && detailed) this.effects.spawnCourt(x, y);
           }
         }
         // Speed-driven motion trail (uses the previous position before overwriting it).
-        if (detailed && !this.reducedMotion) {
+        if (cues && detailed) {
           const dx = x - e.x;
           const dy = y - e.y;
           if (dx * dx + dy * dy > TRAIL_MIN_DISP * TRAIL_MIN_DISP) {
@@ -466,7 +513,7 @@ export class Renderer {
     }
     for (const [id, e] of this.trace) {
       if (e.seen !== f) {
-        this.effects.spawnDeath(e.x, e.y);
+        if (cues) this.effects.spawnDeath(e.x, e.y);
         this.trace.delete(id);
       }
     }
@@ -491,15 +538,24 @@ export class Renderer {
     return best;
   }
 
-  /** Detailed creatures for the visible, capped subset; surplus pool objects hidden. */
-  private drawDetailed(view: Float32Array, count: number, bounds: Bounds, emotesOn: boolean): void {
+  /**
+   * Detailed creatures for the visible subset, up to the quality budget; returns
+   * true if more visible creatures remained (so the caller draws the rest as haze).
+   * Surplus pool objects are hidden.
+   */
+  private drawDetailed(view: Float32Array, count: number, bounds: Bounds, emotesOn: boolean): boolean {
     this.emotes.begin();
     let used = 0;
-    for (let i = 0; i < count && used < MAX_DETAILED; i++) {
+    let capped = false;
+    for (let i = 0; i < count; i++) {
       const o = HEADER_LENGTH + i * AGENT_STRIDE;
       const wx = view[o + A_X];
       const wy = view[o + A_Y];
       if (wx < bounds.minX || wx > bounds.maxX || wy < bounds.minY || wy > bounds.maxY) continue;
+      if (used >= this.detailBudget) {
+        capped = true;
+        break;
+      }
       const size = view[o + A_SCALE];
       const state = view[o + A_STATE];
       const stage = unpackStage(state);
@@ -541,6 +597,7 @@ export class Renderer {
     }
     for (let i = used; i < this.creatures.length; i++) this.creatures[i].hide();
     this.emotes.end();
+    return capped;
   }
 
   /** Swarm strategy: batched tinted dots, one per agent, drawn in world space. */

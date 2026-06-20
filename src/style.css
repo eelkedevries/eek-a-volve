@@ -86,12 +86,31 @@ canvas {
   bottom: 1rem;
   transform: translateX(-50%);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: 0.6rem 1rem;
+  max-width: 96vw;
   padding: 0.5rem 1rem;
   background: rgba(11, 14, 17, 0.85);
   border: 1px solid #2b3440;
   border-radius: 8px;
+}
+
+.controls .control-select,
+.controls .control-check {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.controls select {
+  padding: 0.2rem 0.3rem;
+  color: #e6edf3;
+  background: #1b222b;
+  border: 1px solid #2b3440;
+  border-radius: 5px;
 }
 
 .controls button {

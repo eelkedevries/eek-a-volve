@@ -10,7 +10,7 @@ import { createLegend, createOnboarding } from './ui/legend.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
-import { Renderer } from './render/renderer.ts';
+import { Renderer, PALETTES } from './render/renderer.ts';
 import { Director } from './render/director.ts';
 import {
   H_TICK,
@@ -149,6 +149,11 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       directorEnabled: director.enabled,
       onToggleDirector: (on) => director.setEnabled(on),
       onLegend: () => legend.toggle(),
+      palettes: PALETTES.map((p) => p.name),
+      onPalette: (index) => renderer.setPalette(index),
+      onQuality: (level) => renderer.setQuality(level),
+      reducedMotion: renderer.isReducedMotion(),
+      onReducedMotion: (on) => renderer.setReducedMotion(on),
     }),
   );
 }
