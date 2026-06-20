@@ -47,17 +47,16 @@ This file records what *is* (current reality). The binding design canon is `docs
 
 - **Phases 1–7 complete** — prompts 001–024 run; deployed live at
   `https://eelkedevries.github.io/eek-a-volve/`.
-- **Phases 8–13 — "fun & legibility" overhaul (in progress).** Prompts **025–042**
-  authored and reviewed (independent coherence review applied; identity is the
-  keystone). Goal: make behaviour *recognisable* (eat/hunt/flee/sex/birth/death)
-  and creatures *relatable* (genome-driven bodies, faces, names, emotes,
-  adopt/follow, director, records), with a community/swarm mode toggle. Several
-  of the earlier "deferred" items are now folded in: food rendering, sexual
-  reproduction, life stages, carrion, and catastrophe/event surfacing.
-  - **Watch points while implementing:** keep the 012 stability test green as
-    sexual reproduction (default-on, with a documented default-off fallback),
-    life stages, and carrion change the default dynamics; preserve determinism;
-    keep the snapshot append-only; bound the detail render layer.
+- **Phases 8–13 — "fun & legibility" overhaul complete.** Prompts **025–042**
+  all run and pushed to `main`. Behaviour is now *recognisable* (eat/hunt/flee/
+  mate/birth/death cues) and creatures *relatable* (genome-driven bodies, eyes,
+  maws, faces, names, emotes, adopt/follow, auto-director, hall of fame), with a
+  community/swarm mode toggle, a legend + onboarding, accessibility (colour-blind
+  palettes, reduced-motion, quality/scale control), and synthesised sound.
+  - **Outcomes vs. watch points:** the 012 stability test stayed green; sexual
+    reproduction shipped **default-off** (robust) with viable opt-in presets;
+    determinism preserved; the snapshot stayed append-only (diet/sense appended
+    for render cues); the detail layer is bounded and degrades to the haze.
 
 ## Prompts run
 
@@ -68,3 +67,10 @@ This file records what *is* (current reality). The binding design canon is `docs
 - `016`–`018` — setup screen, runtime controls, chart + toasts.
 - `019`–`021` — predation, speciation, catastrophes.
 - `022`–`024` — names + milestones, narrator, deployment readiness.
+- `025`–`029` — stable creature identity + action/state, expanded append-only
+  snapshot, life stages, sexual reproduction (default-off), carrion scavenging.
+- `030`–`035` — community/swarm view modes, detailed creature renderer,
+  camera + LOD + selection, behaviour FX, emotes + elder crown, visual juice.
+- `036`–`042` — event feed + obituaries + personal names, creature inspector +
+  adopt, auto-director, records/hall of fame, legend + onboarding, accessibility
+  + quality controls, synthesised sound.
