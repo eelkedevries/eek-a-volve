@@ -27,6 +27,8 @@ import {
   FOOD_Y,
   FOOD_TYPE,
   H_FOOD_COUNT,
+  H_DEATHS,
+  H_POPULATION,
 } from '../core/snapshot.ts';
 import { CreatureSprite } from './creatureSprite.ts';
 import { Camera, type Bounds } from './camera.ts';
@@ -76,13 +78,29 @@ const CLICK_SLOP = 5;
 const BIRTH_LINK_R2 = 6 * 6;
 /** Cap on the real-time step fed to effects, so a long stall does not jump them. */
 const MAX_EFFECT_DT = 0.1;
+/** Duration (ms) of the eating/birth squash-and-stretch pop. */
+const SQUASH_MS = 220;
+/** Duration (ms) of the hunt-kill colour flash. */
+const FLASH_MS = 180;
+/** World units moved between frames above which a creature leaves a motion trail. */
+const TRAIL_MIN_DISP = 1.1;
+/** Screen-shake amplitude cap (px) and per-frame decay; catastrophe-scale deaths only. */
+const SHAKE_CAP = 12;
+const SHAKE_DECAY = 0.86;
+/** A death count this far above the population's routine churn counts as a catastrophe. */
+const SHAKE_DEATH_FLOOR = 10;
+const SHAKE_DEATH_FRACTION = 0.04;
 
-/** Per-agent bookkeeping for spotting births, deaths, and action transitions. */
+/** Per-agent bookkeeping for spotting births, deaths, action transitions, and juice pulses. */
 interface AgentTrace {
   action: number;
   x: number;
   y: number;
   seen: number;
+  /** performance.now() until which an eating/birth squash plays. */
+  squashUntil: number;
+  /** performance.now() until which a hunt-kill flash plays. */
+  flashUntil: number;
 }
 
 /**
@@ -116,6 +134,11 @@ export class Renderer {
   private readonly trace = new Map<number, AgentTrace>();
   private frameNo = 0;
   private lastDraw = 0;
+  private now = 0;
+
+  // Visual juice, all honouring reduced motion.
+  private reducedMotion = false;
+  private shakeAmp = 0;
 
   // Latest snapshot, kept so pointer events can pick and follow between frames.
   private lastView: Float32Array | null = null;
@@ -176,6 +199,14 @@ export class Renderer {
 
     this.camera.fit(worldWidth, worldHeight, this.app.renderer.width, this.app.renderer.height);
     this.lastDraw = performance.now();
+
+    // Accessibility: honour the OS reduced-motion preference (and track changes).
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (mq !== undefined) {
+      this.reducedMotion = mq.matches;
+      mq.addEventListener?.('change', (e) => this.setReducedMotion(e.matches));
+    }
+
     this.setupInteraction();
   }
 
@@ -184,12 +215,24 @@ export class Renderer {
     return this.selectedId;
   }
 
+  /** Turn motion juice (shake, trails, flash, squash) on or off — for a manual toggle (041). */
+  setReducedMotion(on: boolean): void {
+    this.reducedMotion = on;
+    if (on) {
+      this.shakeAmp = 0;
+      this.app.stage.position.set(0, 0);
+    }
+  }
+
   /** Draw a snapshot: keep it for picking, move the camera, then food + the LOD strategy. */
   draw(view: Float32Array, count: number): void {
     this.lastView = view;
     this.lastCount = count;
+    this.now = performance.now();
     const vw = this.app.renderer.width;
     const vh = this.app.renderer.height;
+
+    this.applyShake(view[H_DEATHS] | 0, view[H_POPULATION] | 0);
 
     // Until the viewer touches the camera, keep the whole world fitted (also on resize).
     if (!this.userAdjusted && !this.following) {
@@ -229,10 +272,26 @@ export class Renderer {
       this.emotes.clear();
     }
 
-    const now = performance.now();
-    const dt = Math.min((now - this.lastDraw) / 1000, MAX_EFFECT_DT);
-    this.lastDraw = now;
+    const dt = Math.min((this.now - this.lastDraw) / 1000, MAX_EFFECT_DT);
+    this.lastDraw = this.now;
     this.updateEffects(view, count, detailed, dt);
+  }
+
+  /** Restrained, capped screen shake on catastrophe-scale death spikes; off under reduced motion. */
+  private applyShake(deaths: number, population: number): void {
+    if (!this.reducedMotion && deaths > SHAKE_DEATH_FLOOR && deaths > population * SHAKE_DEATH_FRACTION) {
+      this.shakeAmp = SHAKE_CAP;
+    }
+    if (this.reducedMotion || this.shakeAmp < 0.2) {
+      this.shakeAmp = 0;
+      this.app.stage.position.set(0, 0);
+      return;
+    }
+    this.app.stage.position.set(
+      (Math.random() * 2 - 1) * this.shakeAmp,
+      (Math.random() * 2 - 1) * this.shakeAmp,
+    );
+    this.shakeAmp *= SHAKE_DECAY;
   }
 
   /**
@@ -251,18 +310,34 @@ export class Renderer {
       const action = unpackAction(view[o + A_STATE]);
       const e = this.trace.get(id);
       if (e === undefined) {
-        this.trace.set(id, { action, x, y, seen: f });
+        // Birth: pop the newborn, sparkle, and link it to its parent.
+        this.trace.set(id, { action, x, y, seen: f, squashUntil: this.now + SQUASH_MS, flashUntil: 0 });
         this.effects.spawnBirth(x, y);
         if (this.effects.canLineage()) {
           const parent = this.findParent(view, count, i, x, y);
           if (parent !== -1) this.effects.spawnLineage(parent, id);
         }
       } else {
-        if (detailed && action !== e.action) {
-          if (action === EATING) this.effects.spawnMunch(x, y);
-          else if (action === HUNTING) this.effects.spawnHunt(x, y);
-          else if (action === FLEEING) this.effects.spawnFlee(x, y, view[o + A_HEADING]);
-          else if (action === COURTING) this.effects.spawnCourt(x, y);
+        if (action !== e.action) {
+          if (action === EATING) {
+            e.squashUntil = this.now + SQUASH_MS;
+            if (detailed) this.effects.spawnMunch(x, y);
+          } else if (action === HUNTING) {
+            e.flashUntil = this.now + FLASH_MS;
+            if (detailed) this.effects.spawnHunt(x, y);
+          } else if (action === FLEEING) {
+            if (detailed) this.effects.spawnFlee(x, y, view[o + A_HEADING]);
+          } else if (action === COURTING) {
+            if (detailed) this.effects.spawnCourt(x, y);
+          }
+        }
+        // Speed-driven motion trail (uses the previous position before overwriting it).
+        if (detailed && !this.reducedMotion) {
+          const dx = x - e.x;
+          const dy = y - e.y;
+          if (dx * dx + dy * dy > TRAIL_MIN_DISP * TRAIL_MIN_DISP) {
+            this.effects.spawnTrail(e.x, e.y, colourFor(view[o + A_COLOUR] | 0));
+          }
         }
         e.action = action;
         e.x = x;
@@ -310,6 +385,18 @@ export class Renderer {
       const state = view[o + A_STATE];
       const stage = unpackStage(state);
       const energy = view[o + A_ENERGY];
+
+      // Juice pulses (squash on eat/birth, flash on a kill); skipped under reduced motion.
+      let pop = 0;
+      let flash = 0;
+      if (!this.reducedMotion) {
+        const tr = this.trace.get(view[o + A_ID]);
+        if (tr !== undefined) {
+          if (tr.squashUntil > this.now) pop = (tr.squashUntil - this.now) / SQUASH_MS;
+          if (tr.flashUntil > this.now) flash = (tr.flashUntil - this.now) / FLASH_MS;
+        }
+      }
+
       this.creatureAt(used++).update(
         wx,
         wy,
@@ -321,6 +408,8 @@ export class Renderer {
         stage,
         colourFor(view[o + A_COLOUR] | 0),
         1,
+        pop,
+        flash,
       );
 
       if (emotesOn) {

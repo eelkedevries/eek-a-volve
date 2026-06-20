@@ -4,6 +4,8 @@ import { Container, Graphics, Sprite, type Renderer, type Texture } from 'pixi.j
 const POOL_SIZE = 320;
 /** Maximum concurrent parent→newborn lineage lines. */
 const LINE_POOL = 48;
+/** Motion-trail stamps; a ring buffer, so emitting never allocates or starves cues. */
+const TRAIL_POOL = 420;
 
 /** Cue tints (roles, not species). */
 const MUNCH_COLOUR = 0xffe08a;
@@ -56,7 +58,9 @@ export class Effects {
   readonly view = new Container();
   private readonly items: EffectItem[] = [];
   private readonly lines: LineItem[] = [];
+  private readonly trails: EffectItem[] = [];
   private cursor = 0;
+  private trailCursor = 0;
 
   private readonly dotTex: Texture;
   private readonly ringTex: Texture;
@@ -82,6 +86,17 @@ export class Effects {
     this.dartTex = renderer.generateTexture(dart);
     dart.destroy();
 
+    // Trails sit at the very back, behind lineage lines and cues.
+    const trailLayer = new Container();
+    for (let i = 0; i < TRAIL_POOL; i++) {
+      const sprite = new Sprite(this.dotTex);
+      sprite.anchor.set(0.5);
+      sprite.visible = false;
+      this.trails.push(this.blankItem(sprite));
+      trailLayer.addChild(sprite);
+    }
+    this.view.addChild(trailLayer);
+
     const lineLayer = new Container();
     for (let i = 0; i < LINE_POOL; i++) {
       const g = new Graphics();
@@ -95,22 +110,25 @@ export class Effects {
       const sprite = new Sprite(this.dotTex);
       sprite.anchor.set(0.5);
       sprite.visible = false;
-      const item: EffectItem = {
-        sprite,
-        active: false,
-        age: 0,
-        ttl: 1,
-        vx: 0,
-        vy: 0,
-        scale0: 1,
-        scale1: 1,
-        alpha0: 1,
-        alpha1: 0,
-        spin: 0,
-      };
-      this.items.push(item);
+      this.items.push(this.blankItem(sprite));
       this.view.addChild(sprite);
     }
+  }
+
+  private blankItem(sprite: Sprite): EffectItem {
+    return {
+      sprite,
+      active: false,
+      age: 0,
+      ttl: 1,
+      vx: 0,
+      vy: 0,
+      scale0: 1,
+      scale1: 1,
+      alpha0: 1,
+      alpha1: 0,
+      spin: 0,
+    };
   }
 
   // --- Cue spawners (composed from one or more pooled sprites) ---
@@ -182,24 +200,39 @@ export class Effects {
     }
   }
 
-  /** Advance every active cue by `dt` seconds; redraw lineage lines from `positions`. */
+  /**
+   * Drop a fading motion-trail stamp at a position (ring-buffered, so it never
+   * allocates and cannot starve the cue pool). The renderer calls this for fast
+   * movers only, and not at all under reduced motion.
+   */
+  spawnTrail(x: number, y: number, tint: number): void {
+    const it = this.trails[this.trailCursor];
+    this.trailCursor = (this.trailCursor + 1) % this.trails.length;
+    const s = it.sprite;
+    s.texture = this.dotTex;
+    s.tint = tint;
+    s.x = x;
+    s.y = y;
+    s.rotation = 0;
+    s.scale.set(0.6);
+    s.alpha = 0.4;
+    s.visible = true;
+    it.active = true;
+    it.age = 0;
+    it.ttl = 0.3;
+    it.vx = 0;
+    it.vy = 0;
+    it.scale0 = 0.6;
+    it.scale1 = 0.2;
+    it.alpha0 = 0.4;
+    it.alpha1 = 0;
+    it.spin = 0;
+  }
+
+  /** Advance every active cue/trail by `dt` seconds; redraw lineage lines from `positions`. */
   update(dt: number, positions: PositionLookup): void {
-    for (const it of this.items) {
-      if (!it.active) continue;
-      it.age += dt;
-      const t = it.age / it.ttl;
-      if (t >= 1) {
-        it.active = false;
-        it.sprite.visible = false;
-        continue;
-      }
-      const s = it.sprite;
-      s.x += it.vx * dt;
-      s.y += it.vy * dt;
-      s.scale.set(it.scale0 + (it.scale1 - it.scale0) * t);
-      s.alpha = it.alpha0 + (it.alpha1 - it.alpha0) * t;
-      s.rotation += it.spin * dt;
-    }
+    for (const it of this.items) this.advance(it, dt);
+    for (const it of this.trails) this.advance(it, dt);
 
     for (const l of this.lines) {
       if (!l.active) continue;
@@ -219,6 +252,24 @@ export class Effects {
         .lineTo(b.x, b.y)
         .stroke({ width: 1.5, color: LINEAGE_COLOUR, alpha: 0.8 * (1 - t) });
     }
+  }
+
+  /** Step one pooled sprite item's animation; deactivate when its life is spent. */
+  private advance(it: EffectItem, dt: number): void {
+    if (!it.active) return;
+    it.age += dt;
+    const t = it.age / it.ttl;
+    if (t >= 1) {
+      it.active = false;
+      it.sprite.visible = false;
+      return;
+    }
+    const s = it.sprite;
+    s.x += it.vx * dt;
+    s.y += it.vy * dt;
+    s.scale.set(it.scale0 + (it.scale1 - it.scale0) * t);
+    s.alpha = it.alpha0 + (it.alpha1 - it.alpha0) * t;
+    s.rotation += it.spin * dt;
   }
 
   private emit(

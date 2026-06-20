@@ -83,6 +83,8 @@ export class CreatureSprite {
     stage: number,
     tint: number,
     pxPerUnit: number,
+    pop: number,
+    flash: number,
   ): void {
     const v = this.view;
     v.visible = true;
@@ -94,13 +96,18 @@ export class CreatureSprite {
     const juvenile = stage === 0 ? 0.6 : 1;
     v.scale.set(size * juvenile * pxPerUnit * 0.4);
 
-    // Roundness: larger creatures read fatter, carnivores a touch leaner.
-    this.body.scale.set(1, 0.82 + size * 0.22 - diet * 0.16);
+    // Roundness: larger creatures read fatter, carnivores a touch leaner. A `pop`
+    // (eating/birth) briefly squashes wider-and-flatter then settles — game feel.
+    const fat = 0.82 + size * 0.22 - diet * 0.16;
+    const wobble = pop > 0 ? Math.sin(pop * Math.PI) : 0;
+    this.body.scale.set(1 + 0.28 * wobble, fat * (1 - 0.16 * wobble));
 
     // Starvation tell: desaturate and fade the body as energy falls toward zero.
     // Static (no motion), so it is safe under reduced-motion settings.
     const starve = energy < STARVE_FROM ? (STARVE_FROM - Math.max(energy, 0)) / STARVE_FROM : 0;
-    this.body.tint = starve > 0 ? blend(tint, STARVE_GREY, 0.7 * starve) : tint;
+    let bodyTint = starve > 0 ? blend(tint, STARVE_GREY, 0.7 * starve) : tint;
+    if (flash > 0) bodyTint = blend(bodyTint, 0xffffff, Math.min(flash, 1) * 0.85); // hunt/damage flash
+    this.body.tint = bodyTint;
     this.body.alpha = 1 - 0.6 * starve;
 
     // Eyes grow with sense radius (perception made visible).
