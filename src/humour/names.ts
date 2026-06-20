@@ -43,6 +43,8 @@ const ROOTS: Record<string, Roots> = {
   metabolicEfficiency: { high: 'Frugalis', low: 'Vorax' },
   diet: { high: 'Carnifex', low: 'Herbivorus' },
   colourHue: { high: 'Pictus', low: 'Pallidus' },
+  display: { high: 'Ornatus', low: 'Modestus' },
+  matePreference: { high: 'Eligens', low: 'Facilis' },
 };
 
 /**

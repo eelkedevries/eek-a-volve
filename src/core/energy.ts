@@ -1,7 +1,10 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
-import { SIZE, SPEED, METABOLIC_EFFICIENCY } from './genome.ts';
+import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from './genome.ts';
 import { dropCarrion } from './food.ts';
+
+/** Extra metabolic drain a full ornament (`display` = 1) adds, in sexual mode. */
+export const DISPLAY_COST = 0.06;
 
 /**
  * Maximum age in ticks before an agent dies of old age. Provisional; tuned for
@@ -28,7 +31,14 @@ export function metabolicCost(
   const size = world.traits[SIZE][slot];
   const speed = world.traits[SPEED][slot];
   const efficiency = world.traits[METABOLIC_EFFICIENCY][slot];
-  return (params.baseMetabolicCost * (size + speed)) / efficiency;
+  let cost = (params.baseMetabolicCost * (size + speed)) / efficiency;
+  // Ornament is honest: carrying a costly display drains more energy, but only
+  // in sexual mode (so the asexual default — and the 012 stability test — is
+  // unchanged; the trait merely drifts there).
+  if (params.sexualReproduction) {
+    cost *= 1 + DISPLAY_COST * world.traits[DISPLAY][slot];
+  }
+  return cost;
 }
 
 /** Add energy from eating, capped by the agent's size-based capacity. */

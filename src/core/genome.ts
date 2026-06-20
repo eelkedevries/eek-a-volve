@@ -13,6 +13,8 @@ export const TRAITS = [
   'metabolicEfficiency',
   'diet',
   'colourHue',
+  'display',
+  'matePreference',
 ] as const;
 
 export type TraitName = (typeof TRAITS)[number];
@@ -26,6 +28,17 @@ export const SENSE_RADIUS = 2;
 export const METABOLIC_EFFICIENCY = 3;
 export const DIET = 4;
 export const COLOUR_HUE = 5;
+/** Ornament magnitude — costly to carry, the target of sexual selection (v0.3.6). */
+export const DISPLAY = 6;
+/** Preferred ornament level in a mate (v0.3.6). */
+export const MATE_PREFERENCE = 7;
+
+/**
+ * Number of leading "ecological" traits that define a species and compatibility.
+ * The sexual traits (`display`, `matePreference`) sit after these and are
+ * deliberately excluded from the genetic-distance gate and speciation clustering.
+ */
+export const SPECIES_TRAIT_COUNT = COLOUR_HUE + 1;
 
 export interface TraitRange {
   readonly min: number;
@@ -40,6 +53,8 @@ export const TRAIT_RANGES: readonly TraitRange[] = [
   { min: 0.5, max: 1.5 }, // metabolicEfficiency
   { min: 0.0, max: 1.0 }, // diet: 0 herbivore … 1 carnivore
   { min: 0.0, max: 360.0 }, // colourHue (degrees)
+  { min: 0.0, max: 1.0 }, // display: 0 plain … 1 showy
+  { min: 0.0, max: 1.0 }, // matePreference: 0 prefers plain … 1 prefers showy
 ];
 
 /** One individual's traits, ordered as `TRAITS`. */

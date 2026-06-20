@@ -68,6 +68,11 @@ This file records what *is* (current reality). The binding design canon is `docs
   parameter: asexual budding (default) and sexual reproduction by uniform genome
   crossover with compatibility-by-genetic-distance and shared parental energy
   cost. (Earlier this was asexual-only; sexual shipped default-off in prompt 028.)
+  In sexual mode, **sexual selection** is active: a `display` ornament (costly,
+  via metabolism) and a `matePreference` drive mate choice within the
+  compatibility gate. The genome is now 8 traits (the 6 ecological ones define
+  species/compatibility; `display`/`matePreference` are excluded from that gate
+  and inert in asexual mode).
 - **After start, only the time multiplier and pause change** (spec lock); all
   other parameters are configured pre-start. Observation tools (adopt, follow,
   inspect, camera, director) do not alter the simulation.

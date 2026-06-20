@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.5
+Version: 0.3.6
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -51,6 +51,10 @@ The genome is a fixed-length array of real-valued, clamped traits, one array per
 - `metabolicEfficiency` — scales baseline energy drain per tick.
 - `diet` — herbivore-to-carnivore tendency on a continuous scale; governs the predation branch.
 - `colourHue` — cosmetic, and a cheap visual proxy for lineage.
+- `display` — an ornament that is metabolically costly to carry; the target of sexual selection in sexual mode (v0.3.6).
+- `matePreference` — the ornament level a creature prefers in a mate (v0.3.6).
+
+The first six traits are the species-defining ("ecological") set used for the genetic-distance gate and speciation; `display` and `matePreference` sit after them and are deliberately excluded from that distance.
 
 World state uses a structure-of-arrays layout: parallel typed arrays for position (x, y), velocity or heading, current energy, age, genome traits, species identifier, a stable creature id, and that creature's parent id (0 for founders and immigrants), indexed by a stable agent slot. Agent and food slots are drawn from pre-allocated pools and reused on death and birth; nothing on the per-tick path allocates.
 
@@ -79,6 +83,8 @@ Life stages (v0.2.0). Creatures pass through stages derived from age — juvenil
 Reproduction mode (v0.3.0). A `sexualReproduction` parameter selects the mode. In sexual mode, two ready, compatible (low genetic distance), mature adults that meet produce one offspring by uniform genome crossover followed by the usual mutation; both parents pay an energy cost. In asexual mode, a single mature adult buds a mutated offspring. The shipped default is asexual, which is robust across world densities; sexual reproduction is an opt-in that thrives in denser populations (e.g. the community view) where adults readily meet. The founding population is seeded with varied ages so it is not uniformly juvenile at the start.
 
 Stigmergy (v0.3.2). Optional, behind the pheromones toggle: when a creature eats, it deposits a fixed amount of pheromone into the cell beneath it; each tick the field decays by a configured factor and diffuses toward neighbouring cells, deterministically (no stochastic step, or only the seeded generator). When a creature senses no food within its sense radius, it biases its movement up the local pheromone gradient instead of wandering randomly; the flee, court, seek-food, eat, and reproduce priorities are otherwise unchanged. The field records where feeding has recently happened and never bypasses the energy budget. It is off by default — the default run is unaffected — and enabled in at least one preset.
+
+Sexual selection (v0.3.6). In sexual mode two further traits come into play: a `display` ornament and a `matePreference`. Mate choice still requires ecological compatibility (the genetic-distance gate over the species-defining traits, which excludes these two); but among compatible neighbours a creature is drawn to the one whose display best matches its preference, traded off against proximity. Display carries a metabolic cost, so ornament is honest — favoured by preference yet penalised by the energy budget, which checks runaway. Both traits are inert in asexual mode, where they merely drift, so the default run is unaffected.
 
 Predation. When enabled, a sufficiently carnivorous agent that is larger than a neighbour may consume it for energy. The expected population signature, when predators and prey coexist, is lagged, noisy oscillation reminiscent of Lotka-Volterra. The Lotka-Volterra equations are a reference for expected behaviour only and are never used as the engine.
 

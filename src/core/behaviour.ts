@@ -2,7 +2,17 @@ import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import type { Rng } from './rng.ts';
 import type { SpatialGrid } from './grid.ts';
-import { SIZE, SPEED, SENSE_RADIUS, DIET, TRAIT_COUNT, TRAIT_RANGES } from './genome.ts';
+import {
+  SIZE,
+  SPEED,
+  SENSE_RADIUS,
+  DIET,
+  DISPLAY,
+  MATE_PREFERENCE,
+  TRAIT_COUNT,
+  SPECIES_TRAIT_COUNT,
+  TRAIT_RANGES,
+} from './genome.ts';
 import { feed } from './energy.ts';
 import { consumeFood, PLANT, CARRION } from './food.ts';
 import { breed, breedSexual } from './mutation.ts';
@@ -26,6 +36,8 @@ export const MATE_RADIUS = 24;
 export const SEXUAL_COST_FRACTION = 0.3;
 /** Distance multiplier applied to non-preferred food types when choosing what to eat. */
 export const FOOD_TYPE_PENALTY = 4;
+/** How strongly a mismatch between a candidate's display and the chooser's preference penalises it. */
+export const MATE_PREFERENCE_WEIGHT = 8;
 
 /**
  * The hand-coded, trait-parameterised behaviour policy (specification: Domain
@@ -70,6 +82,8 @@ export class Behaviour {
 
   private bestMate = -1;
   private bestMateDist2 = Infinity;
+  private bestMateWeighted = Infinity;
+  private selfPref = 0;
 
   constructor(agentCapacity: number) {
     this.live = new Int32Array(agentCapacity);
@@ -104,23 +118,26 @@ export class Behaviour {
       this.hasThreat = true;
     }
 
-    // Mate: the nearest compatible, mature, ready neighbour (only when self is ready).
-    if (
-      this.selfReady &&
-      dist2 < this.bestMateDist2 &&
-      isMature(w.age[id]) &&
-      w.energy[id] > this.threshold
-    ) {
+    // Mate: the best-scoring compatible, mature, ready neighbour (only when self is
+    // ready). Compatibility uses the ecological traits only; among compatible
+    // candidates, the score balances proximity against how well the candidate's
+    // display matches this creature's preference (sexual selection, v0.3.6).
+    if (this.selfReady && isMature(w.age[id]) && w.energy[id] > this.threshold) {
       let d2 = 0;
-      for (let t = 0; t < TRAIT_COUNT; t++) {
+      for (let t = 0; t < SPECIES_TRAIT_COUNT; t++) {
         const r = TRAIT_RANGES[t];
         const norm = (w.traits[t][id] - r.min) / (r.max - r.min);
         const diff = norm - this.selfNorm[t];
         d2 += diff * diff;
       }
       if (d2 < SPECIES_DISTANCE_THRESHOLD * SPECIES_DISTANCE_THRESHOLD) {
-        this.bestMateDist2 = dist2;
-        this.bestMate = id;
+        const mismatch = Math.abs(w.traits[DISPLAY][id] - this.selfPref);
+        const weighted = dist2 * (1 + MATE_PREFERENCE_WEIGHT * mismatch);
+        if (weighted < this.bestMateWeighted) {
+          this.bestMateWeighted = weighted;
+          this.bestMateDist2 = dist2;
+          this.bestMate = id;
+        }
       }
     }
   };
@@ -164,13 +181,15 @@ export class Behaviour {
       this.threatDist2 = Infinity;
       this.bestMate = -1;
       this.bestMateDist2 = Infinity;
+      this.bestMateWeighted = Infinity;
 
       this.selfReady = params.sexualReproduction && isMature(age[s]) && energy[s] > this.threshold;
       if (this.selfReady) {
-        for (let t = 0; t < TRAIT_COUNT; t++) {
+        for (let t = 0; t < SPECIES_TRAIT_COUNT; t++) {
           const r = TRAIT_RANGES[t];
           this.selfNorm[t] = (traits[t][s] - r.min) / (r.max - r.min);
         }
+        this.selfPref = traits[MATE_PREFERENCE][s];
       }
 
       const sense = senseCol[s];

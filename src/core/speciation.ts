@@ -1,5 +1,5 @@
 import type { World } from './world.ts';
-import { TRAIT_COUNT, TRAIT_RANGES } from './genome.ts';
+import { SPECIES_TRAIT_COUNT, TRAIT_RANGES } from './genome.ts';
 
 /** Normalised genetic distance above which two agents are treated as different species. */
 export const SPECIES_DISTANCE_THRESHOLD = 0.3;
@@ -19,7 +19,7 @@ export class Speciation {
 
   constructor(maxLeaders = 64) {
     this.maxLeaders = maxLeaders;
-    this.leaders = new Float64Array(maxLeaders * TRAIT_COUNT);
+    this.leaders = new Float64Array(maxLeaders * SPECIES_TRAIT_COUNT);
   }
 
   /** Cluster live agents, writing species ids into `world.speciesId`; returns the species count. */
@@ -34,9 +34,9 @@ export class Speciation {
       let best = -1;
       let bestDist2 = Infinity;
       for (let l = 0; l < this.leaderCount; l++) {
-        const base = l * TRAIT_COUNT;
+        const base = l * SPECIES_TRAIT_COUNT;
         let d2 = 0;
-        for (let t = 0; t < TRAIT_COUNT; t++) {
+        for (let t = 0; t < SPECIES_TRAIT_COUNT; t++) {
           const r = TRAIT_RANGES[t];
           const norm = (traits[t][s] - r.min) / (r.max - r.min);
           const diff = norm - this.leaders[base + t];
@@ -51,8 +51,8 @@ export class Speciation {
       if (best !== -1 && bestDist2 <= threshold2) {
         speciesId[s] = best;
       } else if (this.leaderCount < this.maxLeaders) {
-        const base = this.leaderCount * TRAIT_COUNT;
-        for (let t = 0; t < TRAIT_COUNT; t++) {
+        const base = this.leaderCount * SPECIES_TRAIT_COUNT;
+        for (let t = 0; t < SPECIES_TRAIT_COUNT; t++) {
           const r = TRAIT_RANGES[t];
           this.leaders[base + t] = (traits[t][s] - r.min) / (r.max - r.min);
         }
