@@ -61,34 +61,28 @@ export function encodeParams(params: SimulationParameters): string {
 }
 
 /**
- * Decode a string produced by {@link encodeParams} back into a parameter set.
- * Defensive by design: it starts from {@link DEFAULT_PARAMETERS} and overwrites a
- * field only when the incoming value is well-typed, clamping numbers to safe
- * bounds, coercing `viewMode` to a valid value, dropping unknown keys, and
- * falling back to the default for anything missing or malformed. It never throws.
+ * Coerce an arbitrary value into a valid parameter set: start from
+ * {@link DEFAULT_PARAMETERS} and overwrite a field only when the incoming value is
+ * well-typed, clamping numbers to safe bounds, coercing `viewMode`, dropping
+ * unknown keys, and keeping the default for anything missing or malformed. Never
+ * throws. Shared by the share-link and population codecs.
  */
-export function decodeParams(text: string): SimulationParameters {
+export function coerceParams(raw: unknown): SimulationParameters {
   const result: SimulationParameters = { ...DEFAULT_PARAMETERS };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(fromBase64Url(text));
-  } catch {
-    return result;
-  }
-  if (typeof parsed !== 'object' || parsed === null) return result;
+  if (typeof raw !== 'object' || raw === null) return result;
 
-  const obj = parsed as Record<string, unknown>;
+  const obj = raw as Record<string, unknown>;
   const target = result as unknown as Record<string, unknown>;
   for (const key of Object.keys(DEFAULT_PARAMETERS)) {
     if (!(key in obj)) continue;
     const def = (DEFAULT_PARAMETERS as unknown as Record<string, unknown>)[key];
-    const raw = obj[key];
+    const value = obj[key];
     if (key === 'viewMode') {
-      target[key] = raw === 'swarm' ? 'swarm' : 'community';
+      target[key] = value === 'swarm' ? 'swarm' : 'community';
     } else if (typeof def === 'boolean') {
-      if (typeof raw === 'boolean') target[key] = raw;
+      if (typeof value === 'boolean') target[key] = value;
     } else if (typeof def === 'number') {
-      if (typeof raw === 'number' && Number.isFinite(raw)) target[key] = clampNumeric(key, raw);
+      if (typeof value === 'number' && Number.isFinite(value)) target[key] = clampNumeric(key, value);
     }
   }
 
@@ -98,4 +92,16 @@ export function decodeParams(text: string): SimulationParameters {
     result.maxTimeMultiplier = DEFAULT_PARAMETERS.maxTimeMultiplier;
   }
   return result;
+}
+
+/**
+ * Decode a string produced by {@link encodeParams} back into a parameter set.
+ * Defensive by design (see {@link coerceParams}); never throws.
+ */
+export function decodeParams(text: string): SimulationParameters {
+  try {
+    return coerceParams(JSON.parse(fromBase64Url(text)));
+  } catch {
+    return { ...DEFAULT_PARAMETERS };
+  }
 }

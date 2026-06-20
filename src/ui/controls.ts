@@ -18,6 +18,8 @@ export interface ControlsConfig {
   onCharts: () => void;
   /** Open/close the family-tree popover. */
   onFamily: () => void;
+  /** Export the current population to a downloadable file. */
+  onExport: () => void;
   /** Cycle the field overlay (off → fertility → pheromone). */
   onOverlay: (mode: 'off' | 'fertility' | 'pheromone') => void;
   /** Choose how creature bodies are coloured. */
@@ -177,6 +179,10 @@ export function createControls(config: ControlsConfig): HTMLElement {
     config.onToggleSound(sounding);
   });
 
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = '💾 Export';
+  exportBtn.addEventListener('click', () => config.onExport());
+
   const reset = document.createElement('button');
   reset.textContent = 'Reset';
   reset.addEventListener('click', () => config.onReset());
@@ -195,6 +201,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     qualityLabel,
     motionLabel,
     sound,
+    exportBtn,
     reset,
   );
   return bar;

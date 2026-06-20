@@ -25,6 +25,7 @@ import {
 import { TRAIT_COUNT } from './core/genome.ts';
 import { NEAR_EXTINCTION_THRESHOLD } from './core/bounds.ts';
 import { decodeParams, SHARE_HASH_PREFIX } from './core/share.ts';
+import { encodePopulation, type PopulationRecord } from './core/population.ts';
 import type { SimulationParameters } from './core/params.ts';
 
 const mount = document.querySelector<HTMLDivElement>('#app');
@@ -43,16 +44,20 @@ function showSetup(): void {
   mount.appendChild(createSetupScreen(start, paramsFromHash(location.hash)));
 }
 
-function start(params: SimulationParameters): void {
+function start(params: SimulationParameters, population?: PopulationRecord[]): void {
   if (mount === null) return;
   mount.innerHTML = '';
   const host = document.createElement('div');
   host.className = 'sim';
   mount.appendChild(host);
-  void run(params, host);
+  void run(params, host, population);
 }
 
-async function run(params: SimulationParameters, host: HTMLElement): Promise<void> {
+async function run(
+  params: SimulationParameters,
+  host: HTMLElement,
+  population?: PopulationRecord[],
+): Promise<void> {
   if (mount === null) return;
   const renderer = new Renderer();
   await renderer.init(host, params.worldWidth, params.worldHeight, params.viewMode, {
@@ -119,6 +124,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
         client.setOverlay(mode === 'pheromone');
       },
       onColourMode: (mode) => renderer.setColourMode(mode),
+      onExport: () => client.exportPopulation(),
       palettes: PALETTES.map((p) => p.name),
       onPalette: (index) => renderer.setPalette(index),
       onQuality: (level) => renderer.setQuality(level),
@@ -148,6 +154,15 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
     renderer.setPheromoneField(field, cols, rows, w, h),
   );
   client.setFamilyHandler((f) => family.update(f));
+  client.setPopulationHandler((save) => {
+    const blob = new Blob([encodePopulation(save)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `eek-a-volve-population-${save.tick}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
   client.start(
     params,
@@ -226,6 +241,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       }
     },
     (view) => records.update(view),
+    population,
   );
 }
 

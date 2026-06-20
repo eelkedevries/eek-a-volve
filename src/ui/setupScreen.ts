@@ -5,6 +5,7 @@ import {
   type SimulationParameters,
 } from '../core/params.ts';
 import { encodeParams, SHARE_HASH_PREFIX } from '../core/share.ts';
+import { decodePopulation, type PopulationRecord } from '../core/population.ts';
 
 /** Turn a camelCase parameter key into a British-English label. */
 function humanise(key: string): string {
@@ -43,7 +44,7 @@ const MODE_BLURBS: Record<ViewMode, { emoji: string; title: string; desc: string
  * parameters are configured before starting only).
  */
 export function createSetupScreen(
-  onStart: (params: SimulationParameters) => void,
+  onStart: (params: SimulationParameters, population?: PopulationRecord[]) => void,
   initial?: SimulationParameters,
 ): HTMLElement {
   const seed = initial ?? DEFAULT_PARAMETERS;
@@ -201,6 +202,24 @@ export function createSetupScreen(
     }
   });
   form.appendChild(share);
+
+  // Import an evolved population from a file and start a run from it.
+  const importLabel = document.createElement('label');
+  importLabel.className = 'setup-import';
+  importLabel.textContent = 'Resume from a saved population: ';
+  const importInput = document.createElement('input');
+  importInput.type = 'file';
+  importInput.accept = 'application/json,.json';
+  importInput.addEventListener('change', () => {
+    const file = importInput.files?.[0];
+    if (file === undefined) return;
+    void file.text().then((text) => {
+      const save = decodePopulation(text);
+      onStart(save.params, save.creatures);
+    });
+  });
+  importLabel.appendChild(importInput);
+  form.appendChild(importLabel);
 
   const start = document.createElement('button');
   start.type = 'submit';

@@ -52,6 +52,8 @@ This file records what *is* (current reality). The binding design canon is `docs
   folded into the dock/log during the single-toolbar consolidation.) The setup
   screen can **copy a share link** (`#w=…`) that encodes the whole parameter set
   and seed; opening such a link prefills the form, reproducing the exact run.
+  An evolved **population** can also be **exported** to a file and **imported**
+  to resume a run from it (fresh lineage; deterministic onward from the seed).
 - **Humour + narrator (`src/humour/`, `src/narrator/`)** — mock-Latin binomials,
   silly individual names, milestone/extinction/obituary lines, and the optional
   OpenRouter narrator with a templated fallback (key stored in-browser; never

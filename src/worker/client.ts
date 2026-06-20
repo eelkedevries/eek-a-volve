@@ -2,6 +2,7 @@ import type { SimulationParameters } from '../core/params.ts';
 import type { SimEvent } from '../core/eventlog.ts';
 import type { CreatureDetail } from '../core/inspect.ts';
 import type { CreatureFamily } from '../core/lineage.ts';
+import type { PopulationRecord, PopulationSave } from '../core/population.ts';
 import type { RecordsView } from '../core/records.ts';
 import type { MainToWorker, WorkerToMain } from './protocol.ts';
 
@@ -19,6 +20,9 @@ export type RecordsHandler = (records: RecordsView) => void;
 
 /** Called with a creature's bounded family in reply to a family request. */
 export type FamilyHandler = (family: CreatureFamily) => void;
+
+/** Called with the population in reply to an export request. */
+export type PopulationHandler = (save: PopulationSave) => void;
 
 /** Called with a pheromone field for the overlay (only while enabled). */
 export type FieldHandler = (
@@ -42,6 +46,7 @@ export class SimulationClient {
   private onRecords: RecordsHandler | null = null;
   private onField: FieldHandler | null = null;
   private onFamily: FamilyHandler | null = null;
+  private onPopulation: PopulationHandler | null = null;
 
   constructor() {
     this.worker = new Worker(new URL('./simulationWorker.ts', import.meta.url), {
@@ -62,8 +67,19 @@ export class SimulationClient {
         this.onField?.(new Float32Array(msg.buffer), msg.cols, msg.rows, msg.width, msg.height);
       } else if (msg.type === 'family') {
         this.onFamily?.(msg.family);
+      } else if (msg.type === 'population') {
+        this.onPopulation?.(msg.save);
       }
     };
+  }
+
+  /** Register a handler for export replies, and request the current population. */
+  setPopulationHandler(handler: PopulationHandler): void {
+    this.onPopulation = handler;
+  }
+
+  exportPopulation(): void {
+    this.send({ type: 'export' });
   }
 
   /** Register a handler for family replies, and request a creature's family. */
@@ -92,12 +108,13 @@ export class SimulationClient {
     onEvents?: EventsHandler,
     onInspect?: InspectHandler,
     onRecords?: RecordsHandler,
+    population?: PopulationRecord[],
   ): void {
     this.onSnapshot = onSnapshot;
     this.onEvents = onEvents ?? null;
     this.onInspect = onInspect ?? null;
     this.onRecords = onRecords ?? null;
-    this.send({ type: 'init', params });
+    this.send({ type: 'init', params, population });
   }
 
   /** Adopt/inspect a creature by stable id, or -1 to clear. */

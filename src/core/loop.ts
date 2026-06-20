@@ -10,7 +10,9 @@ import { Rng } from './rng.ts';
 import { PheromoneField } from './pheromone.ts';
 import { LineageRegistry } from './lineage.ts';
 import type { SimulationParameters } from './params.ts';
-import { metaboliseAndReap } from './energy.ts';
+import type { PopulationRecord } from './population.ts';
+import { TRAIT_COUNT, SIZE, clampTrait } from './genome.ts';
+import { metaboliseAndReap, energyCapacity } from './energy.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
@@ -70,7 +72,7 @@ export class Simulation {
     return this.events.last;
   }
 
-  constructor(params: SimulationParameters) {
+  constructor(params: SimulationParameters, population?: PopulationRecord[]) {
     this.params = params;
     this.rng = new Rng(params.seed);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
@@ -81,7 +83,8 @@ export class Simulation {
     this.behaviour = new Behaviour(MAX_POPULATION);
     this.predation = new Predation();
     this.speciation = new Speciation();
-    this.seed();
+    if (population !== undefined && population.length > 0) this.seedFromPopulation(population);
+    else this.seed();
   }
 
   /** Advance the simulation by one tick. */
@@ -163,6 +166,32 @@ export class Simulation {
     this.prevSpeciesCount = this.speciation.cluster(world);
   }
 
+  /**
+   * Seed from an imported population instead of random founders. Traits and state
+   * are clamped to valid ranges; creatures get fresh ids (so the resumed run has
+   * its own lineage). Species labels are reassigned by the clustering pass.
+   */
+  private seedFromPopulation(records: PopulationRecord[]): void {
+    const { world, params, rng } = this;
+    const target = Math.min(records.length, world.agentCapacity);
+    for (let i = 0; i < target; i++) {
+      const r = records[i];
+      const slot = world.spawnAgent();
+      if (slot === -1) break;
+      for (let t = 0; t < TRAIT_COUNT; t++) world.traits[t][slot] = clampTrait(t, r.traits[t]);
+      world.x[slot] = r.x < 0 ? 0 : r.x > params.worldWidth ? params.worldWidth : r.x;
+      world.y[slot] = r.y < 0 ? 0 : r.y > params.worldHeight ? params.worldHeight : r.y;
+      const cap = energyCapacity(world.traits[SIZE][slot]);
+      world.energy[slot] = Math.min(Math.max(1, r.energy), cap);
+      world.age[slot] = r.age;
+      world.generation[slot] = r.generation;
+      world.vx[slot] = 0;
+      world.vy[slot] = 0;
+    }
+    seedFood(world, params, rng);
+    this.prevSpeciesCount = this.speciation.cluster(world);
+  }
+
   private rebuildFoodGrid(): void {
     const { foodGrid, world } = this;
     foodGrid.clear();
@@ -173,7 +202,10 @@ export class Simulation {
   }
 }
 
-/** Create a fully seeded simulation from a parameter set. */
-export function createSimulation(params: SimulationParameters): Simulation {
-  return new Simulation(params);
+/** Create a fully seeded simulation from a parameter set, optionally from a saved population. */
+export function createSimulation(
+  params: SimulationParameters,
+  population?: PopulationRecord[],
+): Simulation {
+  return new Simulation(params, population);
 }

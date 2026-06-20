@@ -3,6 +3,7 @@ import { createSimulation, type Simulation } from '../core/loop.ts';
 import { serialiseSnapshot, snapshotLength } from '../core/snapshot.ts';
 import { inspectCreature } from '../core/inspect.ts';
 import { resolveFamily } from '../core/lineage.ts';
+import { extractPopulation } from '../core/population.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
 
 /** Minimal view of the dedicated-worker global, avoiding DOM/WebWorker lib clashes. */
@@ -74,7 +75,7 @@ ctx.onmessage = (event: MessageEvent): void => {
   const msg = event.data as MainToWorker;
   switch (msg.type) {
     case 'init': {
-      sim = createSimulation(msg.params);
+      sim = createSimulation(msg.params, msg.population);
       accumulator = 0;
       const bytes =
         snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
@@ -110,6 +111,9 @@ ctx.onmessage = (event: MessageEvent): void => {
       break;
     case 'family':
       if (sim !== null) ctx.postMessage({ type: 'family', family: resolveFamily(sim, msg.id) }, []);
+      break;
+    case 'export':
+      if (sim !== null) ctx.postMessage({ type: 'population', save: extractPopulation(sim) }, []);
       break;
     case 'returnBuffer':
       freeBuffers.push(msg.buffer);

@@ -259,6 +259,16 @@ button {
   box-shadow: none;
 }
 
+.setup-import {
+  grid-column: 1 / -1;
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 /* --- The dock (single toolbar) ----------------------------------------- */
 
 .dock {
