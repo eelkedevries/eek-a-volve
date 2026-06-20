@@ -40,7 +40,7 @@ function start(params: SimulationParameters): void {
 async function run(params: SimulationParameters, host: HTMLElement): Promise<void> {
   if (mount === null) return;
   const renderer = new Renderer();
-  await renderer.init(host, params.worldWidth, params.worldHeight);
+  await renderer.init(host, params.worldWidth, params.worldHeight, params.viewMode);
 
   const chart = new PopulationChart();
   const toasts = new Toasts();

@@ -1,5 +1,5 @@
 import type { Simulation } from './loop.ts';
-import { TRAIT_COUNT, SIZE } from './genome.ts';
+import { TRAIT_COUNT, SIZE, DIET, SENSE_RADIUS, TRAIT_RANGES } from './genome.ts';
 import { energyCapacity } from './energy.ts';
 import { stageOf } from './lifestage.ts';
 
@@ -13,7 +13,8 @@ export const H_TRAIT_MEANS = 5; // [H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT)
 export const H_FOOD_COUNT = 5 + TRAIT_COUNT;
 export const HEADER_LENGTH = 6 + TRAIT_COUNT;
 
-// --- Per-agent record (first four kept for back-compat with the simple renderer) ---
+// --- Per-agent record (first four kept for back-compat with the simple renderer;
+//     later fields appended so existing offsets stay stable) ---
 export const A_X = 0;
 export const A_Y = 1;
 export const A_COLOUR = 2;
@@ -22,7 +23,11 @@ export const A_HEADING = 4;
 export const A_STATE = 5;
 export const A_ID = 6;
 export const A_ENERGY = 7;
-export const AGENT_STRIDE = 8;
+/** Diet, normalised 0 (herbivore) … 1 (carnivore) — drives the maw cue. */
+export const A_DIET = 8;
+/** Sense radius, normalised 0 … 1 — drives eye size. */
+export const A_SENSE = 9;
+export const AGENT_STRIDE = 10;
 
 // stateCode packing: (stage << STATE_STAGE_SHIFT) | action
 export const STATE_ACTION_MASK = 0b111;
@@ -42,6 +47,12 @@ export const FOOD_X = 0;
 export const FOOD_Y = 1;
 export const FOOD_TYPE = 2;
 export const FOOD_STRIDE = 3;
+
+/** Map a raw trait value to [0, 1] using its declared range (for render cues). */
+function normalise(value: number, trait: number): number {
+  const r = TRAIT_RANGES[trait];
+  return (value - r.min) / (r.max - r.min);
+}
 
 /** Float32 length to hold a snapshot for up to these agent and food capacities. */
 export function snapshotLength(agentCapacity: number, foodCapacity: number): number {
@@ -80,6 +91,8 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
     out[offset + A_STATE] = packState(stageOf(age[s]), action[s]);
     out[offset + A_ID] = id[s];
     out[offset + A_ENERGY] = energy[s] / energyCapacity(size);
+    out[offset + A_DIET] = normalise(traits[DIET][s], DIET);
+    out[offset + A_SENSE] = normalise(traits[SENSE_RADIUS][s], SENSE_RADIUS);
     offset += AGENT_STRIDE;
     for (let t = 0; t < TRAIT_COUNT; t++) sums[t] += traits[t][s];
     species.add(speciesId[s]);
