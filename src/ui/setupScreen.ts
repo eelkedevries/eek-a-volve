@@ -19,12 +19,27 @@ function presetFor(mode: ViewMode): Partial<SimulationParameters> {
   return mode === 'swarm' ? SWARM_PRESET : COMMUNITY_PRESET;
 }
 
+/** Short, characterful blurbs for the two world presets. */
+const MODE_BLURBS: Record<ViewMode, { emoji: string; title: string; desc: string }> = {
+  community: {
+    emoji: '🫧',
+    title: 'Community',
+    desc: 'Small, cosy pond. Sexual reproduction — courtship you can actually follow.',
+  },
+  swarm: {
+    emoji: '🌊',
+    title: 'Swarm',
+    desc: 'A big chaotic ocean of asexual cloners. Boom, bust, repeat at scale.',
+  },
+};
+
 /**
  * Build the pre-start setup screen: a form over the whole `SimulationParameters`
  * object (number inputs, checkboxes, and the view-mode select), seeded from the
- * defaults. Picking a view mode rescales the world by applying that mode's
- * preset to the other fields. On submit it reads the values and calls `onStart`
- * (specification: Scope — parameters are configured before starting only).
+ * defaults. Two large preset cards (Community / Swarm) sit above the form and
+ * rescale the world by applying that mode's preset; the view-mode select stays in
+ * sync. On submit it reads the values and calls `onStart` (specification: Scope —
+ * parameters are configured before starting only).
  */
 export function createSetupScreen(onStart: (params: SimulationParameters) => void): HTMLElement {
   const screen = document.createElement('div');
@@ -36,12 +51,36 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
 
   const blurb = document.createElement('p');
   blurb.textContent =
-    'Configure the world, then set it running. Afterwards only speed and pause change.';
+    'Tune the soup, then breathe life into it. Afterwards only speed and pause change.';
   screen.appendChild(blurb);
+
+  // --- Preset cards (pick a world, the form rescales to match) ---
+  const modes = document.createElement('div');
+  modes.className = 'setup-modes';
+  const modeButtons = new Map<ViewMode, HTMLButtonElement>();
+  for (const mode of VIEW_MODES) {
+    const meta = MODE_BLURBS[mode];
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'setup-mode';
+    card.setAttribute('aria-pressed', 'false');
+    const t = document.createElement('div');
+    t.className = 'setup-mode-title';
+    t.textContent = `${meta.emoji} ${meta.title}`;
+    const d = document.createElement('div');
+    d.className = 'setup-mode-desc';
+    d.textContent = meta.desc;
+    card.append(t, d);
+    card.addEventListener('click', () => selectMode(mode));
+    modes.appendChild(card);
+    modeButtons.set(mode, card);
+  }
+  screen.appendChild(modes);
 
   const form = document.createElement('form');
   form.className = 'setup-form';
   const controls = new Map<string, HTMLInputElement | HTMLSelectElement>();
+  let viewModeSelect: HTMLSelectElement | undefined;
 
   for (const [key, value] of Object.entries(DEFAULT_PARAMETERS)) {
     const label = document.createElement('label');
@@ -56,7 +95,8 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
         select.appendChild(option);
       }
       select.value = String(value);
-      select.addEventListener('change', () => applyPreset(select.value as ViewMode));
+      select.addEventListener('change', () => selectMode(select.value as ViewMode));
+      viewModeSelect = select;
       control = select;
     } else if (typeof value === 'boolean') {
       const input = document.createElement('input');
@@ -89,12 +129,21 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
     }
   }
 
+  /** Pick a world: highlight its card, sync the select, and rescale the form. */
+  function selectMode(mode: ViewMode): void {
+    for (const [m, button] of modeButtons) {
+      button.setAttribute('aria-pressed', m === mode ? 'true' : 'false');
+    }
+    if (viewModeSelect !== undefined) viewModeSelect.value = mode;
+    applyPreset(mode);
+  }
+
   // Seed the form with the default mode's preset so mode and numbers start consistent.
-  applyPreset(DEFAULT_PARAMETERS.viewMode);
+  selectMode(DEFAULT_PARAMETERS.viewMode);
 
   const start = document.createElement('button');
   start.type = 'submit';
-  start.textContent = 'Start';
+  start.textContent = 'Breathe life into it →';
   form.appendChild(start);
 
   form.addEventListener('submit', (event) => {

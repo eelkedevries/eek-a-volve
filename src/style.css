@@ -1,33 +1,49 @@
 /*
- * eek-a-volve UI styling.
+ * eek-a-volve UI styling — playful "primordial lab" reskin.
  *
- * The whole running UI fits the viewport with no page scrolling: the canvas
+ * Drop-in replacement for src/style.css. Same architecture as before: the canvas
  * fills the area above a single fixed-height toolbar (the "dock"), and the only
- * scrollable element is the message log inside that dock. Detail panels
- * (records, legend, inspector) are popovers above the dock. British English.
+ * scrollable element is the message log inside it. Detail panels (records,
+ * legend, inspector) are popovers above the dock. British English.
+ *
+ * This file changes ONLY visuals — every selector matches the existing DOM, so
+ * no TypeScript needs to change. (The Community/Swarm setup cards are an optional
+ * extra; see setupScreen.ts. The .setup-modes styles below are ready for them.)
+ *
+ * Fonts: add this to index.html <head> —
+ *   <link rel="preconnect" href="https://fonts.googleapis.com">
+ *   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ *   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
  */
 
 :root {
-  --bg: #0d1117;
-  --panel: rgba(17, 23, 30, 0.86);
-  --panel-solid: rgba(13, 17, 22, 0.97);
-  --border: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --field: #0b0e11;
-  --field-2: #1b222b;
-  --text: #e6edf3;
-  --muted: #9aa7b4;
-  --accent: #5dff7a;
-  --accent-ink: #06210f;
+  --bg: #060f12;
+  --panel: rgba(13, 32, 38, 0.82);
+  --panel-solid: rgba(13, 32, 38, 0.96);
+  --border: rgba(124, 255, 170, 0.12);
+  --border-strong: rgba(124, 255, 170, 0.24);
+  --field: rgba(8, 22, 26, 0.7);
+  --field-2: rgba(8, 22, 26, 0.55);
+  --text: #eafff1;
+  --muted: #9bc1aa;
+  --muted-dim: #5f8270;
+  --accent: #5cff8f;
+  --lime: #c9f24a;
+  --accent-ink: #06140b;
   --gold: #ffd14d;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  --blur: saturate(140%) blur(12px);
+  --blue: #54d6ff;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.7);
+  --blur: saturate(150%) blur(16px);
   --edge: 0.85rem;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
   --dock-h: 11.5rem; /* the single toolbar's height (canvas gets the rest) */
+
+  --font-display: 'Fredoka', system-ui, sans-serif;
+  --font-body: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
 }
 
 * {
@@ -43,9 +59,10 @@ body,
 }
 
 body {
-  background: radial-gradient(125% 125% at 50% 0%, #141b24 0%, var(--bg) 58%);
+  background:
+    radial-gradient(125% 120% at 50% 32%, #14323b 0%, #0e262d 36%, #0a1a20 70%, var(--bg) 100%);
   overflow: hidden;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   color: var(--text);
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
@@ -53,7 +70,6 @@ body {
   overscroll-behavior: none;
 }
 
-/* App is a column: the simulation fills the top, the dock the bottom. */
 #app {
   display: flex;
   flex-direction: column;
@@ -79,38 +95,92 @@ button {
   outline-offset: 2px;
 }
 
+@keyframes eav-pop {
+  0% { transform: scale(0.96) translateY(6px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes eav-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* --- Setup screen ------------------------------------------------------ */
 
 .setup-screen {
   flex: 1 1 auto;
   min-height: 0;
-  max-width: 600px;
+  max-width: 640px;
   width: 100%;
   margin: 0 auto;
   padding: max(2rem, var(--safe-t)) 1.5rem 2rem;
   overflow-y: auto;
+  animation: eav-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
 .setup-screen h1 {
-  font-weight: 800;
-  font-size: clamp(1.8rem, 7vw, 2.6rem);
-  letter-spacing: -0.01em;
-  background: linear-gradient(90deg, #8affa0, #5d9bff);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 8vw, 2.9rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  background: linear-gradient(100deg, #8dffb0, var(--lime) 70%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .setup-screen p {
-  margin: 0.5rem 0 1.5rem;
+  margin: 0.6rem 0 1.6rem;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+/* Optional Community/Swarm preset cards (rendered by the setupScreen.ts patch). */
+.setup-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1.4rem;
+}
+
+.setup-mode {
+  text-align: left;
+  padding: 0.9rem 1rem;
+  background: var(--field-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.05s ease;
+}
+
+.setup-mode:hover {
+  border-color: var(--border-strong);
+  background: rgba(92, 255, 143, 0.06);
+}
+
+.setup-mode[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: rgba(92, 255, 143, 0.1);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.setup-mode-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.setup-mode-desc {
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .setup-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.7rem 1.1rem;
+  gap: 0.7rem 1.2rem;
 }
 
 .setup-form label {
@@ -125,38 +195,50 @@ button {
 .setup-form input[type='number'],
 .setup-form select {
   width: 7.5rem;
-  padding: 0.35rem 0.5rem;
+  padding: 0.4rem 0.55rem;
   color: var(--text);
   background: var(--field);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.setup-form input[type='number']:focus,
+.setup-form select:focus {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .setup-form input[type='checkbox'] {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.15rem;
+  height: 1.15rem;
   accent-color: var(--accent);
 }
 
 .setup-form button {
   grid-column: 1 / -1;
-  margin-top: 1.2rem;
-  padding: 0.75rem;
-  font-size: 1.05rem;
-  font-weight: 700;
+  margin-top: 1.3rem;
+  padding: 0.85rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--accent-ink);
-  background: var(--accent);
+  background: linear-gradient(100deg, var(--accent), var(--lime));
   border: 0;
-  border-radius: var(--radius);
-  transition: filter 0.15s ease, transform 0.05s ease;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 30px -8px rgba(92, 255, 143, 0.6);
+  transition: filter 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
 }
 
 .setup-form button:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px -8px rgba(92, 255, 143, 0.75);
 }
 
 .setup-form button:active {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 
 /* --- The dock (single toolbar) ----------------------------------------- */
@@ -166,11 +248,11 @@ button {
   height: var(--dock-h);
   display: flex;
   gap: 0.9rem;
-  padding: 0.5rem 0.8rem;
-  padding-bottom: max(0.5rem, var(--safe-b));
+  padding: 0.6rem 0.85rem;
+  padding-bottom: max(0.6rem, var(--safe-b));
   background: var(--panel);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 -10px 34px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
   z-index: 15;
@@ -181,7 +263,7 @@ button {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.55rem;
   overflow: hidden;
 }
 
@@ -189,46 +271,62 @@ button {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.4rem 0.9rem;
+  gap: 0.45rem 0.9rem;
 }
 
 .dock-brand {
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, #8dffb0, var(--lime) 75%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .dock-stats {
   display: flex;
-  gap: 0.9rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .dock-stat {
   display: flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  font-size: 0.85rem;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--field-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .dock-stat-label {
-  color: var(--muted);
-  font-size: 0.72rem;
+  color: var(--muted-dim);
+  font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .dock-stat-value {
+  font-family: var(--font-mono);
   font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
+
+/* Tint Species + Tick differently for quick scanning. */
+.dock-stat:nth-child(2) .dock-stat-value { color: var(--blue); }
+.dock-stat:nth-child(3) .dock-stat-value { color: var(--lime); }
 
 .dock-narr {
   flex: 1 1 12rem;
   min-width: 0;
-  color: #cdd9e5;
+  color: #cdeada;
   font-style: italic;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -254,7 +352,8 @@ button {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 0.45rem 0.7rem;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
 }
 
 .controls .control-select,
@@ -276,21 +375,23 @@ button {
   color: var(--text);
   background: var(--field-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
 }
 
 .controls select {
-  padding: 0.3rem 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius);
 }
 
 .controls button {
-  padding: 0.35rem 0.7rem;
+  padding: 0.4rem 0.85rem;
+  font-weight: 500;
 }
 
 .controls button:hover,
 .controls select:hover {
-  background: #283140;
+  background: rgba(92, 255, 143, 0.12);
   border-color: var(--border-strong);
 }
 
@@ -309,36 +410,38 @@ button {
 .controls .speed span {
   min-width: 2.8rem;
   text-align: right;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  color: var(--text);
+  color: var(--lime);
 }
 
 .controls input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
   width: 7rem;
-  height: 4px;
-  border-radius: 3px;
-  background: #2b3440;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--lime));
   cursor: pointer;
 }
 
 .controls input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 0;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--accent);
   border-radius: 50%;
-  background: var(--accent);
+  background: #eafff1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .controls input[type='range']::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border: 0;
+  border: 3px solid var(--accent);
   border-radius: 50%;
-  background: var(--accent);
+  background: #eafff1;
 }
 
 /* --- The message log (the only scrollable element) --------------------- */
@@ -348,49 +451,53 @@ button {
   overflow-y: auto;
   overscroll-behavior: contain;
   border-left: 1px solid var(--border);
-  padding-left: 0.8rem;
+  padding-left: 0.85rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(92, 255, 143, 0.28) transparent;
+}
+
+.dock-log::-webkit-scrollbar {
+  width: 9px;
+}
+.dock-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dock-log::-webkit-scrollbar-thumb {
+  background: rgba(92, 255, 143, 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dock-log::-webkit-scrollbar-thumb:hover {
+  background: rgba(92, 255, 143, 0.4);
+  background-clip: padding-box;
 }
 
 .dock-log .story-feed {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
 
 .feed-line {
-  padding: 0.35rem 0.55rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-left: 3px solid #5d9bff;
+  padding: 0.4rem 0.6rem;
+  background: rgba(92, 255, 143, 0.05);
+  border-left: 3px solid var(--blue);
   border-radius: 0 var(--radius) var(--radius) 0;
   font-size: 0.82rem;
-  line-height: 1.35;
-  color: #cdd9e5;
+  line-height: 1.4;
+  color: #cdeada;
+  animation: eav-rise 0.25s ease both;
 }
 
-.feed-catastrophe {
-  border-left-color: #ff5d5d;
-}
-.feed-freak {
-  border-left-color: #c77dff;
-}
-.feed-species {
-  border-left-color: #5dff7a;
-}
-.feed-massDeath {
-  border-left-color: #ff8f3f;
-}
-.feed-nearExtinction {
-  border-left-color: #ffd14d;
-}
-.feed-obituary {
-  border-left-color: #9aa7b4;
-}
-.feed-milestone {
-  border-left-color: #46d8c4;
-}
-.feed-note {
-  border-left-color: #9aa7b4;
-}
+.feed-catastrophe { border-left-color: #ff5d5d; background: rgba(255, 93, 93, 0.07); }
+.feed-freak { border-left-color: #c77dff; background: rgba(199, 125, 255, 0.07); }
+.feed-species { border-left-color: var(--accent); background: rgba(92, 255, 143, 0.08); }
+.feed-massDeath { border-left-color: #ff8f3f; background: rgba(255, 143, 63, 0.07); }
+.feed-nearExtinction { border-left-color: var(--gold); background: rgba(255, 209, 77, 0.07); }
+.feed-obituary { border-left-color: var(--muted); }
+.feed-milestone { border-left-color: #46d8c4; background: rgba(70, 216, 196, 0.07); }
+.feed-note { border-left-color: var(--muted); }
 
 /* --- Popovers above the dock (records, legend, inspector, onboarding) --- */
 
@@ -401,7 +508,7 @@ button {
   bottom: calc(var(--dock-h) + 0.5rem);
   max-height: calc(100vh - var(--dock-h) - 1.5rem);
   overflow-y: auto;
-  padding: 0.8rem 1rem;
+  padding: 0.9rem 1.1rem;
   background: var(--panel-solid);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -412,6 +519,7 @@ button {
 
 .popover.open {
   display: block;
+  animation: eav-pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
 .stats-popover {
@@ -420,7 +528,6 @@ button {
   max-width: calc(100vw - 2 * var(--edge));
 }
 
-/* Records + narrator now live inside the popover, so they are static. */
 .stats-popover .records,
 .stats-popover .narrator {
   position: static;
@@ -436,20 +543,21 @@ button {
 }
 
 .stats-popover .narrator {
-  margin-top: 0.8rem;
+  margin-top: 0.85rem;
   border-top: 1px solid var(--border);
-  padding-top: 0.7rem;
+  padding-top: 0.75rem;
 }
 
 .records summary {
   cursor: pointer;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 
 .records-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.2rem 0.85rem;
+  gap: 0.25rem 0.9rem;
   margin-top: 0.5rem;
 }
 
@@ -460,12 +568,14 @@ button {
 .records-list dd {
   margin: 0;
   color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .narrator-line {
   font-style: italic;
-  color: #cdd9e5;
-  line-height: 1.4;
+  color: #cdeada;
+  line-height: 1.45;
   min-height: 1.2em;
 }
 
@@ -483,7 +593,7 @@ button {
   display: block;
   width: 100%;
   margin-top: 0.4rem;
-  padding: 0.3rem 0.45rem;
+  padding: 0.35rem 0.5rem;
   background: var(--field);
   color: var(--text);
   border: 1px solid var(--border);
@@ -499,7 +609,7 @@ button {
   bottom: calc(var(--dock-h) + 0.5rem);
   width: 20rem;
   max-width: calc(100vw - 2 * var(--edge));
-  padding: 0.9rem 1.1rem;
+  padding: 1rem 1.15rem;
   overflow-y: auto;
   background: var(--panel-solid);
   border: 1px solid var(--border);
@@ -514,6 +624,8 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-family: var(--font-display);
+  font-weight: 600;
 }
 
 .legend-close {
@@ -522,18 +634,24 @@ button {
   border: 0;
   font-size: 1.1rem;
   padding: 0.2rem 0.4rem;
+  border-radius: 8px;
+}
+
+.legend-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
 }
 
 .legend-section {
-  margin-top: 0.9rem;
+  margin-top: 0.95rem;
 }
 
 .legend-section h3 {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin-bottom: 0.35rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-dim);
+  margin-bottom: 0.4rem;
 }
 
 .legend-row {
@@ -541,14 +659,14 @@ button {
   align-items: center;
   gap: 0.6rem;
   font-size: 0.85rem;
-  margin: 0.22rem 0;
+  margin: 0.25rem 0;
 }
 
 .legend-swatch {
   display: inline-block;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 3px;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 4px;
   flex: 0 0 auto;
 }
 
@@ -575,7 +693,7 @@ button {
   bottom: calc(var(--dock-h) + 0.8rem);
   width: 30rem;
   max-width: calc(100vw - 2 * var(--edge));
-  padding: 1rem 1.2rem;
+  padding: 1.1rem 1.3rem;
   background: var(--panel-solid);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -583,34 +701,35 @@ button {
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
   z-index: 30;
+  animation: eav-pop 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
 .onboarding p {
   font-size: 0.92rem;
-  line-height: 1.5;
-  color: #cdd9e5;
+  line-height: 1.55;
+  color: #cdeada;
 }
 
 .onboarding-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-  margin-top: 0.8rem;
+  margin-top: 0.85rem;
 }
 
 .onboarding-buttons button {
-  padding: 0.45rem 1rem;
+  padding: 0.5rem 1.1rem;
   color: var(--text);
   background: var(--field-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 999px;
 }
 
 .onboarding-buttons .onboarding-primary {
   color: var(--accent-ink);
-  background: var(--accent);
+  background: linear-gradient(100deg, var(--accent), var(--lime));
   border: 0;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* --- Creature inspector (compact card above the dock) ------------------ */
@@ -623,7 +742,7 @@ button {
   max-width: calc(100vw - 2 * var(--edge));
   max-height: calc(100vh - var(--dock-h) - 1.5rem);
   overflow: hidden;
-  padding: 0.8rem 0.95rem;
+  padding: 0.9rem 1rem;
   background: var(--panel-solid);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -631,6 +750,7 @@ button {
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
   z-index: 25;
+  animation: eav-pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
 .inspector-header {
@@ -641,8 +761,9 @@ button {
 }
 
 .inspector-name {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
 }
 
 .inspector-binomial {
@@ -652,43 +773,46 @@ button {
 }
 
 .inspector-action {
-  color: #cdd9e5;
+  color: #cdeada;
   font-size: 0.88rem;
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
 }
 
 .inspector-meta {
-  color: var(--muted);
-  font-size: 0.78rem;
-  margin: 0.3rem 0 0.45rem;
+  color: var(--muted-dim);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  margin: 0.35rem 0 0.5rem;
 }
 
 .energy-bar {
-  height: 0.5rem;
-  background: var(--field-2);
-  border-radius: 4px;
+  height: 0.55rem;
+  background: rgba(8, 22, 26, 0.8);
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .energy-fill {
   height: 100%;
-  background: var(--accent);
-  transition: width 0.2s ease;
+  background: linear-gradient(90deg, var(--accent), var(--lime));
+  border-radius: 999px;
+  transition: width 0.25s ease;
 }
 
 .inspector-traits {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0.55rem 0;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
 }
 
 .trait-chip {
   display: inline-flex;
   align-items: baseline;
   gap: 0.3rem;
-  padding: 0.15rem 0.45rem;
-  background: var(--field-2);
+  padding: 0.2rem 0.5rem;
+  background: rgba(92, 255, 143, 0.06);
+  border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 0.74rem;
 }
@@ -698,24 +822,27 @@ button {
 }
 
 .trait-chip-value {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .inspector-adopt {
   width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.5rem;
-  font-weight: 700;
-  color: var(--accent-ink);
-  background: var(--gold);
+  margin-top: 0.4rem;
+  padding: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #2a1c00;
+  background: linear-gradient(100deg, var(--gold), #ffe089);
   border: 0;
   border-radius: var(--radius);
   transition: filter 0.15s ease, transform 0.05s ease;
 }
 
 .inspector-adopt:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.05);
 }
 
 .inspector-adopt:active {
@@ -723,11 +850,6 @@ button {
 }
 
 /* --- Portrait / narrow reflow ------------------------------------------ */
-/*
- * On phones (and small tablets in portrait) the dock stacks vertically: stats
- * and controls on top, the log filling the rest and scrolling. The dock is
- * taller (the canvas gets the top portion); popovers/inspector sit above it.
- */
 @media (max-width: 880px) {
   :root {
     --edge: 0.5rem;
@@ -771,14 +893,16 @@ button {
     min-height: 2.3rem;
   }
 
-  .setup-form {
+  .setup-form,
+  .setup-modes {
     grid-template-columns: 1fr;
   }
 }
 
-/* Honour reduced-motion at the CSS level too. */
 @media (prefers-reduced-motion: reduce) {
   * {
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
