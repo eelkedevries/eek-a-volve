@@ -40,6 +40,8 @@ export interface SimulationParameters {
   immigration: boolean;
   /** Whether reproduction is sexual (two parents, crossover) rather than asexual. */
   sexualReproduction: boolean;
+  /** How the world is watched: an intimate "community" or a large "swarm". */
+  viewMode: 'community' | 'swarm';
 
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
@@ -68,6 +70,32 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   catastrophes: false,
   immigration: false,
   sexualReproduction: false,
+  viewMode: 'community',
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
+};
+
+/**
+ * Mode presets applied at setup (not baked into the defaults, so the 012
+ * stability test still runs on the raw `DEFAULT_PARAMETERS`). Community is small,
+ * dense, and sexual — courtship is easy to see; swarm is large and asexual.
+ */
+export const COMMUNITY_PRESET: Partial<SimulationParameters> = {
+  viewMode: 'community',
+  worldWidth: 360,
+  worldHeight: 360,
+  initialPopulation: 140,
+  foodAbundance: 240,
+  foodRegenRate: 3,
+  sexualReproduction: true,
+};
+
+export const SWARM_PRESET: Partial<SimulationParameters> = {
+  viewMode: 'swarm',
+  worldWidth: 1200,
+  worldHeight: 900,
+  initialPopulation: 900,
+  foodAbundance: 1100,
+  foodRegenRate: 12,
+  sexualReproduction: false,
 };
