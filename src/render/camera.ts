@@ -43,6 +43,14 @@ export class Camera {
     return (sy - this.y) / this.scale;
   }
 
+  worldToScreenX(wx: number): number {
+    return wx * this.scale + this.x;
+  }
+
+  worldToScreenY(wy: number): number {
+    return wy * this.scale + this.y;
+  }
+
   /** Pan by a screen-space delta (drag). */
   panBy(dx: number, dy: number): void {
     this.x += dx;

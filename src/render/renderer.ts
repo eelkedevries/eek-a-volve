@@ -18,6 +18,7 @@ import {
   A_DIET,
   A_SENSE,
   A_ID,
+  A_ENERGY,
   unpackStage,
   unpackAction,
   foodOffset,
@@ -30,7 +31,9 @@ import {
 import { CreatureSprite } from './creatureSprite.ts';
 import { Camera, type Bounds } from './camera.ts';
 import { Effects } from './effects.ts';
+import { Emotes, EMOTE_NONE, EMOTE_SCARED, EMOTE_AMOROUS, EMOTE_HUNGRY } from './emotes.ts';
 import { EATING, HUNTING, FLEEING, COURTING } from '../core/state.ts';
+import { ELDER } from '../core/lifestage.ts';
 import type { SimulationParameters } from '../core/params.ts';
 
 /** Palette indexed by species colour index; -1 (unassigned/immigrant) renders pale grey. */
@@ -47,8 +50,20 @@ function colourFor(index: number): number {
 const PLANT_COLOUR = 0x6abf52;
 const CARRION_COLOUR = 0x9c6b3f;
 
+/** The emote to show for an action/energy, by priority: scared, then amorous, then hungry. */
+function emoteKind(action: number, energy: number): number {
+  if (action === FLEEING) return EMOTE_SCARED;
+  if (action === COURTING) return EMOTE_AMOROUS;
+  if (energy < HUNGRY_FRACTION) return EMOTE_HUNGRY;
+  return EMOTE_NONE;
+}
+
 /** In swarm mode, zoom at or beyond this switches the on-screen subset to detailed creatures. */
 const SWARM_DETAIL_ZOOM = 1.5;
+/** Camera zoom at or beyond which emotes and crowns are shown (else they would clutter). */
+const EMOTE_MIN_ZOOM = 1.2;
+/** Energy fraction below which a creature shows the hungry emote. */
+const HUNGRY_FRACTION = 0.3;
 /** Hard cap on detailed creature objects per frame (the rest stay batched/culled). */
 const MAX_DETAILED = 600;
 /** World-unit margin around the viewport kept when culling, so edge creatures still draw. */
@@ -92,6 +107,7 @@ export class Renderer {
   private readonly foodParticles: Particle[] = [];
   private readonly camera = new Camera();
   private effects!: Effects;
+  private emotes!: Emotes;
   private mode: SimulationParameters['viewMode'] = 'community';
   private worldWidth = 1;
   private worldHeight = 1;
@@ -154,6 +170,10 @@ export class Renderer {
     this.world.addChild(this.foodLayer, this.agents, this.creatureLayer, this.effects.view);
     this.app.stage.addChild(this.world);
 
+    // Emotes/crowns live in screen space (above the world) so they stay readable.
+    this.emotes = new Emotes(this.app.renderer);
+    this.app.stage.addChild(this.emotes.view);
+
     this.camera.fit(worldWidth, worldHeight, this.app.renderer.width, this.app.renderer.height);
     this.lastDraw = performance.now();
     this.setupInteraction();
@@ -201,11 +221,12 @@ export class Renderer {
     if (detailed) {
       this.agents.visible = false;
       this.creatureLayer.visible = true;
-      this.drawDetailed(view, count, bounds);
+      this.drawDetailed(view, count, bounds, this.camera.scale >= EMOTE_MIN_ZOOM);
     } else {
       this.creatureLayer.visible = false;
       this.agents.visible = true;
       this.drawSwarmHaze(view, count);
+      this.emotes.clear();
     }
 
     const now = performance.now();
@@ -277,26 +298,41 @@ export class Renderer {
   }
 
   /** Detailed creatures for the visible, capped subset; surplus pool objects hidden. */
-  private drawDetailed(view: Float32Array, count: number, bounds: Bounds): void {
+  private drawDetailed(view: Float32Array, count: number, bounds: Bounds, emotesOn: boolean): void {
+    this.emotes.begin();
     let used = 0;
     for (let i = 0; i < count && used < MAX_DETAILED; i++) {
       const o = HEADER_LENGTH + i * AGENT_STRIDE;
       const wx = view[o + A_X];
       const wy = view[o + A_Y];
       if (wx < bounds.minX || wx > bounds.maxX || wy < bounds.minY || wy > bounds.maxY) continue;
+      const size = view[o + A_SCALE];
+      const state = view[o + A_STATE];
+      const stage = unpackStage(state);
+      const energy = view[o + A_ENERGY];
       this.creatureAt(used++).update(
         wx,
         wy,
         view[o + A_HEADING],
-        view[o + A_SCALE],
+        size,
         view[o + A_DIET],
         view[o + A_SENSE],
-        unpackStage(view[o + A_STATE]),
+        energy,
+        stage,
         colourFor(view[o + A_COLOUR] | 0),
         1,
       );
+
+      if (emotesOn) {
+        const sx = this.camera.worldToScreenX(wx);
+        const sy = this.camera.worldToScreenY(wy);
+        const radius = size * 0.4 * 8 * this.camera.scale;
+        if (stage === ELDER) this.emotes.showCrown(sx, sy - radius - 4);
+        this.emotes.showEmote(sx, sy - radius - 18, emoteKind(unpackAction(state), energy));
+      }
     }
     for (let i = used; i < this.creatures.length; i++) this.creatures[i].hide();
+    this.emotes.end();
   }
 
   /** Swarm strategy: batched tinted dots, one per agent, drawn in world space. */

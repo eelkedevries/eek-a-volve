@@ -6,6 +6,24 @@ const BODY_RADIUS = 8;
 const EYE_COLOUR = 0x10151b;
 /** Maw colour — a dark red that survives the colour-blind palettes (role cue, not species). */
 const MAW_COLOUR = 0x3a0e0e;
+/** Energy fraction at or above which the body shows full colour; below it starts to fade. */
+const STARVE_FROM = 0.35;
+/** Mid-grey the body desaturates toward when starving. */
+const STARVE_GREY = 0x6a6a6a;
+
+/** Blend `colour` toward `target` by `t` (0…1), per channel. */
+function blend(colour: number, target: number, t: number): number {
+  const r = (colour >> 16) & 0xff;
+  const g = (colour >> 8) & 0xff;
+  const b = colour & 0xff;
+  const tr = (target >> 16) & 0xff;
+  const tg = (target >> 8) & 0xff;
+  const tb = target & 0xff;
+  const nr = Math.round(r + (tr - r) * t);
+  const ng = Math.round(g + (tg - g) * t);
+  const nb = Math.round(b + (tb - b) * t);
+  return (nr << 16) | (ng << 8) | nb;
+}
 
 /**
  * A single detailed creature, built once and re-shaped each frame from snapshot
@@ -51,6 +69,7 @@ export class CreatureSprite {
   /**
    * Position, orient, and shape the creature for one frame.
    * `size` is the raw size trait; `diet` and `sense` are normalised to [0, 1];
+   * `energy` is the energy fraction [0, 1] (drives the starvation tell);
    * `stage` is 0 (juvenile) / 1 (adult) / 2 (elder); `pxPerUnit` maps world to screen.
    */
   update(
@@ -60,6 +79,7 @@ export class CreatureSprite {
     size: number,
     diet: number,
     sense: number,
+    energy: number,
     stage: number,
     tint: number,
     pxPerUnit: number,
@@ -76,7 +96,12 @@ export class CreatureSprite {
 
     // Roundness: larger creatures read fatter, carnivores a touch leaner.
     this.body.scale.set(1, 0.82 + size * 0.22 - diet * 0.16);
-    this.body.tint = tint;
+
+    // Starvation tell: desaturate and fade the body as energy falls toward zero.
+    // Static (no motion), so it is safe under reduced-motion settings.
+    const starve = energy < STARVE_FROM ? (STARVE_FROM - Math.max(energy, 0)) / STARVE_FROM : 0;
+    this.body.tint = starve > 0 ? blend(tint, STARVE_GREY, 0.7 * starve) : tint;
+    this.body.alpha = 1 - 0.6 * starve;
 
     // Eyes grow with sense radius (perception made visible).
     const eyeScale = 0.55 + sense * 1.0;
