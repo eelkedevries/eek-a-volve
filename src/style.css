@@ -623,6 +623,29 @@ button {
   font-size: 0.8rem;
 }
 
+.minimap {
+  position: fixed;
+  z-index: 22;
+  right: var(--edge);
+  top: var(--edge);
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px -10px rgba(0, 0, 0, 0.6);
+  line-height: 0;
+}
+
+.minimap.hidden {
+  display: none;
+}
+
+.minimap canvas {
+  display: block;
+  cursor: crosshair;
+  border-radius: calc(var(--radius) - 4px);
+}
+
 .stats-popover .records,
 .stats-popover .narrator {
   position: static;

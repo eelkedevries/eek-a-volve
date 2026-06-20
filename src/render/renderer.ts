@@ -388,6 +388,23 @@ export class Renderer {
     this.colourMode = mode;
   }
 
+  /** The world dimensions, for the minimap's coordinate mapping. */
+  worldSize(): { width: number; height: number } {
+    return { width: this.worldWidth, height: this.worldHeight };
+  }
+
+  /** The currently visible world rectangle (for the minimap viewport box). */
+  getViewportBounds(): Bounds {
+    return this.camera.visibleBounds(this.app.renderer.width, this.app.renderer.height);
+  }
+
+  /** Recentre the camera on a world point (minimap click); counts as manual control. */
+  centreCameraOn(worldX: number, worldY: number): void {
+    this.camera.centreOn(worldX, worldY, this.app.renderer.width, this.app.renderer.height);
+    this.camera.applyTo(this.world);
+    this.suspendCamera();
+  }
+
   /** Body colour for the agent at offset `o`: species palette, or a trait ramp. */
   private bodyColour(view: Float32Array, o: number): number {
     switch (this.colourMode) {

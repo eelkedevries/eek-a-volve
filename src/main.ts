@@ -7,6 +7,7 @@ import { createInspector } from './ui/inspector.ts';
 import { createRecordsPanel } from './ui/records.ts';
 import { createCharts } from './ui/charts.ts';
 import { createFamilyPanel } from './ui/family.ts';
+import { createMinimap } from './ui/minimap.ts';
 import { createLegend, createOnboarding } from './ui/legend.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
@@ -70,6 +71,9 @@ async function run(
   const records = createRecordsPanel();
   const charts = createCharts();
   const family = createFamilyPanel();
+  const minimap = createMinimap(params.worldWidth, params.worldHeight, (x, y) =>
+    renderer.centreCameraOn(x, y),
+  );
   const legend = createLegend();
   const onboarding = createOnboarding({ onOpenLegend: () => legend.toggle() });
   const narratorUI = createNarratorPanel();
@@ -123,6 +127,7 @@ async function run(
         renderer.setOverlayMode(mode);
         client.setOverlay(mode === 'pheromone');
       },
+      onMinimap: () => minimap.element.classList.toggle('hidden'),
       onColourMode: (mode) => renderer.setColourMode(mode),
       onExport: () => client.exportPopulation(),
       palettes: PALETTES.map((p) => p.name),
@@ -142,6 +147,7 @@ async function run(
     statsPopover,
     chartsPopover,
     familyPopover,
+    minimap.element,
     legend.element,
     onboarding.element,
     inspector.element,
@@ -180,6 +186,8 @@ async function run(
 
       // The auto-director eases the camera to the most interesting subject.
       director.update(view, count, performance.now(), renderer);
+
+      if (frame % 3 === 0) minimap.update(view, count, renderer.getViewportBounds());
 
       // Sound, from the same real signals as the visual cues (no-ops when muted).
       if (sound.isEnabled()) {

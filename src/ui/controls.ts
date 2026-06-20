@@ -22,6 +22,8 @@ export interface ControlsConfig {
   onExport: () => void;
   /** Cycle the field overlay (off → fertility → pheromone). */
   onOverlay: (mode: 'off' | 'fertility' | 'pheromone') => void;
+  /** Show/hide the minimap. */
+  onMinimap: () => void;
   /** Choose how creature bodies are coloured. */
   onColourMode: (mode: 'species' | 'diet' | 'size' | 'sense') => void;
   /** Selectable species palette names; index passed back on change. */
@@ -102,6 +104,10 @@ export function createControls(config: ControlsConfig): HTMLElement {
   const familyBtn = document.createElement('button');
   familyBtn.textContent = '📜 Family';
   familyBtn.addEventListener('click', () => config.onFamily());
+
+  const minimapBtn = document.createElement('button');
+  minimapBtn.textContent = '🗺 Map';
+  minimapBtn.addEventListener('click', () => config.onMinimap());
 
   const overlayModes = ['off', 'fertility', 'pheromone'] as const;
   const overlayName = { off: 'off', fertility: 'biome', pheromone: 'trails' };
@@ -195,6 +201,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     recordsBtn,
     chartsBtn,
     familyBtn,
+    minimapBtn,
     overlayBtn,
     colourLabel,
     paletteLabel,
