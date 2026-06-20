@@ -14,6 +14,8 @@ export interface ControlsConfig {
   onLegend: () => void;
   /** Open/close the hall-of-fame / stats popover. */
   onRecords: () => void;
+  /** Open/close the live charts popover. */
+  onCharts: () => void;
   /** Selectable species palette names; index passed back on change. */
   palettes: string[];
   onPalette: (index: number) => void;
@@ -85,6 +87,10 @@ export function createControls(config: ControlsConfig): HTMLElement {
   recordsBtn.textContent = '🏆 Records';
   recordsBtn.addEventListener('click', () => config.onRecords());
 
+  const chartsBtn = document.createElement('button');
+  chartsBtn.textContent = '📈 Charts';
+  chartsBtn.addEventListener('click', () => config.onCharts());
+
   const paletteLabel = document.createElement('label');
   paletteLabel.className = 'control-select';
   const palette = document.createElement('select');
@@ -140,6 +146,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     director,
     legend,
     recordsBtn,
+    chartsBtn,
     paletteLabel,
     qualityLabel,
     motionLabel,

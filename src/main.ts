@@ -5,6 +5,7 @@ import { createDock } from './ui/dock.ts';
 import { createFeed } from './ui/feed.ts';
 import { createInspector } from './ui/inspector.ts';
 import { createRecordsPanel } from './ui/records.ts';
+import { createCharts } from './ui/charts.ts';
 import { createLegend, createOnboarding } from './ui/legend.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
@@ -61,6 +62,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const feed = createFeed();
   const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
   const records = createRecordsPanel();
+  const charts = createCharts();
   const legend = createLegend();
   const onboarding = createOnboarding({ onOpenLegend: () => legend.toggle() });
   const narratorUI = createNarratorPanel();
@@ -70,6 +72,11 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const statsPopover = document.createElement('div');
   statsPopover.className = 'popover stats-popover';
   statsPopover.append(records.element, narratorUI.element);
+
+  // Live charts popover, opened from the toolbar's 📈 button.
+  const chartsPopover = document.createElement('div');
+  chartsPopover.className = 'popover charts-popover';
+  chartsPopover.append(charts.element);
 
   const milestones = new Milestones();
   const director = new Director(params.worldWidth, params.worldHeight);
@@ -94,6 +101,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       onToggleDirector: (on) => director.setEnabled(on),
       onLegend: () => legend.toggle(),
       onRecords: () => statsPopover.classList.toggle('open'),
+      onCharts: () => charts.setOpen(chartsPopover.classList.toggle('open')),
       palettes: PALETTES.map((p) => p.name),
       onPalette: (index) => renderer.setPalette(index),
       onQuality: (level) => renderer.setQuality(level),
@@ -106,7 +114,14 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   dock.logHost.appendChild(feed.element);
 
   // The dock is in the layout flow (canvas fills the rest); the rest are overlays.
-  mount.append(dock.element, statsPopover, legend.element, onboarding.element, inspector.element);
+  mount.append(
+    dock.element,
+    statsPopover,
+    chartsPopover,
+    legend.element,
+    onboarding.element,
+    inspector.element,
+  );
   // The dock now occupies part of the viewport, so the canvas host shrank — nudge
   // PixiJS (which only resizes on window events) to refit the canvas to it.
   requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
@@ -137,6 +152,9 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
 
       const population = view[H_POPULATION];
       if (frame % 5 === 0) dock.updateStats(population, view[H_SPECIES_COUNT], view[H_TICK]);
+      if (frame % 30 === 0) {
+        charts.push({ tick: view[H_TICK], population, species: view[H_SPECIES_COUNT] });
+      }
 
       const near = population > 0 && population <= NEAR_EXTINCTION_THRESHOLD;
       if (near && !wasNearExtinction) {
