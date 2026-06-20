@@ -25,6 +25,15 @@ export class World {
   /** Genome traits, one column array per trait, in `TRAITS` order. */
   readonly traits: Float32Array[];
 
+  /** Stable per-creature identity (a reused slot gets a new id). 0 means none. */
+  readonly id: Uint32Array;
+  /** Generations from a founder/immigrant (0 = founder). */
+  readonly generation: Uint32Array;
+  /** Number of offspring this creature has produced. */
+  readonly offspringCount: Uint32Array;
+  /** What the agent is doing this tick (see `state.ts`). */
+  readonly action: Uint8Array;
+
   // Food columns, indexed by slot.
   readonly foodX: Float32Array;
   readonly foodY: Float32Array;
@@ -33,6 +42,7 @@ export class World {
   population = 0;
   foodCount = 0;
 
+  private nextId = 1;
   private readonly freeAgents: Int32Array;
   private freeAgentCount: number;
   private readonly freeFood: Int32Array;
@@ -51,6 +61,10 @@ export class World {
     this.speciesId = new Int32Array(agentCapacity);
     this.alive = new Uint8Array(agentCapacity);
     this.traits = Array.from({ length: TRAIT_COUNT }, () => new Float32Array(agentCapacity));
+    this.id = new Uint32Array(agentCapacity);
+    this.generation = new Uint32Array(agentCapacity);
+    this.offspringCount = new Uint32Array(agentCapacity);
+    this.action = new Uint8Array(agentCapacity);
 
     this.foodX = new Float32Array(foodCapacity);
     this.foodY = new Float32Array(foodCapacity);
@@ -72,6 +86,10 @@ export class World {
     const slot = this.freeAgents[--this.freeAgentCount];
     this.alive[slot] = 1;
     this.age[slot] = 0;
+    this.id[slot] = this.nextId++;
+    this.generation[slot] = 0;
+    this.offspringCount[slot] = 0;
+    this.action[slot] = 0;
     this.population++;
     return slot;
   }

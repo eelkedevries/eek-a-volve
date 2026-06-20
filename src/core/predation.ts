@@ -3,6 +3,7 @@ import type { SimulationParameters } from './params.ts';
 import type { SpatialGrid } from './grid.ts';
 import { SIZE, DIET } from './genome.ts';
 import { feed } from './energy.ts';
+import { HUNTING } from './state.ts';
 
 /** Diet above which an agent hunts. */
 export const CARNIVORY_THRESHOLD = 0.6;
@@ -55,6 +56,7 @@ export class Predation {
       if (prey !== -1 && alive[prey] === 1) {
         feed(world, s, sizeCol[prey] * PREY_ENERGY_FACTOR);
         world.killAgent(prey);
+        world.action[s] = HUNTING;
         deaths++;
       }
     }

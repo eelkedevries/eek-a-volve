@@ -6,6 +6,7 @@ import { SIZE, SPEED, SENSE_RADIUS, DIET } from './genome.ts';
 import { feed } from './energy.ts';
 import { consumeFood } from './food.ts';
 import { breed } from './mutation.ts';
+import { IDLE, SEEKING, EATING, FLEEING } from './state.ts';
 
 const TWO_PI = Math.PI * 2;
 
@@ -116,13 +117,16 @@ export class Behaviour {
       if (this.hasThreat) {
         dx = this.px - this.threatX;
         dy = this.py - this.threatY;
+        world.action[s] = FLEEING;
       } else if (this.bestFood !== -1) {
         dx = world.foodX[this.bestFood] - this.px;
         dy = world.foodY[this.bestFood] - this.py;
+        world.action[s] = SEEKING;
       } else {
         const angle = rng.next() * TWO_PI;
         dx = Math.cos(angle);
         dy = Math.sin(angle);
+        world.action[s] = IDLE;
       }
 
       // Move at the agent's speed.
@@ -148,6 +152,7 @@ export class Behaviour {
         if (fdx * fdx + fdy * fdy <= EAT_RADIUS * EAT_RADIUS) {
           feed(world, s, FOOD_ENERGY);
           consumeFood(world, food);
+          world.action[s] = EATING;
         }
       }
 
@@ -164,6 +169,8 @@ export class Behaviour {
           vx[child] = 0;
           vy[child] = 0;
           world.speciesId[child] = world.speciesId[s];
+          world.generation[child] = world.generation[s] + 1;
+          world.offspringCount[s]++;
           births++;
         }
       }
