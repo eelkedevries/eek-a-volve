@@ -19,6 +19,7 @@ import {
   A_SENSE,
   A_ID,
   unpackStage,
+  unpackAction,
   foodOffset,
   FOOD_STRIDE,
   FOOD_X,
@@ -28,6 +29,8 @@ import {
 } from '../core/snapshot.ts';
 import { CreatureSprite } from './creatureSprite.ts';
 import { Camera, type Bounds } from './camera.ts';
+import { Effects } from './effects.ts';
+import { EATING, HUNTING, FLEEING, COURTING } from '../core/state.ts';
 import type { SimulationParameters } from '../core/params.ts';
 
 /** Palette indexed by species colour index; -1 (unassigned/immigrant) renders pale grey. */
@@ -54,6 +57,18 @@ const CULL_MARGIN = 24;
 const PICK_RADIUS_PX = 16;
 /** Pointer travel (px) beyond which a press counts as a pan, not a click. */
 const CLICK_SLOP = 5;
+/** Squared world distance within which the nearest agent to a newborn is taken as its parent. */
+const BIRTH_LINK_R2 = 6 * 6;
+/** Cap on the real-time step fed to effects, so a long stall does not jump them. */
+const MAX_EFFECT_DT = 0.1;
+
+/** Per-agent bookkeeping for spotting births, deaths, and action transitions. */
+interface AgentTrace {
+  action: number;
+  x: number;
+  y: number;
+  seen: number;
+}
 
 /**
  * PixiJS v8 renderer (specification: Architecture → `render/`). Everything lives
@@ -76,9 +91,15 @@ export class Renderer {
   private readonly creatures: CreatureSprite[] = [];
   private readonly foodParticles: Particle[] = [];
   private readonly camera = new Camera();
+  private effects!: Effects;
   private mode: SimulationParameters['viewMode'] = 'community';
   private worldWidth = 1;
   private worldHeight = 1;
+
+  // Behaviour-cue bookkeeping: previous-frame trace per stable id, and a frame counter.
+  private readonly trace = new Map<number, AgentTrace>();
+  private frameNo = 0;
+  private lastDraw = 0;
 
   // Latest snapshot, kept so pointer events can pick and follow between frames.
   private lastView: Float32Array | null = null;
@@ -129,10 +150,12 @@ export class Renderer {
       dynamicProperties: { position: true, vertex: true, color: true },
     });
     this.creatureLayer = new Container();
-    this.world.addChild(this.foodLayer, this.agents, this.creatureLayer);
+    this.effects = new Effects(this.app.renderer);
+    this.world.addChild(this.foodLayer, this.agents, this.creatureLayer, this.effects.view);
     this.app.stage.addChild(this.world);
 
     this.camera.fit(worldWidth, worldHeight, this.app.renderer.width, this.app.renderer.height);
+    this.lastDraw = performance.now();
     this.setupInteraction();
   }
 
@@ -184,6 +207,73 @@ export class Renderer {
       this.agents.visible = true;
       this.drawSwarmHaze(view, count);
     }
+
+    const now = performance.now();
+    const dt = Math.min((now - this.lastDraw) / 1000, MAX_EFFECT_DT);
+    this.lastDraw = now;
+    this.updateEffects(view, count, detailed, dt);
+  }
+
+  /**
+   * Spawn behaviour cues from snapshot state. New stable ids are births (with a
+   * parent→newborn line); ids that vanish are deaths; an action that changes into
+   * eating/hunting/fleeing/courting fires its cue once (only while creatures are
+   * shown in detail, so a zoomed-out haze does not flood the pool).
+   */
+  private updateEffects(view: Float32Array, count: number, detailed: boolean, dt: number): void {
+    const f = ++this.frameNo;
+    for (let i = 0; i < count; i++) {
+      const o = HEADER_LENGTH + i * AGENT_STRIDE;
+      const id = view[o + A_ID];
+      const x = view[o + A_X];
+      const y = view[o + A_Y];
+      const action = unpackAction(view[o + A_STATE]);
+      const e = this.trace.get(id);
+      if (e === undefined) {
+        this.trace.set(id, { action, x, y, seen: f });
+        this.effects.spawnBirth(x, y);
+        if (this.effects.canLineage()) {
+          const parent = this.findParent(view, count, i, x, y);
+          if (parent !== -1) this.effects.spawnLineage(parent, id);
+        }
+      } else {
+        if (detailed && action !== e.action) {
+          if (action === EATING) this.effects.spawnMunch(x, y);
+          else if (action === HUNTING) this.effects.spawnHunt(x, y);
+          else if (action === FLEEING) this.effects.spawnFlee(x, y, view[o + A_HEADING]);
+          else if (action === COURTING) this.effects.spawnCourt(x, y);
+        }
+        e.action = action;
+        e.x = x;
+        e.y = y;
+        e.seen = f;
+      }
+    }
+    for (const [id, e] of this.trace) {
+      if (e.seen !== f) {
+        this.effects.spawnDeath(e.x, e.y);
+        this.trace.delete(id);
+      }
+    }
+    this.effects.update(dt, this.trace);
+  }
+
+  /** The nearest agent to a newborn (which spawns at its parent's position), by stable id. */
+  private findParent(view: Float32Array, count: number, childIndex: number, cx: number, cy: number): number {
+    let best = -1;
+    let bestD = BIRTH_LINK_R2;
+    for (let j = 0; j < count; j++) {
+      if (j === childIndex) continue;
+      const o = HEADER_LENGTH + j * AGENT_STRIDE;
+      const dx = view[o + A_X] - cx;
+      const dy = view[o + A_Y] - cy;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = view[o + A_ID];
+      }
+    }
+    return best;
   }
 
   /** Detailed creatures for the visible, capped subset; surplus pool objects hidden. */
