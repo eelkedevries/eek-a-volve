@@ -11,6 +11,10 @@
 name: Deploy to GitHub Pages
 
 on:
+  # Publish automatically on every push to main (gated by the build + public-build
+  # check in the build job below); also runnable manually from the Actions tab.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
