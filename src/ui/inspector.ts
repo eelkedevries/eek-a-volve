@@ -58,6 +58,10 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
   const meta = document.createElement('div');
   meta.className = 'inspector-meta';
 
+  const lineage = document.createElement('div');
+  lineage.className = 'inspector-lineage';
+  lineage.style.display = 'none';
+
   const energyBar = document.createElement('div');
   energyBar.className = 'energy-bar';
   const energyFill = document.createElement('div');
@@ -91,7 +95,7 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
     opts.onAdopt(following);
   });
 
-  element.append(header, action, meta, energyBar, traitList, adopt);
+  element.append(header, action, meta, lineage, energyBar, traitList, adopt);
 
   return {
     element,
@@ -119,6 +123,12 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
       const stage = STAGE_LABELS[detail.stage] ?? 'adult';
       const offspring = detail.offspringCount === 1 ? '1 offspring' : `${detail.offspringCount} offspring`;
       meta.textContent = `Age ${detail.age} · ${stage} · gen ${detail.generation} · ${offspring}`;
+      if (detail.ancestry.length > 0) {
+        lineage.textContent = `Lineage: ${detail.ancestry.map(personalName).join(' ← ')}`;
+        lineage.style.display = '';
+      } else {
+        lineage.style.display = 'none';
+      }
       energyFill.style.width = `${clamp01(detail.energy / detail.energyCapacity) * 100}%`;
       for (let t = 0; t < TRAIT_COUNT; t++) traitValues[t].textContent = detail.traits[t].toFixed(2);
     },

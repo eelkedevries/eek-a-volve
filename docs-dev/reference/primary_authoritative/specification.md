@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.2
+Version: 0.3.3
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -52,7 +52,9 @@ The genome is a fixed-length array of real-valued, clamped traits, one array per
 - `diet` — herbivore-to-carnivore tendency on a continuous scale; governs the predation branch.
 - `colourHue` — cosmetic, and a cheap visual proxy for lineage.
 
-World state uses a structure-of-arrays layout: parallel typed arrays for position (x, y), velocity or heading, current energy, age, genome traits, and species identifier, indexed by a stable agent slot. Agent and food slots are drawn from pre-allocated pools and reused on death and birth; nothing on the per-tick path allocates.
+World state uses a structure-of-arrays layout: parallel typed arrays for position (x, y), velocity or heading, current energy, age, genome traits, species identifier, a stable creature id, and that creature's parent id (0 for founders and immigrants), indexed by a stable agent slot. Agent and food slots are drawn from pre-allocated pools and reused on death and birth; nothing on the per-tick path allocates.
+
+Lineage is tracked for display: alongside the per-creature parent id, a bounded, pre-allocated registry remembers recent `id → parent id` links (a fixed-capacity ring; old links are evicted, never grown). It lets the inspector resolve a creature's short ancestry chain back through ancestors that have since died, and is observational metadata only (v0.3.3).
 
 The render snapshot is a compact typed array carrying, per visible agent, position, a species colour index, and a scale, plus a small fixed-size header block of aggregate statistics (population total, births and deaths since the previous snapshot, species count, mean of each trait, current tick). The narrator consumes a textual summary derived from the same aggregates.
 
@@ -81,6 +83,8 @@ Predation. When enabled, a sufficiently carnivorous agent that is larger than a 
 Population bounds. Food regenerates at the configured rate up to a carrying capacity, which is the dominant control on population. A hard population ceiling is also enforced. Both bounds are mandatory: without them an agent-based ecosystem is bimodal and tends either to extinction or to unbounded growth, and both outcomes must be impossible. Near-extinction is detected and surfaced as a visible event rather than a frozen screen; an optional trickle of immigrants may be configured.
 
 Speciation. Agents are clustered by genetic distance above a threshold and assigned species labels and colours for display and narration. The clustering is emergent, not imposed.
+
+Lineage (v0.3.3). Each creature records its single parent's stable id at birth (founders and immigrants record none). The inspector uses this, together with the bounded lineage registry, to show a creature's short ancestry chain by name. Lineage is recorded but never read back into any simulation decision, so it does not affect determinism.
 
 Determinism. A seeded generator (mulberry32) drives every stochastic decision. With the fixed timestep, identical seed and parameters reproduce a run exactly. The unseeded platform random source is never used on the simulation path.
 

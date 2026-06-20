@@ -47,6 +47,10 @@ export class Behaviour {
   readonly freakBirths: Int32Array;
   freakBirthCount = 0;
 
+  /** Slots of all offspring born this tick (drained by the Simulation for lineage). */
+  readonly newborns: Int32Array;
+  newbornCount = 0;
+
   private world!: World;
   private self = -1;
   private px = 0;
@@ -71,6 +75,7 @@ export class Behaviour {
     this.live = new Int32Array(agentCapacity);
     this.mated = new Uint8Array(agentCapacity);
     this.freakBirths = new Int32Array(agentCapacity);
+    this.newborns = new Int32Array(agentCapacity);
   }
 
   private readonly onFood = (id: number, dist2: number): void => {
@@ -143,6 +148,7 @@ export class Behaviour {
     for (let s = 0; s < agentCapacity; s++) if (alive[s] === 1) this.live[n++] = s;
     if (params.sexualReproduction) this.mated.fill(0);
     this.freakBirthCount = 0;
+    this.newbornCount = 0;
 
     let births = 0;
     for (let i = 0; i < n; i++) {
@@ -257,9 +263,11 @@ export class Behaviour {
             vx[child] = 0;
             vy[child] = 0;
             world.speciesId[child] = world.speciesId[s];
+            world.parentId[child] = world.id[s];
             world.generation[child] = Math.max(world.generation[s], world.generation[mate]) + 1;
             world.offspringCount[s]++;
             world.offspringCount[mate]++;
+            this.newborns[this.newbornCount++] = child;
             this.mated[s] = 1;
             this.mated[mate] = 1;
             world.action[s] = COURTING;
@@ -281,8 +289,10 @@ export class Behaviour {
           vx[child] = 0;
           vy[child] = 0;
           world.speciesId[child] = world.speciesId[s];
+          world.parentId[child] = world.id[s];
           world.generation[child] = world.generation[s] + 1;
           world.offspringCount[s]++;
+          this.newborns[this.newbornCount++] = child;
           births++;
         }
       }

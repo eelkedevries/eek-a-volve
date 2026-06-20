@@ -27,6 +27,8 @@ export class World {
 
   /** Stable per-creature identity (a reused slot gets a new id). 0 means none. */
   readonly id: Uint32Array;
+  /** Stable id of this creature's parent (0 = founder/immigrant). Observational only. */
+  readonly parentId: Uint32Array;
   /** Generations from a founder/immigrant (0 = founder). */
   readonly generation: Uint32Array;
   /** Number of offspring this creature has produced. */
@@ -70,6 +72,7 @@ export class World {
     this.alive = new Uint8Array(agentCapacity);
     this.traits = Array.from({ length: TRAIT_COUNT }, () => new Float32Array(agentCapacity));
     this.id = new Uint32Array(agentCapacity);
+    this.parentId = new Uint32Array(agentCapacity);
     this.generation = new Uint32Array(agentCapacity);
     this.offspringCount = new Uint32Array(agentCapacity);
     this.action = new Uint8Array(agentCapacity);
@@ -98,6 +101,7 @@ export class World {
     this.alive[slot] = 1;
     this.age[slot] = 0;
     this.id[slot] = this.nextId++;
+    this.parentId[slot] = 0;
     this.generation[slot] = 0;
     this.offspringCount[slot] = 0;
     this.action[slot] = 0;

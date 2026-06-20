@@ -12,7 +12,8 @@ This file records what *is* (current reality). The binding design canon is `docs
   `/eek-a-volve/`, reproducible install via committed `package-lock.json`.
 - **Deterministic core (`src/core/`)** — a complete, headless, tested simulation:
   seeded `mulberry32` RNG, parameters + genome trait definitions, structure-of-
-  arrays world with pooled agent/food slots + stable creature identity, uniform
+  arrays world with pooled agent/food slots + stable creature identity +
+  per-creature parentage and a bounded lineage registry, uniform
   spatial grid, genome inheritance + mutation (+ freak mutations), energy/
   metabolism/death, food regeneration + carrion scavenging, the trait-driven
   behaviour policy (seek/flee/eat/court/reproduce) with a per-tick action/state,
@@ -41,6 +42,8 @@ This file records what *is* (current reality). The binding design canon is `docs
   stats, all controls, and the feed. Plus a **creature inspector** with
   adopt/follow, a **hall-of-fame** records popover, a **legend**, first-run
   **onboarding**, and the **setup screen** with Community/Swarm preset cards.
+  The inspector also shows a creature's short **ancestry line** (parent ←
+  grandparent …) resolved from the lineage registry.
   Controls: speed, pause, reset, director toggle, palette, quality/scale,
   reduce-motion, sound. (The earlier standalone population chart and toasts were
   folded into the dock/log during the single-toolbar consolidation.)

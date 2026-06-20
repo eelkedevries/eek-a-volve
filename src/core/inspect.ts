@@ -2,6 +2,7 @@ import type { Simulation } from './loop.ts';
 import { TRAIT_COUNT, SIZE } from './genome.ts';
 import { stageOf } from './lifestage.ts';
 import { energyCapacity } from './energy.ts';
+import { resolveAncestry } from './lineage.ts';
 
 /**
  * The full state of one creature, pulled on demand for the inspector. The render
@@ -21,6 +22,8 @@ export interface CreatureDetail {
   action: number;
   generation: number;
   offspringCount: number;
+  /** Ancestor ids, nearest-first (parent, grandparent, …); empty for a founder. */
+  ancestry: number[];
 }
 
 /** A detail record for a stable `id`, or a not-alive record if it is gone. */
@@ -42,6 +45,7 @@ export function inspectCreature(sim: Simulation, id: number): CreatureDetail {
         action: w.action[s],
         generation: w.generation[s],
         offspringCount: w.offspringCount[s],
+        ancestry: resolveAncestry(w, sim.lineage, id),
       };
     }
   }
@@ -57,5 +61,6 @@ export function inspectCreature(sim: Simulation, id: number): CreatureDetail {
     action: 0,
     generation: 0,
     offspringCount: 0,
+    ancestry: [],
   };
 }

@@ -8,6 +8,7 @@ import { EventLog } from './eventlog.ts';
 import { Records } from './records.ts';
 import { Rng } from './rng.ts';
 import { PheromoneField } from './pheromone.ts';
+import { LineageRegistry } from './lineage.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
@@ -40,6 +41,8 @@ export class Simulation {
   readonly rng: Rng;
   /** Coarse pheromone field (stigmergy); inert unless `params.pheromones`. */
   readonly pheromone: PheromoneField;
+  /** Bounded record of recent parentage, for the inspector's ancestry line. */
+  readonly lineage = new LineageRegistry();
   private readonly agentGrid: SpatialGrid;
   private readonly foodGrid: SpatialGrid;
   private readonly behaviour: Behaviour;
@@ -93,6 +96,11 @@ export class Simulation {
     for (let i = 0; i < behaviour.freakBirthCount; i++) {
       const slot = behaviour.freakBirths[i];
       eventLog.freak(world.id[slot], slot, world.x[slot], world.y[slot]);
+    }
+    // Record this tick's parentage for the inspector's ancestry line (metadata only).
+    for (let i = 0; i < behaviour.newbornCount; i++) {
+      const slot = behaviour.newborns[i];
+      this.lineage.record(world.id[slot], world.parentId[slot]);
     }
     // 3. Predation: carnivores eat smaller neighbours (positions have moved).
     let deaths = 0;
