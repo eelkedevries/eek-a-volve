@@ -191,6 +191,91 @@ canvas {
   border-left-color: #9aa7b4;
 }
 
+.inspector {
+  position: fixed;
+  left: 1rem;
+  top: 5rem;
+  width: 19rem;
+  max-width: 80vw;
+  padding: 0.8rem 0.9rem;
+  background: rgba(11, 14, 17, 0.92);
+  border: 1px solid #2b3440;
+  border-radius: 8px;
+}
+
+.inspector-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.inspector-binomial {
+  font-style: italic;
+  color: #9aa7b4;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.inspector-action {
+  color: #cdd9e5;
+  font-size: 0.9rem;
+}
+
+.inspector-meta {
+  color: #9aa7b4;
+  font-size: 0.8rem;
+  margin: 0.3rem 0 0.5rem;
+}
+
+.energy-bar,
+.trait-bar {
+  height: 0.55rem;
+  background: #1b222b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.energy-fill {
+  height: 100%;
+  background: #5dff7a;
+}
+
+.inspector-traits {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0;
+  font-size: 0.78rem;
+}
+
+.trait-row {
+  display: grid;
+  grid-template-columns: 6rem 1fr 2.4rem;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.trait-fill {
+  height: 100%;
+  background: #5d9bff;
+}
+
+.trait-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #9aa7b4;
+}
+
+.inspector-adopt {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.45rem;
+  font-weight: 600;
+  color: #06210f;
+  background: #ffd14d;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .narrator {
   position: fixed;
   left: 1rem;

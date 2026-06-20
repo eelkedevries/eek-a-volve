@@ -1,6 +1,7 @@
 import type { MainToWorker } from './protocol.ts';
 import { createSimulation, type Simulation } from '../core/loop.ts';
 import { serialiseSnapshot, snapshotLength } from '../core/snapshot.ts';
+import { inspectCreature } from '../core/inspect.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
 
 /** Minimal view of the dedicated-worker global, avoiding DOM/WebWorker lib clashes. */
@@ -19,6 +20,8 @@ let running = false;
 let multiplier = 1;
 let accumulator = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
+/** Stable id of the adopted creature, or -1; replied to each frame while set. */
+let adoptedId = -1;
 const freeBuffers: ArrayBuffer[] = [];
 
 function frame(): void {
@@ -32,6 +35,13 @@ function frame(): void {
   // Post any notable events drained from the log (cheap; usually empty).
   const events = sim.eventLog.drain();
   if (events.length > 0) ctx.postMessage({ type: 'events', events }, []);
+
+  // Keep the inspector live while a creature is adopted; clear once it has died.
+  if (adoptedId !== -1) {
+    const detail = inspectCreature(sim, adoptedId);
+    ctx.postMessage({ type: 'inspect', detail }, []);
+    if (!detail.alive) adoptedId = -1;
+  }
 
   const buffer = freeBuffers.pop();
   if (buffer !== undefined) {
@@ -66,10 +76,14 @@ ctx.onmessage = (event: MessageEvent): void => {
     case 'reset':
       running = false;
       sim = null;
+      adoptedId = -1;
       if (timer !== null) {
         clearInterval(timer);
         timer = null;
       }
+      break;
+    case 'inspect':
+      adoptedId = msg.id;
       break;
     case 'returnBuffer':
       freeBuffers.push(msg.buffer);

@@ -4,6 +4,7 @@ import { createControls } from './ui/controls.ts';
 import { PopulationChart } from './ui/chart.ts';
 import { Toasts } from './ui/toasts.ts';
 import { createFeed } from './ui/feed.ts';
+import { createInspector } from './ui/inspector.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
@@ -46,19 +47,31 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const chart = new PopulationChart();
   const toasts = new Toasts();
   const feed = createFeed();
+  const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
   const narratorUI = createNarratorPanel();
-  mount.append(chart.element, toasts.element, feed.element, narratorUI.element);
+  mount.append(chart.element, toasts.element, feed.element, inspector.element, narratorUI.element);
 
   const milestones = new Milestones();
   const client = new SimulationClient();
   let frame = 0;
   let wasNearExtinction = false;
   let latestEvent: string | null = null;
+  let inspectId = -1;
 
   client.start(
     params,
     (view, count) => {
     renderer.draw(view, count);
+
+    // Mirror the renderer's selection to the worker so the inspector stays live.
+    const selected = renderer.getSelectedId();
+    if (selected !== inspectId) {
+      inspectId = selected;
+      client.inspect(selected);
+      if (selected === -1) inspector.hide();
+      else inspector.show();
+    }
+
     const population = view[H_POPULATION];
     if (frame % 5 === 0) chart.push(population);
 
@@ -91,6 +104,15 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
     (events) => {
       const line = feed.push(events);
       if (line !== null) latestEvent = line;
+    },
+    (detail) => {
+      if (!detail.alive) {
+        inspector.hide();
+        renderer.clearSelection();
+        inspectId = -1;
+      } else {
+        inspector.update(detail);
+      }
     },
   );
 

@@ -210,9 +210,20 @@ export class Renderer {
     this.setupInteraction();
   }
 
-  /** The stable id of the selected creature, or -1 (for the inspector, later). */
+  /** The stable id of the selected creature, or -1. */
   getSelectedId(): number {
     return this.selectedId;
+  }
+
+  /** Adopt (camera-follow) the selected creature, or stop following. */
+  setFollowing(on: boolean): void {
+    this.following = on;
+  }
+
+  /** Clear the current selection and stop following (e.g. when the creature dies). */
+  clearSelection(): void {
+    this.selectedId = -1;
+    this.following = false;
   }
 
   /** Turn motion juice (shake, trails, flash, squash) on or off — for a manual toggle (041). */
@@ -628,8 +639,9 @@ export class Renderer {
       }
     }
     if (best !== -1) {
+      // Select for inspection, but do not adopt until the viewer presses Adopt.
       this.selectedId = view[HEADER_LENGTH + best * AGENT_STRIDE + A_ID];
-      this.following = true;
+      this.following = false;
     } else {
       this.selectedId = -1;
       this.following = false;
