@@ -55,6 +55,7 @@ describe('Behaviour', () => {
     w.x[a] = 50; w.y[a] = 50; w.energy[a] = 100;
     w.traits[SIZE][a] = 1; w.traits[SPEED][a] = 0; w.traits[SENSE_RADIUS][a] = 10; w.traits[DIET][a] = 0;
     w.speciesId[a] = 7;
+    w.age[a] = 300; // mature
     const { food, agents } = buildGrids(w, p);
     const births = new Behaviour(w.agentCapacity).step(w, p, food, agents, new Rng(1));
     expect(births).toBe(1);

@@ -1,7 +1,7 @@
 # eek-a-volve — specification
 
-Version: 0.1.0
-Last updated: 2026-06-19
+Version: 0.2.0
+Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
 
@@ -67,6 +67,8 @@ Energy budget. Each tick subtracts a baseline metabolic drain scaled by `size`, 
 Behaviour. A hand-coded policy parameterised by the agent's traits, not a learned controller: move toward the nearest food within `senseRadius`; if a larger, more carnivorous agent is within range, flee; if energy exceeds the reproduction threshold and a compatible neighbour is present, reproduce sexually, or asexually if the configuration selects it.
 
 Reproduction and mutation. Reproduction requires crossing the energy threshold and pays an energy cost shared with the offspring. Offspring traits are inherited and then perturbed: each trait mutates with the configured probability by a Gaussian step of the configured magnitude, after which all traits are clamped to valid ranges to prevent the propagation of invalid values.
+
+Life stages (v0.2.0). Creatures pass through stages derived from age — juvenile, adult, elder. Only mature creatures (adult or elder) reproduce, so a creature must survive to maturity before it can breed; juveniles are rendered smaller.
 
 Predation. When enabled, a sufficiently carnivorous agent that is larger than a neighbour may consume it for energy. The expected population signature, when predators and prey coexist, is lagged, noisy oscillation reminiscent of Lotka-Volterra. The Lotka-Volterra equations are a reference for expected behaviour only and are never used as the engine.
 

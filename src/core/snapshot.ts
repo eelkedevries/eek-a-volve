@@ -1,6 +1,7 @@
 import type { Simulation } from './loop.ts';
 import { TRAIT_COUNT, SIZE } from './genome.ts';
 import { energyCapacity } from './energy.ts';
+import { stageOf } from './lifestage.ts';
 
 // --- Header (appended fields keep earlier offsets stable for existing consumers) ---
 export const H_TICK = 0;
@@ -61,7 +62,7 @@ export function foodOffset(population: number): number {
  */
 export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
   const w = sim.world;
-  const { alive, x, y, vx, vy, energy, traits, speciesId, action, id, agentCapacity } = w;
+  const { alive, x, y, vx, vy, energy, age, traits, speciesId, action, id, agentCapacity } = w;
   const sizeCol = traits[SIZE];
 
   const sums = new Float64Array(TRAIT_COUNT);
@@ -76,7 +77,7 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
     out[offset + A_COLOUR] = speciesId[s];
     out[offset + A_SCALE] = size;
     out[offset + A_HEADING] = Math.atan2(vy[s], vx[s]);
-    out[offset + A_STATE] = packState(0, action[s]); // life stage filled in by 027
+    out[offset + A_STATE] = packState(stageOf(age[s]), action[s]);
     out[offset + A_ID] = id[s];
     out[offset + A_ENERGY] = energy[s] / energyCapacity(size);
     offset += AGENT_STRIDE;

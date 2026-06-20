@@ -7,6 +7,7 @@ import { feed } from './energy.ts';
 import { consumeFood } from './food.ts';
 import { breed } from './mutation.ts';
 import { IDLE, SEEKING, EATING, FLEEING } from './state.ts';
+import { isMature } from './lifestage.ts';
 
 const TWO_PI = Math.PI * 2;
 
@@ -156,8 +157,8 @@ export class Behaviour {
         }
       }
 
-      // Reproduce asexually when over the threshold and the pool has room.
-      if (energy[s] > params.reproductionThreshold) {
+      // Reproduce asexually when mature, over the threshold, and the pool has room.
+      if (energy[s] > params.reproductionThreshold && isMature(world.age[s])) {
         const child = world.spawnAgent();
         if (child !== -1) {
           breed(world, child, s, params, rng);

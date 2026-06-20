@@ -46,7 +46,7 @@ describe('agent identity and lineage', () => {
     const p = params({ reproductionThreshold: 50, mutationRate: 0 });
     const w = new World(8, 1);
     const a = w.spawnAgent();
-    w.x[a] = 50; w.y[a] = 50; w.energy[a] = 100;
+    w.x[a] = 50; w.y[a] = 50; w.energy[a] = 100; w.age[a] = 300; // mature
     w.traits[SIZE][a] = 1; w.traits[SPEED][a] = 0; w.traits[SENSE_RADIUS][a] = 10; w.traits[DIET][a] = 0;
     const g = grids(w, p);
     new Behaviour(w.agentCapacity).step(w, p, g.food, g.agents, new Rng(1));
