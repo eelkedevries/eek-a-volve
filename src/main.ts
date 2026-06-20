@@ -5,6 +5,7 @@ import { PopulationChart } from './ui/chart.ts';
 import { Toasts } from './ui/toasts.ts';
 import { createFeed } from './ui/feed.ts';
 import { createInspector } from './ui/inspector.ts';
+import { createRecordsPanel } from './ui/records.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
@@ -49,8 +50,16 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const toasts = new Toasts();
   const feed = createFeed();
   const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
+  const records = createRecordsPanel();
   const narratorUI = createNarratorPanel();
-  mount.append(chart.element, toasts.element, feed.element, inspector.element, narratorUI.element);
+  mount.append(
+    chart.element,
+    toasts.element,
+    feed.element,
+    inspector.element,
+    records.element,
+    narratorUI.element,
+  );
 
   const milestones = new Milestones();
   const director = new Director(params.worldWidth, params.worldHeight);
@@ -120,6 +129,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
         inspector.update(detail);
       }
     },
+    (view) => records.update(view),
   );
 
   mount.appendChild(

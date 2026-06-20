@@ -36,6 +36,9 @@ function frame(): void {
   const events = sim.eventLog.drain();
   if (events.length > 0) ctx.postMessage({ type: 'events', events }, []);
 
+  // Post the hall-of-fame records (a small, cloned snapshot).
+  ctx.postMessage({ type: 'records', records: sim.records.view() }, []);
+
   // Keep the inspector live while a creature is adopted; clear once it has died.
   if (adoptedId !== -1) {
     const detail = inspectCreature(sim, adoptedId);

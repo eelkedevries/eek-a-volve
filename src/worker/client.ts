@@ -1,6 +1,7 @@
 import type { SimulationParameters } from '../core/params.ts';
 import type { SimEvent } from '../core/eventlog.ts';
 import type { CreatureDetail } from '../core/inspect.ts';
+import type { RecordsView } from '../core/records.ts';
 import type { MainToWorker, WorkerToMain } from './protocol.ts';
 
 /** Called with each snapshot view and its live-agent count. */
@@ -12,6 +13,9 @@ export type EventsHandler = (events: SimEvent[]) => void;
 /** Called with the adopted creature's live detail each frame (or a not-alive record). */
 export type InspectHandler = (detail: CreatureDetail) => void;
 
+/** Called with the hall-of-fame records each frame. */
+export type RecordsHandler = (records: RecordsView) => void;
+
 /**
  * Main-thread handle to the simulation worker. Owns the worker, forwards control
  * messages, and returns each snapshot buffer to the worker after handing it to
@@ -22,6 +26,7 @@ export class SimulationClient {
   private onSnapshot: SnapshotHandler | null = null;
   private onEvents: EventsHandler | null = null;
   private onInspect: InspectHandler | null = null;
+  private onRecords: RecordsHandler | null = null;
 
   constructor() {
     this.worker = new Worker(new URL('./simulationWorker.ts', import.meta.url), {
@@ -36,20 +41,24 @@ export class SimulationClient {
         this.onEvents?.(msg.events);
       } else if (msg.type === 'inspect') {
         this.onInspect?.(msg.detail);
+      } else if (msg.type === 'records') {
+        this.onRecords?.(msg.records);
       }
     };
   }
 
-  /** Start a run, delivering snapshots, notable events, and adopted-creature detail. */
+  /** Start a run, delivering snapshots, events, adopted-creature detail, and records. */
   start(
     params: SimulationParameters,
     onSnapshot: SnapshotHandler,
     onEvents?: EventsHandler,
     onInspect?: InspectHandler,
+    onRecords?: RecordsHandler,
   ): void {
     this.onSnapshot = onSnapshot;
     this.onEvents = onEvents ?? null;
     this.onInspect = onInspect ?? null;
+    this.onRecords = onRecords ?? null;
     this.send({ type: 'init', params });
   }
 

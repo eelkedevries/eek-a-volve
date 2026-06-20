@@ -5,6 +5,7 @@ import { Predation } from './predation.ts';
 import { Speciation } from './speciation.ts';
 import { Events, type CatastropheEvent } from './events.ts';
 import { EventLog } from './eventlog.ts';
+import { Records } from './records.ts';
 import { Rng } from './rng.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
@@ -44,6 +45,8 @@ export class Simulation {
   private readonly events = new Events();
   /** Bounded log of notable moments, drained by the worker for the UI and narrator. */
   readonly eventLog = new EventLog();
+  /** Running hall-of-fame records, posted to the UI. */
+  readonly records = new Records();
 
   tick = 0;
   /** Births during the most recent tick. */
@@ -116,8 +119,9 @@ export class Simulation {
     this.prevNearExtinction = this.nearExtinction;
     this.births = births;
     this.deaths = deaths;
-    // 10. Obituaries for notable creatures that died this tick.
+    // 10. Obituaries for notable creatures that died this tick, and records.
     eventLog.reconcile(world);
+    this.records.update(world, this.tick);
     this.tick++;
     if (this.tick % SPECIATION_INTERVAL === 0) {
       const count = this.speciation.cluster(world);

@@ -1,6 +1,7 @@
 import type { SimulationParameters } from '../core/params.ts';
 import type { SimEvent } from '../core/eventlog.ts';
 import type { CreatureDetail } from '../core/inspect.ts';
+import type { RecordsView } from '../core/records.ts';
 
 /** Messages from the main thread to the simulation worker. */
 export type MainToWorker =
@@ -17,4 +18,5 @@ export type MainToWorker =
 export type WorkerToMain =
   | { type: 'snapshot'; buffer: ArrayBuffer; count: number }
   | { type: 'events'; events: SimEvent[] }
-  | { type: 'inspect'; detail: CreatureDetail };
+  | { type: 'inspect'; detail: CreatureDetail }
+  | { type: 'records'; records: RecordsView };
