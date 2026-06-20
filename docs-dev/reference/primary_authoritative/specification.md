@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.8
+Version: 0.4.0
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -15,7 +15,7 @@ Target platforms are desktop browsers on Windows, Linux, and macOS: current Chro
 
 Long unattended runs ("for days") are supported on desktop, subject to the ordinary constraint that the machine must not sleep. Operating-system sleep suspends everything; background-tab throttling of timers and animation frames is mitigated by running the simulation in a Web Worker. Desktop remains the primary, tested platform. The UI layout is responsive and usable on small and portrait screens as a best-effort enhancement (v0.3.1), but mobile is not a tested target: no mobile memory ceiling or WebKit-specific handling is implemented, and iOS/iPadOS behaviour is unverified.
 
-Out of scope for the first version, recorded here as decisions rather than omissions: learned neural-network brains, topology-evolving neuroevolution (NEAT), WebAssembly or GPU-compute simulation cores, OffscreenCanvas rendering, a server-side narrator proxy, and cross-reload persistence. Each is a candidate later enhancement (see Locked decisions).
+Large or architectural enhancements — learned neural-network brains, a WebAssembly simulation core, and OffscreenCanvas rendering — are permitted under the optional-capability principle (see Locked decisions): they ship only as default-off toggles with the original hand-coded behaviour, the TypeScript core, and the main-thread PixiJS renderer retained as the default and automatic fallback, and they must not change the default run. Still out of scope for the first version, recorded as decisions rather than omissions: topology-evolving neuroevolution (NEAT) and a server-side narrator proxy.
 
 ## Architecture
 
@@ -108,7 +108,9 @@ The humour register is wry and affectionate, never mean. The optional narrator a
 
 ## Locked decisions
 
-- The core uses trait-only, continuous, energy-driven natural selection. Learned neural-network brains are deferred to a later enhancement and are the first stretch goal once the core is stable. NEAT is a distant follow-on, not on the critical path.
+- **Optional-capability principle (v0.4.0).** Large or architectural enhancements (learned brains, alternative simulation/render cores) are permitted only as optional, default-off capabilities that the user can toggle on and off. The original hand-coded behaviour, the TypeScript simulation core, and the main-thread PixiJS renderer are always retained as the shipped default and the automatic fallback when a capability is off or unsupported. Such a capability must preserve determinism, must leave the default run byte-for-byte unchanged, and must keep the population-stability guarantee on the default path.
+- The core uses trait-only, continuous, energy-driven natural selection by default. Learned neural-network brains are available as an optional, default-off capability under the optional-capability principle (an evolvable fixed-topology network drives movement when enabled); the hand-coded policy remains the default and fallback. NEAT (topology evolution) remains a distant follow-on, not on the critical path.
+- Alternative performance cores are available as optional, default-off capabilities under the optional-capability principle: a WebAssembly simulation core and OffscreenCanvas (worker) rendering, each behind a capability check, each producing results equivalent to the default path, with the TypeScript core and main-thread renderer retained as the default and automatic fallback.
 - Rendering uses PixiJS v8 with a `ParticleContainer`; simulation runs in a Web Worker; the two communicate by transferable typed arrays. `SharedArrayBuffer` is not used.
 - The rendering baseline is WebGL2, with WebGPU as an automatic upgrade via PixiJS. No WebGPU-specific code is written.
 - Target (tested) platforms are desktop browsers on Windows, Linux, and macOS. The UI is responsive for small/portrait screens as a best-effort enhancement (v0.3.1); iOS/iPadOS remain untested, with no WebKit-specific or mobile-memory handling. Long unattended runs are a desktop capability, contingent on the machine not sleeping.
