@@ -269,6 +269,30 @@ button {
   font-size: 0.82rem;
 }
 
+.setup-help {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-left: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--field);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: help;
+}
+
+.setup-help:hover,
+.setup-help:focus {
+  border-color: var(--accent);
+  color: var(--text);
+  outline: none;
+}
+
 /* --- The dock (single toolbar) ----------------------------------------- */
 
 .dock {

@@ -7,6 +7,35 @@ import {
 import { encodeParams, SHARE_HASH_PREFIX } from '../core/share.ts';
 import { decodePopulation, type PopulationRecord } from '../core/population.ts';
 
+/** Concise, plain-English help for each pre-start parameter. */
+const HELP: Record<string, string> = {
+  worldWidth: 'Width of the world, in simulation units. Bigger worlds spread the population thinner.',
+  worldHeight: 'Height of the world, in simulation units.',
+  seed: 'Random seed. The same seed and parameters reproduce a run exactly.',
+  initialPopulation: 'How many creatures the world starts with.',
+  startingSpeciesCount: 'How many distinct genetic clusters the founders are split into.',
+  foodAbundance: 'Food carrying capacity — the main control on how large the population can grow.',
+  foodRegenRate: 'How quickly eaten food is replaced each tick, up to the carrying capacity.',
+  startingEnergy: 'Energy each founder begins with.',
+  baseMetabolicCost: 'Baseline energy drained per tick before trait scaling. Higher means hungrier creatures.',
+  reproductionThreshold: 'Energy a creature must reach before it can reproduce.',
+  mutationRate: 'Chance (0–1) that each trait mutates in an offspring.',
+  mutationMagnitude: 'How large a mutation step is when a trait does mutate.',
+  predation: 'Whether larger, carnivorous creatures may eat smaller ones.',
+  catastrophes: 'Whether occasional disasters (meteors, plagues, droughts) can strike.',
+  immigration: 'Whether a trickle of fresh-genome newcomers arrives over time.',
+  sexualReproduction: 'Two parents and genome crossover (on), or single-parent budding (off). Enables sexual selection.',
+  viewMode: 'Community: a small, cosy pond. Swarm: a vast, chaotic ocean.',
+  pheromones: 'Whether creatures lay and follow scent trails toward food (stigmergy).',
+  pheromoneCellSize: 'Resolution of the scent-trail grid, in world units. Smaller is finer.',
+  pheromoneDecay: 'How fast trails fade each tick (0–1). Lower fades faster.',
+  pheromoneDiffusion: 'How much trails spread to neighbouring cells each tick (0–1).',
+  pheromoneDeposit: 'How much scent a creature drops when it eats.',
+  biomeStrength: 'How strongly food clusters into fertile regions (0 = spread evenly).',
+  minTimeMultiplier: 'Slowest post-start speed (ticks per frame).',
+  maxTimeMultiplier: 'Fastest post-start speed (ticks per frame).',
+};
+
 /** Turn a camelCase parameter key into a British-English label. */
 function humanise(key: string): string {
   const spaced = key.replace(/([A-Z])/g, ' $1').toLowerCase().trim();
@@ -118,6 +147,17 @@ export function createSetupScreen(
     }
     controls.set(key, control);
     label.appendChild(control);
+    const help = HELP[key];
+    if (help !== undefined) {
+      const badge = document.createElement('span');
+      badge.className = 'setup-help';
+      badge.textContent = '?';
+      badge.title = help;
+      badge.setAttribute('aria-label', help);
+      badge.setAttribute('role', 'note');
+      badge.tabIndex = 0;
+      label.appendChild(badge);
+    }
     form.appendChild(label);
   }
 
