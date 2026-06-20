@@ -20,6 +20,9 @@ export interface ControlsConfig {
   /** Whether reduced motion starts on (e.g. from the OS preference). */
   reducedMotion: boolean;
   onReducedMotion: (on: boolean) => void;
+  /** Whether sound starts on (off by default; remembered in localStorage). */
+  soundEnabled: boolean;
+  onToggleSound: (on: boolean) => void;
 }
 
 /**
@@ -111,10 +114,30 @@ export function createControls(config: ControlsConfig): HTMLElement {
   motion.addEventListener('change', () => config.onReducedMotion(motion.checked));
   motionLabel.append(motion, 'Reduce motion');
 
+  let sounding = config.soundEnabled;
+  const sound = document.createElement('button');
+  const soundLabel = (): string => (sounding ? '🔊 Sound: on' : '🔈 Sound: off');
+  sound.textContent = soundLabel();
+  sound.addEventListener('click', () => {
+    sounding = !sounding;
+    sound.textContent = soundLabel();
+    config.onToggleSound(sounding);
+  });
+
   const reset = document.createElement('button');
   reset.textContent = 'Reset';
   reset.addEventListener('click', () => config.onReset());
 
-  bar.append(pause, speedLabel, director, legend, paletteLabel, qualityLabel, motionLabel, reset);
+  bar.append(
+    pause,
+    speedLabel,
+    director,
+    legend,
+    paletteLabel,
+    qualityLabel,
+    motionLabel,
+    sound,
+    reset,
+  );
   return bar;
 }

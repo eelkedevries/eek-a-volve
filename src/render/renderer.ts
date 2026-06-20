@@ -161,6 +161,8 @@ export class Renderer {
   private frameNo = 0;
   private lastDraw = 0;
   private now = 0;
+  /** Number of creatures that started eating this frame (drives the eat sound). */
+  private frameAte = 0;
 
   // Visual juice, all honouring reduced motion.
   private reducedMotion = false;
@@ -267,6 +269,11 @@ export class Renderer {
   /** The stable id of the selected creature, or -1. */
   getSelectedId(): number {
     return this.selectedId;
+  }
+
+  /** How many creatures began eating in the last drawn frame (drives the eat sound). */
+  getFrameAte(): number {
+    return this.frameAte;
   }
 
   /** Adopt (camera-follow) the selected creature, or stop following. */
@@ -466,6 +473,7 @@ export class Renderer {
     const cues = this.effectsEnabled && !this.reducedMotion;
     const juice = !this.reducedMotion;
     const f = ++this.frameNo;
+    this.frameAte = 0;
     for (let i = 0; i < count; i++) {
       const o = HEADER_LENGTH + i * AGENT_STRIDE;
       const id = view[o + A_ID];
@@ -486,6 +494,7 @@ export class Renderer {
       } else {
         if (action !== e.action) {
           if (action === EATING) {
+            this.frameAte++;
             if (juice) e.squashUntil = this.now + SQUASH_MS;
             if (cues && detailed) this.effects.spawnMunch(x, y);
           } else if (action === HUNTING) {

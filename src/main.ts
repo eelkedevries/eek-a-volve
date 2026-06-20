@@ -12,6 +12,7 @@ import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
 import { Renderer, PALETTES } from './render/renderer.ts';
 import { Director } from './render/director.ts';
+import { SoundKit } from './audio/sound.ts';
 import {
   H_TICK,
   H_POPULATION,
@@ -68,6 +69,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
 
   const milestones = new Milestones();
   const director = new Director(params.worldWidth, params.worldHeight);
+  const sound = new SoundKit();
   const client = new SimulationClient();
   let frame = 0;
   let wasNearExtinction = false;
@@ -90,6 +92,13 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
 
     // The auto-director eases the camera to the most interesting subject.
     director.update(view, count, performance.now(), renderer);
+
+    // Sound, from the same real signals as the visual cues (no-ops when muted).
+    if (sound.isEnabled()) {
+      if (renderer.getFrameAte() > 0) sound.eat();
+      if (view[H_BIRTHS] > 0) sound.birth();
+      if (view[H_DEATHS] > 0) sound.death();
+    }
 
     const population = view[H_POPULATION];
     if (frame % 5 === 0) chart.push(population);
@@ -124,6 +133,9 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       const line = feed.push(events);
       if (line !== null) latestEvent = line;
       director.ingest(events, performance.now());
+      if (sound.isEnabled()) {
+        for (const e of events) if (e.kind === 'catastrophe') sound.catastrophe();
+      }
     },
     (detail) => {
       if (!detail.alive) {
@@ -154,6 +166,8 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       onQuality: (level) => renderer.setQuality(level),
       reducedMotion: renderer.isReducedMotion(),
       onReducedMotion: (on) => renderer.setReducedMotion(on),
+      soundEnabled: sound.isEnabled(),
+      onToggleSound: (on) => sound.setEnabled(on),
     }),
   );
 }
