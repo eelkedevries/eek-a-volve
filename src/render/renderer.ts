@@ -38,6 +38,7 @@ import { Effects } from './effects.ts';
 import { Emotes, EMOTE_NONE, EMOTE_SCARED, EMOTE_AMOROUS, EMOTE_HUNGRY } from './emotes.ts';
 import { EATING, HUNTING, FLEEING, COURTING } from '../core/state.ts';
 import { ELDER } from '../core/lifestage.ts';
+import { fertilityAt } from '../core/biome.ts';
 import type { SimulationParameters } from '../core/params.ts';
 
 /** Selectable species palettes. The "safe" set is Okabe–Ito, designed to stay
@@ -204,6 +205,7 @@ export class Renderer {
     worldWidth: number,
     worldHeight: number,
     mode: SimulationParameters['viewMode'],
+    biome?: { seed: number; strength: number },
   ): Promise<void> {
     this.worldWidth = worldWidth;
     this.worldHeight = worldHeight;
@@ -232,6 +234,11 @@ export class Renderer {
     this.creatureLayer = new Container();
     this.effects = new Effects(this.app.renderer);
     this.world.addChild(this.foodLayer, this.agents, this.creatureLayer, this.effects.view);
+    // A faint, static fertility tint beneath everything, when biomes are active.
+    // Drawn once (no per-frame cost); a quiet wash that never obscures creatures.
+    if (biome !== undefined && biome.strength > 0) {
+      this.world.addChildAt(this.buildFertilityTint(worldWidth, worldHeight, biome.seed, biome.strength), 0);
+    }
     this.app.stage.addChild(this.world);
 
     // Emotes/crowns live in screen space (above the world) so they stay readable.
@@ -337,6 +344,22 @@ export class Renderer {
   /** Whether reduced motion is currently active (to seed a manual toggle). */
   isReducedMotion(): boolean {
     return this.reducedMotion;
+  }
+
+  /** A coarse grid of faint green cells whose opacity tracks the fertility field. */
+  private buildFertilityTint(width: number, height: number, seed: number, strength: number): Graphics {
+    const g = new Graphics();
+    const cells = 24; // coarse: a quiet backdrop, not a heatmap
+    const cw = width / cells;
+    const ch = height / cells;
+    for (let cy = 0; cy < cells; cy++) {
+      for (let cx = 0; cx < cells; cx++) {
+        const f = fertilityAt((cx + 0.5) * cw, (cy + 0.5) * ch, width, height, seed);
+        const alpha = 0.03 + 0.15 * f * strength; // faint, scaled by both fertility and strength
+        g.rect(cx * cw, cy * ch, cw + 1, ch + 1).fill({ color: 0x2e6b4f, alpha });
+      }
+    }
+    return g;
   }
 
   /** Choose a species palette (0 = Vivid, 1 = colour-blind safe). */

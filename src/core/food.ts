@@ -1,9 +1,13 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import type { Rng } from './rng.ts';
+import { fertilityAt } from './biome.ts';
 
 export const PLANT = 0;
 export const CARRION = 1;
+
+/** Maximum rejection-sampling attempts when biasing food toward fertile regions. */
+const BIOME_MAX_TRIES = 8;
 
 /** Energy yielded by eating a plant. */
 export const PLANT_ENERGY = 25;
@@ -23,8 +27,22 @@ function plantCapacity(world: World, params: SimulationParameters): number {
 function placePlant(world: World, params: SimulationParameters, rng: Rng): number {
   const slot = world.spawnFood();
   if (slot === -1) return -1;
-  world.foodX[slot] = rng.next() * params.worldWidth;
-  world.foodY[slot] = rng.next() * params.worldHeight;
+  const b = params.biomeStrength;
+  let px = rng.next() * params.worldWidth;
+  let py = rng.next() * params.worldHeight;
+  // With biomes on, reject barren candidates so food clusters in fertile regions.
+  // The b <= 0 path above draws exactly as before, keeping uniform placement
+  // byte-for-byte identical (deterministic; specification: Domain rules).
+  if (b > 0) {
+    for (let tries = 0; tries < BIOME_MAX_TRIES; tries++) {
+      const f = fertilityAt(px, py, params.worldWidth, params.worldHeight, params.seed);
+      if (rng.next() < 1 - b + b * f) break; // accept; certain at b=0, ∝ fertility at b=1
+      px = rng.next() * params.worldWidth;
+      py = rng.next() * params.worldHeight;
+    }
+  }
+  world.foodX[slot] = px;
+  world.foodY[slot] = py;
   world.foodType[slot] = PLANT;
   world.foodEnergy[slot] = PLANT_ENERGY;
   world.foodDecay[slot] = 0;

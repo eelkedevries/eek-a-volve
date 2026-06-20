@@ -30,6 +30,7 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number; integer?: boole
   pheromoneDecay: { min: 0, max: 1 },
   pheromoneDiffusion: { min: 0, max: 1 },
   pheromoneDeposit: { min: 0, max: 1000 },
+  biomeStrength: { min: 0, max: 1 },
   minTimeMultiplier: { min: 0.01, max: 64 },
   maxTimeMultiplier: { min: 0.02, max: 256 },
 };

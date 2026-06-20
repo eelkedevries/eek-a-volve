@@ -54,6 +54,9 @@ export interface SimulationParameters {
   /** Pheromone deposited into the current cell when a creature eats. */
   pheromoneDeposit: number;
 
+  /** How strongly food regeneration favours fertile regions (0 = uniform). */
+  biomeStrength: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -87,6 +90,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   pheromoneDecay: 0.92,
   pheromoneDiffusion: 0.12,
   pheromoneDeposit: 6,
+  biomeStrength: 0,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
@@ -115,4 +119,5 @@ export const SWARM_PRESET: Partial<SimulationParameters> = {
   foodAbundance: 1100,
   foodRegenRate: 12,
   sexualReproduction: false,
+  biomeStrength: 0.6,
 };
