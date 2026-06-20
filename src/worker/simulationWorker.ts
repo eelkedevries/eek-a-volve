@@ -42,7 +42,8 @@ ctx.onmessage = (event: MessageEvent): void => {
     case 'init': {
       sim = createSimulation(msg.params);
       accumulator = 0;
-      const bytes = snapshotLength(MAX_POPULATION) * Float32Array.BYTES_PER_ELEMENT;
+      const bytes =
+        snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
       freeBuffers.length = 0;
       freeBuffers.push(new ArrayBuffer(bytes), new ArrayBuffer(bytes));
       running = true;

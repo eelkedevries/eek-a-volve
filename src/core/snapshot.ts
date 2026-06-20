@@ -1,36 +1,67 @@
 import type { Simulation } from './loop.ts';
 import { TRAIT_COUNT, SIZE } from './genome.ts';
+import { energyCapacity } from './energy.ts';
 
-/** Header floats: tick, population, births, deaths, species count, then one mean per trait. */
-export const HEADER_LENGTH = 5 + TRAIT_COUNT;
-/** Floats per agent record: x, y, colour index, scale. */
-export const AGENT_STRIDE = 4;
-
-// Header field offsets.
+// --- Header (appended fields keep earlier offsets stable for existing consumers) ---
 export const H_TICK = 0;
 export const H_POPULATION = 1;
 export const H_BIRTHS = 2;
 export const H_DEATHS = 3;
 export const H_SPECIES_COUNT = 4;
 export const H_TRAIT_MEANS = 5; // [H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT)
+export const H_FOOD_COUNT = 5 + TRAIT_COUNT;
+export const HEADER_LENGTH = 6 + TRAIT_COUNT;
 
-/** Float32 length needed to hold a snapshot for up to `capacity` agents. */
-export function snapshotLength(capacity: number): number {
-  return HEADER_LENGTH + AGENT_STRIDE * capacity;
+// --- Per-agent record (first four kept for back-compat with the simple renderer) ---
+export const A_X = 0;
+export const A_Y = 1;
+export const A_COLOUR = 2;
+export const A_SCALE = 3;
+export const A_HEADING = 4;
+export const A_STATE = 5;
+export const A_ID = 6;
+export const A_ENERGY = 7;
+export const AGENT_STRIDE = 8;
+
+// stateCode packing: (stage << STATE_STAGE_SHIFT) | action
+export const STATE_ACTION_MASK = 0b111;
+export const STATE_STAGE_SHIFT = 3;
+export function packState(stage: number, action: number): number {
+  return (stage << STATE_STAGE_SHIFT) | (action & STATE_ACTION_MASK);
+}
+export function unpackAction(stateCode: number): number {
+  return stateCode & STATE_ACTION_MASK;
+}
+export function unpackStage(stateCode: number): number {
+  return stateCode >> STATE_STAGE_SHIFT;
+}
+
+// --- Per-food record ---
+export const FOOD_X = 0;
+export const FOOD_Y = 1;
+export const FOOD_TYPE = 2;
+export const FOOD_STRIDE = 3;
+
+/** Float32 length to hold a snapshot for up to these agent and food capacities. */
+export function snapshotLength(agentCapacity: number, foodCapacity: number): number {
+  return HEADER_LENGTH + AGENT_STRIDE * agentCapacity + FOOD_STRIDE * foodCapacity;
+}
+
+/** Offset where the food block begins, given the live agent count (food is packed after the agents). */
+export function foodOffset(population: number): number {
+  return HEADER_LENGTH + population * AGENT_STRIDE;
 }
 
 /**
- * Write a render snapshot of `sim` into `out` (at least
- * `snapshotLength(world.agentCapacity)` long): a fixed header of aggregate
- * statistics followed by one (x, y, colour index, scale) record per live agent.
- * Returns the number of agent records written (specification: Data schemas).
- *
- * Called at render cadence, not tick cadence, so the small scratch here does not
- * violate the per-tick no-allocation rule.
+ * Write a render snapshot of `sim` into `out`: a header of aggregate statistics,
+ * a dense block of one record per live agent (x, y, colour index, scale,
+ * heading, packed state, id, energy fraction), then a dense food block
+ * (x, y, type). Returns the live agent count (food count is in the header).
+ * Called at render cadence, so the small scratch here is acceptable.
  */
 export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
   const w = sim.world;
-  const { alive, x, y, traits, speciesId, agentCapacity, population } = w;
+  const { alive, x, y, vx, vy, energy, traits, speciesId, action, id, agentCapacity } = w;
   const sizeCol = traits[SIZE];
 
   const sums = new Float64Array(TRAIT_COUNT);
@@ -39,21 +70,38 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
   let count = 0;
   for (let s = 0; s < agentCapacity; s++) {
     if (alive[s] === 0) continue;
-    out[offset] = x[s];
-    out[offset + 1] = y[s];
-    out[offset + 2] = speciesId[s];
-    out[offset + 3] = sizeCol[s];
+    const size = sizeCol[s];
+    out[offset + A_X] = x[s];
+    out[offset + A_Y] = y[s];
+    out[offset + A_COLOUR] = speciesId[s];
+    out[offset + A_SCALE] = size;
+    out[offset + A_HEADING] = Math.atan2(vy[s], vx[s]);
+    out[offset + A_STATE] = packState(0, action[s]); // life stage filled in by 027
+    out[offset + A_ID] = id[s];
+    out[offset + A_ENERGY] = energy[s] / energyCapacity(size);
     offset += AGENT_STRIDE;
     for (let t = 0; t < TRAIT_COUNT; t++) sums[t] += traits[t][s];
     species.add(speciesId[s]);
     count++;
   }
 
+  const { foodAlive, foodX, foodY, foodCapacity } = w;
+  let foodCount = 0;
+  for (let f = 0; f < foodCapacity; f++) {
+    if (foodAlive[f] === 0) continue;
+    out[offset + FOOD_X] = foodX[f];
+    out[offset + FOOD_Y] = foodY[f];
+    out[offset + FOOD_TYPE] = 0; // food type filled in by 029
+    offset += FOOD_STRIDE;
+    foodCount++;
+  }
+
   out[H_TICK] = sim.tick;
-  out[H_POPULATION] = population;
+  out[H_POPULATION] = count;
   out[H_BIRTHS] = sim.births;
   out[H_DEATHS] = sim.deaths;
   out[H_SPECIES_COUNT] = species.size;
   for (let t = 0; t < TRAIT_COUNT; t++) out[H_TRAIT_MEANS + t] = count > 0 ? sums[t] / count : 0;
+  out[H_FOOD_COUNT] = foodCount;
   return count;
 }
