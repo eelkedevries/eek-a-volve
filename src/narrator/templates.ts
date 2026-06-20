@@ -12,11 +12,16 @@ export function templatedLine(stats: NarratorStats): string {
   if (stats.population === 0) {
     return 'And so the world falls silent. Extraordinary, while it lasted.';
   }
+  // An optional aside when ornament is running wild under sexual selection.
+  const flourish =
+    stats.sexual === true && stats.ornament !== undefined && stats.ornament > 0.6
+      ? ' And my, are they showing off.'
+      : '';
   if (stats.births > stats.deaths) {
-    return `A good season for our ${name} — ${stats.births} new arrivals against ${stats.deaths} losses. Onward!`;
+    return `A good season for our ${name} — ${stats.births} new arrivals against ${stats.deaths} losses. Onward!${flourish}`;
   }
   if (stats.deaths > stats.births) {
     return `Hard times for the ${name}: ${stats.deaths} lost, only ${stats.births} born. Nature, red in tooth and claw.`;
   }
-  return `The ${name} holds steady — ${stats.population} strong across ${stats.speciesCount} species. Remarkable balance.`;
+  return `The ${name} holds steady — ${stats.population} strong across ${stats.speciesCount} species. Remarkable balance.${flourish}`;
 }

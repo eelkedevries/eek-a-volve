@@ -22,7 +22,7 @@ import {
   H_SPECIES_COUNT,
   H_TRAIT_MEANS,
 } from './core/snapshot.ts';
-import { TRAIT_COUNT } from './core/genome.ts';
+import { TRAIT_COUNT, DISPLAY } from './core/genome.ts';
 import { NEAR_EXTINCTION_THRESHOLD } from './core/bounds.ts';
 import { decodeParams, SHARE_HASH_PREFIX } from './core/share.ts';
 import { encodePopulation, type PopulationRecord } from './core/population.ts';
@@ -218,6 +218,10 @@ async function run(
           traitMeans: view.subarray(H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT),
           milestone,
           latestEvent,
+          ornament: view[H_TRAIT_MEANS + DISPLAY],
+          sexual: params.sexualReproduction,
+          biomes: params.biomeStrength > 0,
+          pheromones: params.pheromones,
         };
         dock.setNarration(narratorUI.narrator.narrate(stats, (line) => dock.setNarration(line)));
       }

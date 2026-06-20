@@ -30,6 +30,19 @@ describe('narrator summary', () => {
   it('appends a milestone when present', () => {
     expect(summarise(stats({ milestone: 'A meteor strikes!' }))).toContain('meteor');
   });
+
+  it('notes ornamentation only when sexual selection is active', () => {
+    expect(summarise(stats({ sexual: true, ornament: 0.8 }))).toContain('Courtship');
+    expect(summarise(stats({ sexual: true, ornament: 0.8 }))).toContain('flamboyantly');
+    expect(summarise(stats())).not.toContain('Courtship'); // omitted when not supplied
+    expect(summarise(stats({ ornament: 0.8 }))).not.toContain('Courtship'); // needs sexual flag
+  });
+
+  it('notes the environment only when biomes/pheromones are active', () => {
+    expect(summarise(stats({ biomes: true }))).toContain('biome');
+    expect(summarise(stats({ pheromones: true }))).toContain('scent');
+    expect(summarise(stats())).not.toContain('They cross');
+  });
 });
 
 describe('templated fallback', () => {
