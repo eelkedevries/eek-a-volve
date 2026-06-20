@@ -12,11 +12,15 @@ export type MainToWorker =
   | { type: 'reset' }
   | { type: 'returnBuffer'; buffer: ArrayBuffer }
   // Adopt/inspect a creature by stable id (slots recycle, so never by slot); -1 clears.
-  | { type: 'inspect'; id: number };
+  | { type: 'inspect'; id: number }
+  // Enable/disable posting the pheromone field for the render overlay.
+  | { type: 'setOverlay'; pheromone: boolean };
 
 /** Messages from the worker to the main thread. */
 export type WorkerToMain =
   | { type: 'snapshot'; buffer: ArrayBuffer; count: number }
   | { type: 'events'; events: SimEvent[] }
   | { type: 'inspect'; detail: CreatureDetail }
-  | { type: 'records'; records: RecordsView };
+  | { type: 'records'; records: RecordsView }
+  // A downsampled pheromone field for the overlay (only while enabled).
+  | { type: 'field'; buffer: ArrayBuffer; cols: number; rows: number; width: number; height: number };

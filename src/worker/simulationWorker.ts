@@ -22,6 +22,9 @@ let accumulator = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
 /** Stable id of the adopted creature, or -1; replied to each frame while set. */
 let adoptedId = -1;
+/** Whether to post the pheromone field for the overlay, and a throttle counter. */
+let postField = false;
+let fieldFrame = 0;
 const freeBuffers: ArrayBuffer[] = [];
 
 function frame(): void {
@@ -38,6 +41,19 @@ function frame(): void {
 
   // Post the hall-of-fame records (a small, cloned snapshot).
   ctx.postMessage({ type: 'records', records: sim.records.view() }, []);
+
+  // Post the pheromone field for the overlay, throttled, only while enabled.
+  if (postField) {
+    fieldFrame++;
+    if (fieldFrame % 6 === 0) {
+      const ph = sim.pheromone;
+      const copy = ph.field.slice();
+      ctx.postMessage(
+        { type: 'field', buffer: copy.buffer, cols: ph.cols, rows: ph.rows, width: sim.params.worldWidth, height: sim.params.worldHeight },
+        [copy.buffer],
+      );
+    }
+  }
 
   // Keep the inspector live while a creature is adopted; clear once it has died.
   if (adoptedId !== -1) {
@@ -87,6 +103,9 @@ ctx.onmessage = (event: MessageEvent): void => {
       break;
     case 'inspect':
       adoptedId = msg.id;
+      break;
+    case 'setOverlay':
+      postField = msg.pheromone;
       break;
     case 'returnBuffer':
       freeBuffers.push(msg.buffer);

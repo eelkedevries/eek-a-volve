@@ -157,6 +157,16 @@ export class Renderer {
   private worldWidth = 1;
   private worldHeight = 1;
 
+  // Field overlay (fertility / pheromone heatmap), toggled from the UI.
+  private overlay!: Graphics;
+  private overlayMode: 'off' | 'fertility' | 'pheromone' = 'off';
+  private biomeSeed = 0;
+  private pheromoneField: Float32Array | null = null;
+  private pheromoneCols = 0;
+  private pheromoneRows = 0;
+  private pheromoneW = 1;
+  private pheromoneH = 1;
+
   // Behaviour-cue bookkeeping: previous-frame trace per stable id, and a frame counter.
   private readonly trace = new Map<number, AgentTrace>();
   private frameNo = 0;
@@ -234,6 +244,10 @@ export class Renderer {
     this.creatureLayer = new Container();
     this.effects = new Effects(this.app.renderer);
     this.world.addChild(this.foodLayer, this.agents, this.creatureLayer, this.effects.view);
+    // Toggleable field overlay (fertility / pheromone heatmap), beneath the world.
+    this.biomeSeed = biome?.seed ?? 0;
+    this.overlay = new Graphics();
+    this.world.addChildAt(this.overlay, 0);
     // A faint, static fertility tint beneath everything, when biomes are active.
     // Drawn once (no per-frame cost); a quiet wash that never obscures creatures.
     if (biome !== undefined && biome.strength > 0) {
@@ -344,6 +358,53 @@ export class Renderer {
   /** Whether reduced motion is currently active (to seed a manual toggle). */
   isReducedMotion(): boolean {
     return this.reducedMotion;
+  }
+
+  /** Set the field overlay mode (off / fertility / pheromone) and redraw it. */
+  setOverlayMode(mode: 'off' | 'fertility' | 'pheromone'): void {
+    this.overlayMode = mode;
+    this.redrawOverlay();
+  }
+
+  /** Receive a pheromone field for the overlay; redraws if pheromone mode is active. */
+  setPheromoneField(field: Float32Array, cols: number, rows: number, width: number, height: number): void {
+    this.pheromoneField = field;
+    this.pheromoneCols = cols;
+    this.pheromoneRows = rows;
+    this.pheromoneW = width;
+    this.pheromoneH = height;
+    if (this.overlayMode === 'pheromone') this.redrawOverlay();
+  }
+
+  /** Redraw the overlay layer for the current mode (a coarse heatmap). */
+  private redrawOverlay(): void {
+    const g = this.overlay;
+    if (g === undefined) return;
+    g.clear();
+    if (this.overlayMode === 'fertility') {
+      const cells = 28;
+      const cw = this.worldWidth / cells;
+      const ch = this.worldHeight / cells;
+      for (let cy = 0; cy < cells; cy++) {
+        for (let cx = 0; cx < cells; cx++) {
+          const f = fertilityAt((cx + 0.5) * cw, (cy + 0.5) * ch, this.worldWidth, this.worldHeight, this.biomeSeed);
+          g.rect(cx * cw, cy * ch, cw + 1, ch + 1).fill({ color: 0x4cd38a, alpha: 0.05 + 0.35 * f });
+        }
+      }
+    } else if (this.overlayMode === 'pheromone' && this.pheromoneField !== null) {
+      const { pheromoneCols: cols, pheromoneRows: rows, pheromoneField: field } = this;
+      const cw = this.pheromoneW / cols;
+      const ch = this.pheromoneH / rows;
+      let max = 1e-6;
+      for (let i = 0; i < field.length; i++) if (field[i] > max) max = field[i];
+      for (let cy = 0; cy < rows; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
+          const v = field[cy * cols + cx] / max;
+          if (v <= 0.02) continue;
+          g.rect(cx * cw, cy * ch, cw + 1, ch + 1).fill({ color: 0x9b6cff, alpha: 0.55 * v });
+        }
+      }
+    }
   }
 
   /** A coarse grid of faint green cells whose opacity tracks the fertility field. */

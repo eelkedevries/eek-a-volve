@@ -16,6 +16,8 @@ export interface ControlsConfig {
   onRecords: () => void;
   /** Open/close the live charts popover. */
   onCharts: () => void;
+  /** Cycle the field overlay (off → fertility → pheromone). */
+  onOverlay: (mode: 'off' | 'fertility' | 'pheromone') => void;
   /** Selectable species palette names; index passed back on change. */
   palettes: string[];
   onPalette: (index: number) => void;
@@ -91,6 +93,18 @@ export function createControls(config: ControlsConfig): HTMLElement {
   chartsBtn.textContent = '📈 Charts';
   chartsBtn.addEventListener('click', () => config.onCharts());
 
+  const overlayModes = ['off', 'fertility', 'pheromone'] as const;
+  const overlayName = { off: 'off', fertility: 'biome', pheromone: 'trails' };
+  let overlayIndex = 0;
+  const overlayBtn = document.createElement('button');
+  const overlayLabel = (): string => `🗺️ Overlay: ${overlayName[overlayModes[overlayIndex]]}`;
+  overlayBtn.textContent = overlayLabel();
+  overlayBtn.addEventListener('click', () => {
+    overlayIndex = (overlayIndex + 1) % overlayModes.length;
+    overlayBtn.textContent = overlayLabel();
+    config.onOverlay(overlayModes[overlayIndex]);
+  });
+
   const paletteLabel = document.createElement('label');
   paletteLabel.className = 'control-select';
   const palette = document.createElement('select');
@@ -147,6 +161,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     legend,
     recordsBtn,
     chartsBtn,
+    overlayBtn,
     paletteLabel,
     qualityLabel,
     motionLabel,

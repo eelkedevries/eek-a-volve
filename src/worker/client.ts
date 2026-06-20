@@ -16,6 +16,15 @@ export type InspectHandler = (detail: CreatureDetail) => void;
 /** Called with the hall-of-fame records each frame. */
 export type RecordsHandler = (records: RecordsView) => void;
 
+/** Called with a pheromone field for the overlay (only while enabled). */
+export type FieldHandler = (
+  field: Float32Array,
+  cols: number,
+  rows: number,
+  width: number,
+  height: number,
+) => void;
+
 /**
  * Main-thread handle to the simulation worker. Owns the worker, forwards control
  * messages, and returns each snapshot buffer to the worker after handing it to
@@ -27,6 +36,7 @@ export class SimulationClient {
   private onEvents: EventsHandler | null = null;
   private onInspect: InspectHandler | null = null;
   private onRecords: RecordsHandler | null = null;
+  private onField: FieldHandler | null = null;
 
   constructor() {
     this.worker = new Worker(new URL('./simulationWorker.ts', import.meta.url), {
@@ -43,8 +53,20 @@ export class SimulationClient {
         this.onInspect?.(msg.detail);
       } else if (msg.type === 'records') {
         this.onRecords?.(msg.records);
+      } else if (msg.type === 'field') {
+        this.onField?.(new Float32Array(msg.buffer), msg.cols, msg.rows, msg.width, msg.height);
       }
     };
+  }
+
+  /** Register a handler for pheromone-field overlay updates. */
+  setFieldHandler(handler: FieldHandler): void {
+    this.onField = handler;
+  }
+
+  /** Enable/disable the worker posting the pheromone field for the overlay. */
+  setOverlay(pheromone: boolean): void {
+    this.send({ type: 'setOverlay', pheromone });
   }
 
   /** Start a run, delivering snapshots, events, adopted-creature detail, and records. */

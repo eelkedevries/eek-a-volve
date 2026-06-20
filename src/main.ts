@@ -102,6 +102,10 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       onLegend: () => legend.toggle(),
       onRecords: () => statsPopover.classList.toggle('open'),
       onCharts: () => charts.setOpen(chartsPopover.classList.toggle('open')),
+      onOverlay: (mode) => {
+        renderer.setOverlayMode(mode);
+        client.setOverlay(mode === 'pheromone');
+      },
       palettes: PALETTES.map((p) => p.name),
       onPalette: (index) => renderer.setPalette(index),
       onQuality: (level) => renderer.setQuality(level),
@@ -125,6 +129,10 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   // The dock now occupies part of the viewport, so the canvas host shrank — nudge
   // PixiJS (which only resizes on window events) to refit the canvas to it.
   requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+
+  client.setFieldHandler((field, cols, rows, w, h) =>
+    renderer.setPheromoneField(field, cols, rows, w, h),
+  );
 
   client.start(
     params,
