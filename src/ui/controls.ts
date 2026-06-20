@@ -6,6 +6,10 @@ export interface ControlsConfig {
   min: number;
   max: number;
   onReset: () => void;
+  /** Whether the auto-director starts enabled. */
+  directorEnabled: boolean;
+  /** Toggle the auto-director on/off. */
+  onToggleDirector: (on: boolean) => void;
 }
 
 /**
@@ -48,10 +52,20 @@ export function createControls(config: ControlsConfig): HTMLElement {
   });
   speedLabel.append('Speed', speed, readout);
 
+  let directing = config.directorEnabled;
+  const director = document.createElement('button');
+  const directorLabel = (): string => `🎬 Director: ${directing ? 'on' : 'off'}`;
+  director.textContent = directorLabel();
+  director.addEventListener('click', () => {
+    directing = !directing;
+    director.textContent = directorLabel();
+    config.onToggleDirector(directing);
+  });
+
   const reset = document.createElement('button');
   reset.textContent = 'Reset';
   reset.addEventListener('click', () => config.onReset());
 
-  bar.append(pause, speedLabel, reset);
+  bar.append(pause, speedLabel, director, reset);
   return bar;
 }

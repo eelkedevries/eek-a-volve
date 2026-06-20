@@ -9,6 +9,7 @@ import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
 import { Renderer } from './render/renderer.ts';
+import { Director } from './render/director.ts';
 import {
   H_TICK,
   H_POPULATION,
@@ -52,6 +53,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   mount.append(chart.element, toasts.element, feed.element, inspector.element, narratorUI.element);
 
   const milestones = new Milestones();
+  const director = new Director(params.worldWidth, params.worldHeight);
   const client = new SimulationClient();
   let frame = 0;
   let wasNearExtinction = false;
@@ -71,6 +73,9 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       if (selected === -1) inspector.hide();
       else inspector.show();
     }
+
+    // The auto-director eases the camera to the most interesting subject.
+    director.update(view, count, performance.now(), renderer);
 
     const population = view[H_POPULATION];
     if (frame % 5 === 0) chart.push(population);
@@ -104,6 +109,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
     (events) => {
       const line = feed.push(events);
       if (line !== null) latestEvent = line;
+      director.ingest(events, performance.now());
     },
     (detail) => {
       if (!detail.alive) {
@@ -125,6 +131,8 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
         client.dispose();
         showSetup();
       },
+      directorEnabled: director.enabled,
+      onToggleDirector: (on) => director.setEnabled(on),
     }),
   );
 }

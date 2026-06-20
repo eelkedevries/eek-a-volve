@@ -4,8 +4,10 @@ import {
   ParticleContainer,
   Particle,
   Graphics,
+  Text,
   type Texture,
 } from 'pixi.js';
+import { personalName } from '../humour/names.ts';
 import {
   HEADER_LENGTH,
   AGENT_STRIDE,
@@ -90,6 +92,13 @@ const SHAKE_DECAY = 0.86;
 /** A death count this far above the population's routine churn counts as a catastrophe. */
 const SHAKE_DEATH_FLOOR = 10;
 const SHAKE_DEATH_FRACTION = 0.04;
+/** After a manual pan/zoom/select, leave the camera under manual control this long. */
+const MANUAL_SUSPEND_MS = 6000;
+/** Director easing rate (per second); higher eases faster. */
+const DIRECTOR_EASE_RATE = 2.6;
+/** Camera scale clamp (matches the camera's own limits). */
+const MIN_CAMERA_SCALE = 0.05;
+const MAX_CAMERA_SCALE = 40;
 
 /** Per-agent bookkeeping for spotting births, deaths, action transitions, and juice pulses. */
 interface AgentTrace {
@@ -145,7 +154,16 @@ export class Renderer {
   private lastCount = 0;
   private selectedId = -1;
   private following = false;
-  private userAdjusted = false;
+  /** performance.now() until which the camera stays under manual control. */
+  private manualUntil = 0;
+
+  // Auto-director target (eased to when not manual/adopting) and pinned nameplate.
+  private directorActive = false;
+  private directorX = 0;
+  private directorY = 0;
+  private directorSpan = 1;
+  private nameplate!: Text;
+  private nameplateId = -1;
 
   // Pointer/gesture state for pan, pinch, and click-to-select.
   private readonly pointers = new Map<number, { x: number; y: number }>();
@@ -197,6 +215,21 @@ export class Renderer {
     this.emotes = new Emotes(this.app.renderer);
     this.app.stage.addChild(this.emotes.view);
 
+    // The director's nameplate: a single screen-space label over the spotlight.
+    this.nameplate = new Text({
+      text: '',
+      style: {
+        fontFamily: 'system-ui, sans-serif',
+        fontSize: 15,
+        fontWeight: '700',
+        fill: 0xffffff,
+        stroke: { color: 0x10151b, width: 4 },
+      },
+    });
+    this.nameplate.anchor.set(0.5, 1);
+    this.nameplate.visible = false;
+    this.app.stage.addChild(this.nameplate);
+
     this.camera.fit(worldWidth, worldHeight, this.app.renderer.width, this.app.renderer.height);
     this.lastDraw = performance.now();
 
@@ -226,6 +259,44 @@ export class Renderer {
     this.following = false;
   }
 
+  /** True while the viewer is driving the camera (recent pan/zoom/select). */
+  isManualActive(): boolean {
+    return performance.now() < this.manualUntil;
+  }
+
+  /** True while a creature is adopted (camera following it). */
+  isFollowing(): boolean {
+    return this.following && this.selectedId !== -1;
+  }
+
+  /** Ask the director to ease the camera to a world point, framing `span` world units. */
+  directorEaseTo(worldX: number, worldY: number, span: number): void {
+    this.directorActive = true;
+    this.directorX = worldX;
+    this.directorY = worldY;
+    this.directorSpan = span;
+  }
+
+  /** Stop director control of the camera (falls back to fit/manual). */
+  clearDirectorTarget(): void {
+    this.directorActive = false;
+  }
+
+  /** Pin a nameplate (by stable id) over the spotlighted creature, or -1 to clear. */
+  setNameplate(id: number): void {
+    if (id === this.nameplateId) return;
+    this.nameplateId = id;
+    if (id === -1) {
+      this.nameplate.visible = false;
+    } else {
+      this.nameplate.text = personalName(id);
+    }
+  }
+
+  clearNameplate(): void {
+    this.setNameplate(-1);
+  }
+
   /** Turn motion juice (shake, trails, flash, squash) on or off — for a manual toggle (041). */
   setReducedMotion(on: boolean): void {
     this.reducedMotion = on;
@@ -240,25 +311,30 @@ export class Renderer {
     this.lastView = view;
     this.lastCount = count;
     this.now = performance.now();
+    const dt = Math.min((this.now - this.lastDraw) / 1000, MAX_EFFECT_DT);
+    this.lastDraw = this.now;
     const vw = this.app.renderer.width;
     const vh = this.app.renderer.height;
 
     this.applyShake(view[H_DEATHS] | 0, view[H_POPULATION] | 0);
 
-    // Until the viewer touches the camera, keep the whole world fitted (also on resize).
-    if (!this.userAdjusted && !this.following) {
-      this.camera.fit(this.worldWidth, this.worldHeight, vw, vh);
-    }
-
+    // Camera arbitration, by priority: adopt → manual → director → fit-to-world.
     if (this.following && this.selectedId !== -1) {
       const idx = this.findById(this.selectedId);
       if (idx === -1) {
         this.following = false;
         this.selectedId = -1;
+        this.camera.fit(this.worldWidth, this.worldHeight, vw, vh);
       } else {
         const o = HEADER_LENGTH + idx * AGENT_STRIDE;
         this.camera.centreOn(view[o + A_X], view[o + A_Y], vw, vh);
       }
+    } else if (this.now < this.manualUntil) {
+      // Leave the camera where the viewer put it.
+    } else if (this.directorActive) {
+      this.easeCameraToDirector(vw, vh, dt);
+    } else {
+      this.camera.fit(this.worldWidth, this.worldHeight, vw, vh);
     }
 
     this.camera.applyTo(this.world);
@@ -283,9 +359,41 @@ export class Renderer {
       this.emotes.clear();
     }
 
-    const dt = Math.min((this.now - this.lastDraw) / 1000, MAX_EFFECT_DT);
-    this.lastDraw = this.now;
     this.updateEffects(view, count, detailed, dt);
+    this.updateNameplate(vw);
+  }
+
+  /** Ease the camera centre and zoom toward the director's current target. */
+  private easeCameraToDirector(vw: number, vh: number, dt: number): void {
+    const k = 1 - Math.exp(-dt * DIRECTOR_EASE_RATE);
+    const cx = this.camera.screenToWorldX(vw / 2);
+    const cy = this.camera.screenToWorldY(vh / 2);
+    let target = Math.min(vw, vh) / this.directorSpan;
+    target = target < MIN_CAMERA_SCALE ? MIN_CAMERA_SCALE : target > MAX_CAMERA_SCALE ? MAX_CAMERA_SCALE : target;
+    this.camera.scale += (target - this.camera.scale) * k;
+    this.camera.centreOn(cx + (this.directorX - cx) * k, cy + (this.directorY - cy) * k, vw, vh);
+  }
+
+  /** Position the director's nameplate over its creature, or hide it. */
+  private updateNameplate(vw: number): void {
+    if (this.nameplateId === -1) {
+      this.nameplate.visible = false;
+      return;
+    }
+    const idx = this.findById(this.nameplateId);
+    if (idx === -1) {
+      this.nameplate.visible = false;
+      return;
+    }
+    const view = this.lastView!;
+    const o = HEADER_LENGTH + idx * AGENT_STRIDE;
+    const radius = view[o + A_SCALE] * 0.4 * 8 * this.camera.scale;
+    const sx = this.camera.worldToScreenX(view[o + A_X]);
+    const sy = this.camera.worldToScreenY(view[o + A_Y]);
+    // Keep it on screen even when the subject drifts to an edge.
+    this.nameplate.x = sx < 8 ? 8 : sx > vw - 8 ? vw - 8 : sx;
+    this.nameplate.y = sy - radius - 30 < 14 ? 14 : sy - radius - 30;
+    this.nameplate.visible = true;
   }
 
   /** Restrained, capped screen shake on catastrophe-scale death spikes; off under reduced motion. */
@@ -563,7 +671,7 @@ export class Renderer {
       if (this.pinchDist > 0 && dist > 0) {
         const mid = this.pointerMidpoint();
         this.camera.zoomAt(mid.x, mid.y, dist / this.pinchDist);
-        this.userAdjusted = true;
+        this.suspendCamera();
       }
       this.pinchDist = dist;
       return;
@@ -575,7 +683,7 @@ export class Renderer {
       this.panLastY = p.y;
       if (Math.abs(p.x - this.pressX) + Math.abs(p.y - this.pressY) > CLICK_SLOP) {
         this.pressMoved = true;
-        this.userAdjusted = true;
+        this.suspendCamera();
       }
     }
   };
@@ -594,14 +702,19 @@ export class Renderer {
     e.preventDefault();
     const p = this.localPoint(e);
     this.camera.zoomAt(p.x, p.y, Math.exp(-e.deltaY * 0.0015));
-    this.userAdjusted = true;
+    this.suspendCamera();
   };
 
   private readonly onDoubleClick = (): void => {
     this.following = false;
-    this.userAdjusted = false; // resume auto-fit
     this.camera.fit(this.worldWidth, this.worldHeight, this.app.renderer.width, this.app.renderer.height);
+    this.suspendCamera(); // hold the overview briefly before the director resumes
   };
+
+  /** Put the camera under manual control for a while (suspends the auto-director). */
+  private suspendCamera(): void {
+    this.manualUntil = performance.now() + MANUAL_SUSPEND_MS;
+  }
 
   private pointerDistance(): number {
     const it = this.pointers.values();
@@ -642,6 +755,7 @@ export class Renderer {
       // Select for inspection, but do not adopt until the viewer presses Adopt.
       this.selectedId = view[HEADER_LENGTH + best * AGENT_STRIDE + A_ID];
       this.following = false;
+      this.suspendCamera(); // hold still so the inspector can be read
     } else {
       this.selectedId = -1;
       this.following = false;
