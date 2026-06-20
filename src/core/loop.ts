@@ -7,6 +7,7 @@ import { Events, type CatastropheEvent } from './events.ts';
 import { EventLog } from './eventlog.ts';
 import { Records } from './records.ts';
 import { Rng } from './rng.ts';
+import { PheromoneField } from './pheromone.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
@@ -37,6 +38,8 @@ export class Simulation {
   readonly params: SimulationParameters;
   readonly world: World;
   readonly rng: Rng;
+  /** Coarse pheromone field (stigmergy); inert unless `params.pheromones`. */
+  readonly pheromone: PheromoneField;
   private readonly agentGrid: SpatialGrid;
   private readonly foodGrid: SpatialGrid;
   private readonly behaviour: Behaviour;
@@ -69,6 +72,7 @@ export class Simulation {
     this.rng = new Rng(params.seed);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(MAX_POPULATION, foodCapacity);
+    this.pheromone = new PheromoneField(params.worldWidth, params.worldHeight, params.pheromoneCellSize);
     this.agentGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, MAX_POPULATION);
     this.foodGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, foodCapacity);
     this.behaviour = new Behaviour(MAX_POPULATION);
@@ -85,7 +89,7 @@ export class Simulation {
     agentGrid.rebuildFromAgents(world);
     this.rebuildFoodGrid();
     // 2. Behaviour: movement, eating, reproduction (and freak mutations).
-    let births = behaviour.step(world, params, foodGrid, agentGrid, rng);
+    let births = behaviour.step(world, params, foodGrid, agentGrid, rng, this.pheromone);
     for (let i = 0; i < behaviour.freakBirthCount; i++) {
       const slot = behaviour.freakBirths[i];
       eventLog.freak(world.id[slot], slot, world.x[slot], world.y[slot]);
@@ -107,6 +111,8 @@ export class Simulation {
     // 6. Food regeneration and carrion decay.
     regenerateFood(world, params, rng);
     decayCarrion(world);
+    // 6b. Pheromone field decay and diffusion (deterministic; only when enabled).
+    if (params.pheromones) this.pheromone.step(params.pheromoneDecay, params.pheromoneDiffusion);
     // 7. Immigration (optional).
     births += immigrate(world, params, rng);
     // 8. Mass die-off (a death spike that was not itself a logged catastrophe).

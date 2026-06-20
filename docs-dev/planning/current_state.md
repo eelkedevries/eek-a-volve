@@ -18,9 +18,11 @@ This file records what *is* (current reality). The binding design canon is `docs
   behaviour policy (seek/flee/eat/court/reproduce) with a per-tick action/state,
   population bounds (ceiling, near-extinction, optional immigration), predation,
   speciation (cosmetic labels), life stages (juvenile/adult/elder), catastrophes,
-  sexual reproduction (uniform crossover, default-off), an append-only render
-  snapshot, a bounded event log + records/hall-of-fame, and the fixed-timestep
-  `Simulation` loop.
+  sexual reproduction (uniform crossover, default-off), an optional pheromone
+  field (stigmergy: deposit-on-eat, deterministic decay/diffusion, gradient-
+  following when no food is sensed; default-off, on in the community preset), an
+  append-only render snapshot, a bounded event log + records/hall-of-fame, and
+  the fixed-timestep `Simulation` loop.
 - **Worker boundary (`src/worker/`)** — the simulation runs in a Web Worker
   behind a typed message protocol; compact snapshots are posted via two
   transferable ping-pong buffers (no `SharedArrayBuffer`); also serves inspect,

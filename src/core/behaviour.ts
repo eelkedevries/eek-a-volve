@@ -6,6 +6,8 @@ import { SIZE, SPEED, SENSE_RADIUS, DIET, TRAIT_COUNT, TRAIT_RANGES } from './ge
 import { feed } from './energy.ts';
 import { consumeFood, PLANT, CARRION } from './food.ts';
 import { breed, breedSexual } from './mutation.ts';
+import type { PheromoneField } from './pheromone.ts';
+import { PHEROMONE_GRADIENT_EPSILON } from './pheromone.ts';
 import { IDLE, SEEKING, EATING, FLEEING, COURTING } from './state.ts';
 import { isMature } from './lifestage.ts';
 import { SPECIES_DISTANCE_THRESHOLD } from './speciation.ts';
@@ -125,9 +127,11 @@ export class Behaviour {
     foodGrid: SpatialGrid,
     agentGrid: SpatialGrid,
     rng: Rng,
+    pheromone?: PheromoneField,
   ): number {
     this.world = world;
     this.threshold = params.reproductionThreshold;
+    const usePheromones = params.pheromones && pheromone !== undefined;
     const { alive, x, y, vx, vy, energy, age, traits, agentCapacity } = world;
     const senseCol = traits[SENSE_RADIUS];
     const speedCol = traits[SPEED];
@@ -182,6 +186,14 @@ export class Behaviour {
         dx = world.foodX[this.bestFood] - this.px;
         dy = world.foodY[this.bestFood] - this.py;
         world.action[s] = SEEKING;
+      } else if (
+        usePheromones &&
+        pheromone!.sampleGradient(this.px, this.py) > PHEROMONE_GRADIENT_EPSILON
+      ) {
+        // No food sensed: climb the local pheromone trail.
+        dx = pheromone!.gradX;
+        dy = pheromone!.gradY;
+        world.action[s] = IDLE;
       } else {
         const angle = rng.next() * TWO_PI;
         dx = Math.cos(angle);
@@ -213,6 +225,7 @@ export class Behaviour {
           feed(world, s, world.foodEnergy[food]);
           consumeFood(world, food);
           world.action[s] = EATING;
+          if (usePheromones) pheromone!.deposit(nx, ny, params.pheromoneDeposit);
         }
       }
 

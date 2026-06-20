@@ -43,6 +43,17 @@ export interface SimulationParameters {
   /** How the world is watched: an intimate "community" or a large "swarm". */
   viewMode: 'community' | 'swarm';
 
+  /** Whether creatures lay and follow a pheromone trail (stigmergy). */
+  pheromones: boolean;
+  /** Cell size of the coarse pheromone field, in world units. */
+  pheromoneCellSize: number;
+  /** Per-tick multiplicative decay of the pheromone field (0..1). */
+  pheromoneDecay: number;
+  /** Per-tick diffusion blend toward the neighbour mean (0..1). */
+  pheromoneDiffusion: number;
+  /** Pheromone deposited into the current cell when a creature eats. */
+  pheromoneDeposit: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -71,6 +82,11 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   immigration: false,
   sexualReproduction: false,
   viewMode: 'community',
+  pheromones: false,
+  pheromoneCellSize: 24,
+  pheromoneDecay: 0.92,
+  pheromoneDiffusion: 0.12,
+  pheromoneDeposit: 6,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
@@ -88,6 +104,7 @@ export const COMMUNITY_PRESET: Partial<SimulationParameters> = {
   foodAbundance: 240,
   foodRegenRate: 3,
   sexualReproduction: true,
+  pheromones: true,
 };
 
 export const SWARM_PRESET: Partial<SimulationParameters> = {

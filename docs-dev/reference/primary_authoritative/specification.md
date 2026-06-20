@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.1
+Version: 0.3.2
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -56,7 +56,9 @@ World state uses a structure-of-arrays layout: parallel typed arrays for positio
 
 The render snapshot is a compact typed array carrying, per visible agent, position, a species colour index, and a scale, plus a small fixed-size header block of aggregate statistics (population total, births and deaths since the previous snapshot, species count, mean of each trait, current tick). The narrator consumes a textual summary derived from the same aggregates.
 
-The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, and the time-multiplier bounds. A run is fully reproducible from this object together with the seed, given the fixed timestep.
+The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, the time-multiplier bounds, and the optional pheromone-trail tunables (a toggle plus cell size, decay, diffusion, and deposit amount). A run is fully reproducible from this object together with the seed, given the fixed timestep.
+
+An optional pheromone field (v0.3.2) is a coarse scalar grid over the world: a single typed array sized from the world dimensions and a configurable cell size, with a reused buffer for the diffusion step. It holds a decaying, diffusing trail signal, is allocated once and reused on the per-tick path, and is not part of the render snapshot.
 
 ## Domain rules
 
@@ -71,6 +73,8 @@ Reproduction and mutation. Reproduction requires crossing the energy threshold a
 Life stages (v0.2.0). Creatures pass through stages derived from age — juvenile, adult, elder. Only mature creatures (adult or elder) reproduce, so a creature must survive to maturity before it can breed; juveniles are rendered smaller.
 
 Reproduction mode (v0.3.0). A `sexualReproduction` parameter selects the mode. In sexual mode, two ready, compatible (low genetic distance), mature adults that meet produce one offspring by uniform genome crossover followed by the usual mutation; both parents pay an energy cost. In asexual mode, a single mature adult buds a mutated offspring. The shipped default is asexual, which is robust across world densities; sexual reproduction is an opt-in that thrives in denser populations (e.g. the community view) where adults readily meet. The founding population is seeded with varied ages so it is not uniformly juvenile at the start.
+
+Stigmergy (v0.3.2). Optional, behind the pheromones toggle: when a creature eats, it deposits a fixed amount of pheromone into the cell beneath it; each tick the field decays by a configured factor and diffuses toward neighbouring cells, deterministically (no stochastic step, or only the seeded generator). When a creature senses no food within its sense radius, it biases its movement up the local pheromone gradient instead of wandering randomly; the flee, court, seek-food, eat, and reproduce priorities are otherwise unchanged. The field records where feeding has recently happened and never bypasses the energy budget. It is off by default — the default run is unaffected — and enabled in at least one preset.
 
 Predation. When enabled, a sufficiently carnivorous agent that is larger than a neighbour may consume it for energy. The expected population signature, when predators and prey coexist, is lagged, noisy oscillation reminiscent of Lotka-Volterra. The Lotka-Volterra equations are a reference for expected behaviour only and are never used as the engine.
 
