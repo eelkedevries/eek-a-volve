@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.7
+Version: 0.3.8
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -62,7 +62,7 @@ Lineage is tracked for display: alongside the per-creature parent id, a bounded,
 
 The render snapshot is a compact typed array carrying, per visible agent, position, a species colour index, and a scale, plus a small fixed-size header block of aggregate statistics (population total, births and deaths since the previous snapshot, species count, mean of each trait, current tick). The narrator consumes a textual summary derived from the same aggregates.
 
-The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, the time-multiplier bounds, the optional pheromone-trail tunables (a toggle plus cell size, decay, diffusion, and deposit amount), and a biome strength (0 = uniform food placement). A run is fully reproducible from this object together with the seed, given the fixed timestep.
+The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, the time-multiplier bounds, the optional pheromone-trail tunables (a toggle plus cell size, decay, diffusion, and deposit amount), a biome strength (0 = uniform food placement), and a seasonal swing (amplitude, 0 = none; and period in ticks). A run is fully reproducible from this object together with the seed, given the fixed timestep.
 
 An optional pheromone field (v0.3.2) is a coarse scalar grid over the world: a single typed array sized from the world dimensions and a configurable cell size, with a reused buffer for the diffusion step. It holds a decaying, diffusing trail signal, is allocated once and reused on the per-tick path, and is not part of the render snapshot.
 
@@ -88,7 +88,7 @@ Sexual selection (v0.3.6). In sexual mode two further traits come into play: a `
 
 Predation. When enabled, a sufficiently carnivorous agent that is larger than a neighbour may consume it for energy. The expected population signature, when predators and prey coexist, is lagged, noisy oscillation reminiscent of Lotka-Volterra. The Lotka-Volterra equations are a reference for expected behaviour only and are never used as the engine.
 
-Population bounds. Food regenerates at the configured rate up to a carrying capacity, which is the dominant control on population. Where food regenerates may be spatially weighted by the optional, deterministic fertility field (v0.3.5): at biome strength 0 placement is uniform (the byte-for-byte default), and as strength rises new food is increasingly biased toward fertile regions, creating spatial niches without changing the total carrying capacity. A hard population ceiling is also enforced. Both bounds are mandatory: without them an agent-based ecosystem is bimodal and tends either to extinction or to unbounded growth, and both outcomes must be impossible. Near-extinction is detected and surfaced as a visible event rather than a frozen screen; an optional trickle of immigrants may be configured.
+Population bounds. Food regenerates at the configured rate up to a carrying capacity, which is the dominant control on population. Where food regenerates may be spatially weighted by the optional, deterministic fertility field (v0.3.5): at biome strength 0 placement is uniform (the byte-for-byte default), and as strength rises new food is increasingly biased toward fertile regions, creating spatial niches without changing the total carrying capacity. The regeneration *rate* may also be modulated over time by an optional, deterministic seasonal cycle (v0.3.8): a smooth sinusoid of the configured period and amplitude, off by default (amplitude 0, the byte-for-byte default), so the population must track a slowly moving carrying capacity. A hard population ceiling is also enforced. Both bounds are mandatory: without them an agent-based ecosystem is bimodal and tends either to extinction or to unbounded growth, and both outcomes must be impossible. Near-extinction is detected and surfaced as a visible event rather than a frozen screen; an optional trickle of immigrants may be configured.
 
 Speciation. Agents are clustered by genetic distance above a threshold and assigned species labels and colours for display and narration. The clustering is emergent, not imposed.
 

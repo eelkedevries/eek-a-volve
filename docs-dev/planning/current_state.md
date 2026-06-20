@@ -24,9 +24,10 @@ This file records what *is* (current reality). The binding design canon is `docs
   following when no food is sensed; default-off, on in the community preset), an
   optional spatial **fertility field** (biomes: a deterministic, seed-derived map
   that biases where food regenerates; `biomeStrength` 0 = uniform default, on in
-  the swarm preset; a faint background tint in the renderer), an append-only
-  render snapshot, a bounded event log + records/hall-of-fame, and the
-  fixed-timestep `Simulation` loop.
+  the swarm preset; a faint background tint in the renderer), an optional
+  deterministic **seasonal** cycle modulating the food regeneration rate
+  (`seasonAmplitude` 0 = off), an append-only render snapshot, a bounded event
+  log + records/hall-of-fame, and the fixed-timestep `Simulation` loop.
 - **Worker boundary (`src/worker/`)** — the simulation runs in a Web Worker
   behind a typed message protocol; compact snapshots are posted via two
   transferable ping-pong buffers (no `SharedArrayBuffer`); also serves inspect,

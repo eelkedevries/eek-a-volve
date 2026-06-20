@@ -119,8 +119,8 @@ export class Simulation {
     if (catastrophe && this.events.last !== null) {
       eventLog.catastrophe(this.events.last.kind, this.events.last.deaths);
     }
-    // 6. Food regeneration and carrion decay.
-    regenerateFood(world, params, rng);
+    // 6. Food regeneration (seasonally modulated) and carrion decay.
+    regenerateFood(world, params, rng, this.tick);
     decayCarrion(world);
     // 6b. Pheromone field decay and diffusion (deterministic; only when enabled).
     if (params.pheromones) this.pheromone.step(params.pheromoneDecay, params.pheromoneDiffusion);

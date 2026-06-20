@@ -9,6 +9,19 @@ export const CARRION = 1;
 /** Maximum rejection-sampling attempts when biasing food toward fertile regions. */
 const BIOME_MAX_TRIES = 8;
 
+/**
+ * Deterministic seasonal multiplier on the food regeneration rate at `tick`
+ * (specification: Domain rules → Population bounds). A smooth sinusoid of period
+ * `seasonPeriod`, swinging by `seasonAmplitude`, clamped non-negative. Returns
+ * exactly 1 when the season is off, so the regeneration path is unchanged.
+ */
+export function seasonalFactor(tick: number, params: SimulationParameters): number {
+  if (params.seasonAmplitude <= 0 || params.seasonPeriod <= 0) return 1;
+  const phase = (2 * Math.PI * tick) / params.seasonPeriod;
+  const factor = 1 + params.seasonAmplitude * Math.sin(phase);
+  return factor < 0 ? 0 : factor;
+}
+
 /** Energy yielded by eating a plant. */
 export const PLANT_ENERGY = 25;
 /** Food-pool slots reserved for carrion, beyond the plant carrying capacity. */
@@ -63,10 +76,18 @@ export function seedFood(world: World, params: SimulationParameters, rng: Rng): 
  * resolved by one deterministic draw), never beyond the plant carrying capacity
  * (specification: Domain rules → Population bounds).
  */
-export function regenerateFood(world: World, params: SimulationParameters, rng: Rng): void {
+export function regenerateFood(
+  world: World,
+  params: SimulationParameters,
+  rng: Rng,
+  tick = 0,
+): void {
   const cap = plantCapacity(world, params);
-  let count = Math.floor(params.foodRegenRate);
-  const frac = params.foodRegenRate - count;
+  // The season only scales the rate when enabled, so the off path is unchanged.
+  const rate =
+    params.seasonAmplitude > 0 ? params.foodRegenRate * seasonalFactor(tick, params) : params.foodRegenRate;
+  let count = Math.floor(rate);
+  const frac = rate - count;
   if (frac > 0 && rng.next() < frac) count++;
   while (count > 0 && world.plantCount < cap) {
     if (placePlant(world, params, rng) === -1) break;

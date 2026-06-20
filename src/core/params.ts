@@ -57,6 +57,11 @@ export interface SimulationParameters {
   /** How strongly food regeneration favours fertile regions (0 = uniform). */
   biomeStrength: number;
 
+  /** Seasonal swing in food regeneration (0 = none); a fraction of the base rate. */
+  seasonAmplitude: number;
+  /** Length of one seasonal cycle, in ticks. */
+  seasonPeriod: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -91,6 +96,8 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   pheromoneDiffusion: 0.12,
   pheromoneDeposit: 6,
   biomeStrength: 0,
+  seasonAmplitude: 0,
+  seasonPeriod: 1200,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
