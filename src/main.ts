@@ -1,8 +1,7 @@
 import './style.css';
 import { createSetupScreen } from './ui/setupScreen.ts';
 import { createControls } from './ui/controls.ts';
-import { PopulationChart } from './ui/chart.ts';
-import { Toasts } from './ui/toasts.ts';
+import { createDock } from './ui/dock.ts';
 import { createFeed } from './ui/feed.ts';
 import { createInspector } from './ui/inspector.ts';
 import { createRecordsPanel } from './ui/records.ts';
@@ -48,24 +47,18 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const renderer = new Renderer();
   await renderer.init(host, params.worldWidth, params.worldHeight, params.viewMode);
 
-  const chart = new PopulationChart();
-  const toasts = new Toasts();
   const feed = createFeed();
   const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
   const records = createRecordsPanel();
   const legend = createLegend();
   const onboarding = createOnboarding({ onOpenLegend: () => legend.toggle() });
   const narratorUI = createNarratorPanel();
-  mount.append(
-    chart.element,
-    toasts.element,
-    feed.element,
-    inspector.element,
-    records.element,
-    legend.element,
-    onboarding.element,
-    narratorUI.element,
-  );
+  const dock = createDock();
+
+  // Hall-of-fame + narrator-config popover, opened from the toolbar's 🏆 button.
+  const statsPopover = document.createElement('div');
+  statsPopover.className = 'popover stats-popover';
+  statsPopover.append(records.element, narratorUI.element);
 
   const milestones = new Milestones();
   const director = new Director(params.worldWidth, params.worldHeight);
@@ -76,58 +69,91 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   let latestEvent: string | null = null;
   let inspectId = -1;
 
+  // Assemble the single toolbar: the controls and the message log live inside it.
+  dock.controlsHost.appendChild(
+    createControls({
+      client,
+      min: params.minTimeMultiplier,
+      max: params.maxTimeMultiplier,
+      onReset: () => {
+        client.dispose();
+        showSetup();
+      },
+      directorEnabled: director.enabled,
+      onToggleDirector: (on) => director.setEnabled(on),
+      onLegend: () => legend.toggle(),
+      onRecords: () => statsPopover.classList.toggle('open'),
+      palettes: PALETTES.map((p) => p.name),
+      onPalette: (index) => renderer.setPalette(index),
+      onQuality: (level) => renderer.setQuality(level),
+      reducedMotion: renderer.isReducedMotion(),
+      onReducedMotion: (on) => renderer.setReducedMotion(on),
+      soundEnabled: sound.isEnabled(),
+      onToggleSound: (on) => sound.setEnabled(on),
+    }),
+  );
+  dock.logHost.appendChild(feed.element);
+
+  // The dock is in the layout flow (canvas fills the rest); the rest are overlays.
+  mount.append(dock.element, statsPopover, legend.element, onboarding.element, inspector.element);
+  // The dock now occupies part of the viewport, so the canvas host shrank — nudge
+  // PixiJS (which only resizes on window events) to refit the canvas to it.
+  requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+
   client.start(
     params,
     (view, count) => {
-    renderer.draw(view, count);
+      renderer.draw(view, count);
 
-    // Mirror the renderer's selection to the worker so the inspector stays live.
-    const selected = renderer.getSelectedId();
-    if (selected !== inspectId) {
-      inspectId = selected;
-      client.inspect(selected);
-      if (selected === -1) inspector.hide();
-      else inspector.show();
-    }
+      // Mirror the renderer's selection to the worker so the inspector stays live.
+      const selected = renderer.getSelectedId();
+      if (selected !== inspectId) {
+        inspectId = selected;
+        client.inspect(selected);
+        if (selected === -1) inspector.hide();
+        else inspector.show();
+      }
 
-    // The auto-director eases the camera to the most interesting subject.
-    director.update(view, count, performance.now(), renderer);
+      // The auto-director eases the camera to the most interesting subject.
+      director.update(view, count, performance.now(), renderer);
 
-    // Sound, from the same real signals as the visual cues (no-ops when muted).
-    if (sound.isEnabled()) {
-      if (renderer.getFrameAte() > 0) sound.eat();
-      if (view[H_BIRTHS] > 0) sound.birth();
-      if (view[H_DEATHS] > 0) sound.death();
-    }
+      // Sound, from the same real signals as the visual cues (no-ops when muted).
+      if (sound.isEnabled()) {
+        if (renderer.getFrameAte() > 0) sound.eat();
+        if (view[H_BIRTHS] > 0) sound.birth();
+        if (view[H_DEATHS] > 0) sound.death();
+      }
 
-    const population = view[H_POPULATION];
-    if (frame % 5 === 0) chart.push(population);
+      const population = view[H_POPULATION];
+      if (frame % 5 === 0) dock.updateStats(population, view[H_SPECIES_COUNT], view[H_TICK]);
 
-    const near = population > 0 && population <= NEAR_EXTINCTION_THRESHOLD;
-    if (near && !wasNearExtinction) toasts.show(`Near extinction — only ${population} left!`);
-    wasNearExtinction = near;
+      const near = population > 0 && population <= NEAR_EXTINCTION_THRESHOLD;
+      if (near && !wasNearExtinction) {
+        feed.note(`Near extinction — only ${population} left!`, 'nearExtinction');
+      }
+      wasNearExtinction = near;
 
-    if (frame % NARRATE_EVERY_FRAMES === 0) {
-      const milestone = milestones.update({
-        tick: view[H_TICK],
-        population,
-        speciesCount: view[H_SPECIES_COUNT],
-        event: null,
-      });
-      if (milestone !== null) toasts.show(milestone);
-      const stats = {
-        tick: view[H_TICK],
-        population,
-        births: view[H_BIRTHS],
-        deaths: view[H_DEATHS],
-        speciesCount: view[H_SPECIES_COUNT],
-        traitMeans: view.subarray(H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT),
-        milestone,
-        latestEvent,
-      };
-      narratorUI.show(narratorUI.narrator.narrate(stats, (line) => narratorUI.show(line)));
-    }
-    frame++;
+      if (frame % NARRATE_EVERY_FRAMES === 0) {
+        const milestone = milestones.update({
+          tick: view[H_TICK],
+          population,
+          speciesCount: view[H_SPECIES_COUNT],
+          event: null,
+        });
+        if (milestone !== null) feed.note(milestone, 'milestone');
+        const stats = {
+          tick: view[H_TICK],
+          population,
+          births: view[H_BIRTHS],
+          deaths: view[H_DEATHS],
+          speciesCount: view[H_SPECIES_COUNT],
+          traitMeans: view.subarray(H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT),
+          milestone,
+          latestEvent,
+        };
+        dock.setNarration(narratorUI.narrator.narrate(stats, (line) => dock.setNarration(line)));
+      }
+      frame++;
     },
     (events) => {
       const line = feed.push(events);
@@ -147,28 +173,6 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       }
     },
     (view) => records.update(view),
-  );
-
-  mount.appendChild(
-    createControls({
-      client,
-      min: params.minTimeMultiplier,
-      max: params.maxTimeMultiplier,
-      onReset: () => {
-        client.dispose();
-        showSetup();
-      },
-      directorEnabled: director.enabled,
-      onToggleDirector: (on) => director.setEnabled(on),
-      onLegend: () => legend.toggle(),
-      palettes: PALETTES.map((p) => p.name),
-      onPalette: (index) => renderer.setPalette(index),
-      onQuality: (level) => renderer.setQuality(level),
-      reducedMotion: renderer.isReducedMotion(),
-      onReducedMotion: (on) => renderer.setReducedMotion(on),
-      soundEnabled: sound.isEnabled(),
-      onToggleSound: (on) => sound.setEnabled(on),
-    }),
   );
 }
 

@@ -12,6 +12,8 @@ export interface ControlsConfig {
   onToggleDirector: (on: boolean) => void;
   /** Open/close the legend. */
   onLegend: () => void;
+  /** Open/close the hall-of-fame / stats popover. */
+  onRecords: () => void;
   /** Selectable species palette names; index passed back on change. */
   palettes: string[];
   onPalette: (index: number) => void;
@@ -79,6 +81,10 @@ export function createControls(config: ControlsConfig): HTMLElement {
   legend.textContent = '🛈 Legend';
   legend.addEventListener('click', () => config.onLegend());
 
+  const recordsBtn = document.createElement('button');
+  recordsBtn.textContent = '🏆 Records';
+  recordsBtn.addEventListener('click', () => config.onRecords());
+
   const paletteLabel = document.createElement('label');
   paletteLabel.className = 'control-select';
   const palette = document.createElement('select');
@@ -133,6 +139,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     speedLabel,
     director,
     legend,
+    recordsBtn,
     paletteLabel,
     qualityLabel,
     motionLabel,

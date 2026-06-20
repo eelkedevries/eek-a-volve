@@ -1,6 +1,6 @@
 import type { CreatureDetail } from '../core/inspect.ts';
 import { personalName, binomial } from '../humour/names.ts';
-import { TRAITS, TRAIT_COUNT, TRAIT_RANGES } from '../core/genome.ts';
+import { TRAITS, TRAIT_COUNT } from '../core/genome.ts';
 import { IDLE, SEEKING, EATING, FLEEING, HUNTING, COURTING } from '../core/state.ts';
 
 const STAGE_LABELS = ['juvenile', 'adult', 'elder'];
@@ -33,21 +33,24 @@ export interface Inspector {
 }
 
 /**
- * The creature inspector (specification: relatability — protagonists). Shows a
- * clicked creature's procedural name, mock-Latin binomial, traits, age/stage,
- * energy, lineage, and a plain-English action, and offers an Adopt button that
- * follows it with the camera. Driven live by the worker's inspect replies (037).
+ * The creature inspector (specification: relatability — protagonists). A compact
+ * card, shown above the toolbar when a creature is clicked: its procedural name,
+ * mock-Latin binomial, age/stage, energy, lineage, a plain-English action, and a
+ * wrap of trait chips, plus an Adopt button that follows it with the camera. Kept
+ * small so it fits without scrolling; driven live by the worker's inspect replies.
  */
 export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspector {
   const element = document.createElement('div');
   element.className = 'inspector';
   element.style.display = 'none';
 
+  const header = document.createElement('div');
+  header.className = 'inspector-header';
   const name = document.createElement('h2');
   name.className = 'inspector-name';
-
-  const binomialEl = document.createElement('div');
+  const binomialEl = document.createElement('span');
   binomialEl.className = 'inspector-binomial';
+  header.append(name, binomialEl);
 
   const action = document.createElement('div');
   action.className = 'inspector-action';
@@ -63,24 +66,17 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
 
   const traitList = document.createElement('div');
   traitList.className = 'inspector-traits';
-  const traitFills: HTMLElement[] = [];
   const traitValues: HTMLElement[] = [];
   for (let t = 0; t < TRAIT_COUNT; t++) {
-    const row = document.createElement('div');
-    row.className = 'trait-row';
+    const chip = document.createElement('span');
+    chip.className = 'trait-chip';
     const label = document.createElement('span');
-    label.className = 'trait-label';
+    label.className = 'trait-chip-label';
     label.textContent = traitLabel(TRAITS[t]);
-    const bar = document.createElement('div');
-    bar.className = 'trait-bar';
-    const fill = document.createElement('div');
-    fill.className = 'trait-fill';
-    bar.appendChild(fill);
     const value = document.createElement('span');
-    value.className = 'trait-value';
-    row.append(label, bar, value);
-    traitList.appendChild(row);
-    traitFills.push(fill);
+    value.className = 'trait-chip-value';
+    chip.append(label, value);
+    traitList.appendChild(chip);
     traitValues.push(value);
   }
 
@@ -95,7 +91,7 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
     opts.onAdopt(following);
   });
 
-  element.append(name, binomialEl, action, meta, energyBar, traitList, adopt);
+  element.append(header, action, meta, energyBar, traitList, adopt);
 
   return {
     element,
@@ -112,7 +108,6 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
     update: (detail: CreatureDetail): void => {
       if (!detail.alive) return;
       if (detail.id !== currentId) {
-        // A different creature: reset the adopt toggle.
         currentId = detail.id;
         following = false;
         adopt.textContent = 'Adopt 🐾';
@@ -123,14 +118,9 @@ export function createInspector(opts: { onAdopt: (on: boolean) => void }): Inspe
       action.textContent = `${who} is ${ACTION_VERBS[detail.action] ?? 'pottering about'}.`;
       const stage = STAGE_LABELS[detail.stage] ?? 'adult';
       const offspring = detail.offspringCount === 1 ? '1 offspring' : `${detail.offspringCount} offspring`;
-      meta.textContent = `Age ${detail.age} · ${stage} · generation ${detail.generation} · ${offspring}`;
+      meta.textContent = `Age ${detail.age} · ${stage} · gen ${detail.generation} · ${offspring}`;
       energyFill.style.width = `${clamp01(detail.energy / detail.energyCapacity) * 100}%`;
-      for (let t = 0; t < TRAIT_COUNT; t++) {
-        const r = TRAIT_RANGES[t];
-        const norm = clamp01((detail.traits[t] - r.min) / (r.max - r.min));
-        traitFills[t].style.width = `${norm * 100}%`;
-        traitValues[t].textContent = detail.traits[t].toFixed(2);
-      }
+      for (let t = 0; t < TRAIT_COUNT; t++) traitValues[t].textContent = detail.traits[t].toFixed(2);
     },
   };
 }
