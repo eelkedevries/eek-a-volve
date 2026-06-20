@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createSimulation } from './loop.ts';
 import { DEFAULT_PARAMETERS } from './params.ts';
-import { TRAIT_COUNT, SIZE } from './genome.ts';
+import { TRAIT_COUNT, SIZE, DISPLAY, TRAIT_RANGES } from './genome.ts';
 import {
   serialiseSnapshot,
   snapshotLength,
@@ -18,6 +18,7 @@ import {
   A_STATE,
   A_ID,
   A_ENERGY,
+  A_DISPLAY,
   FOOD_X,
   FOOD_TYPE,
   H_TICK,
@@ -95,6 +96,21 @@ describe('snapshot format', () => {
       expect(out[base + FOOD_X]).toBeGreaterThanOrEqual(0);
       expect(out[base + FOOD_TYPE]).toBe(0);
     }
+  });
+
+  it('appends a normalised display field per agent without disturbing the stride', () => {
+    expect(A_DISPLAY).toBe(10);
+    expect(AGENT_STRIDE).toBe(11);
+    const s = sim();
+    const w = s.world;
+    const out = new Float32Array(snapshotLength(w.agentCapacity, w.foodCapacity));
+    serialiseSnapshot(s, out);
+    const first = firstLive(w);
+    const r = TRAIT_RANGES[DISPLAY];
+    const expected = (w.traits[DISPLAY][first] - r.min) / (r.max - r.min);
+    expect(out[HEADER_LENGTH + A_DISPLAY]).toBeCloseTo(expected, 5);
+    expect(out[HEADER_LENGTH + A_DISPLAY]).toBeGreaterThanOrEqual(0);
+    expect(out[HEADER_LENGTH + A_DISPLAY]).toBeLessThanOrEqual(1);
   });
 
   it('keeps existing header offsets (trait means) intact for older consumers', () => {

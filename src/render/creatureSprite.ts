@@ -6,6 +6,8 @@ const BODY_RADIUS = 8;
 const EYE_COLOUR = 0x10151b;
 /** Maw colour — a dark red that survives the colour-blind palettes (role cue, not species). */
 const MAW_COLOUR = 0x3a0e0e;
+/** Ornament/crest colour — a bright gold so "showy" reads regardless of species tint. */
+const CREST_COLOUR = 0xffc24d;
 /** Energy fraction at or above which the body shows full colour; below it starts to fade. */
 const STARVE_FROM = 0.35;
 /** Mid-grey the body desaturates toward when starving. */
@@ -37,12 +39,27 @@ function blend(colour: number, target: number, t: number): number {
  */
 export class CreatureSprite {
   readonly view = new Container();
+  private readonly crest = new Graphics();
   private readonly body = new Graphics();
   private readonly eyeL = new Graphics();
   private readonly eyeR = new Graphics();
   private readonly maw = new Graphics();
 
   constructor() {
+    // Crest/plume: a back-and-up ornament whose prominence scales with `display`
+    // (sexual selection made visible). Drawn behind the body so it reads as a fan.
+    this.crest
+      .poly([
+        BODY_RADIUS * 0.1, -BODY_RADIUS * 0.3,
+        -BODY_RADIUS * 1.2, -BODY_RADIUS * 0.6,
+        -BODY_RADIUS * 0.6, -BODY_RADIUS * 1.5,
+        -BODY_RADIUS * 0.2, -BODY_RADIUS * 0.7,
+        -BODY_RADIUS * 0.1, -BODY_RADIUS * 1.2,
+        BODY_RADIUS * 0.2, -BODY_RADIUS * 0.5,
+      ])
+      .fill(CREST_COLOUR);
+    this.crest.visible = false;
+
     // Body: a unit disc, tinted per species, squashed into an ellipse per creature.
     this.body.circle(0, 0, BODY_RADIUS).fill(0xffffff);
 
@@ -62,8 +79,8 @@ export class CreatureSprite {
       .fill(MAW_COLOUR);
     this.maw.visible = false;
 
-    // Body first (behind), then maw, then eyes on top.
-    this.view.addChild(this.body, this.maw, this.eyeL, this.eyeR);
+    // Crest behind, then body, maw, and eyes on top.
+    this.view.addChild(this.crest, this.body, this.maw, this.eyeL, this.eyeR);
   }
 
   /**
@@ -85,6 +102,7 @@ export class CreatureSprite {
     pxPerUnit: number,
     pop: number,
     flash: number,
+    display: number,
   ): void {
     const v = this.view;
     v.visible = true;
@@ -121,6 +139,15 @@ export class CreatureSprite {
       this.maw.scale.set(0.7 + (diet - 0.5) * 1.2);
     } else {
       this.maw.visible = false;
+    }
+
+    // Ornament crest, prominent for showy creatures, absent for plain ones.
+    if (display > 0.05) {
+      this.crest.visible = true;
+      this.crest.scale.set(0.4 + 0.8 * display);
+      this.crest.alpha = 0.5 + 0.5 * display;
+    } else {
+      this.crest.visible = false;
     }
   }
 

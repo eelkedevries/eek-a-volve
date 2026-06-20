@@ -1,5 +1,5 @@
 import type { Simulation } from './loop.ts';
-import { TRAIT_COUNT, SIZE, DIET, SENSE_RADIUS, TRAIT_RANGES } from './genome.ts';
+import { TRAIT_COUNT, SIZE, DIET, SENSE_RADIUS, DISPLAY, TRAIT_RANGES } from './genome.ts';
 import { energyCapacity } from './energy.ts';
 import { stageOf } from './lifestage.ts';
 
@@ -27,7 +27,9 @@ export const A_ENERGY = 7;
 export const A_DIET = 8;
 /** Sense radius, normalised 0 … 1 — drives eye size. */
 export const A_SENSE = 9;
-export const AGENT_STRIDE = 10;
+/** Display/ornament, normalised 0 … 1 — drives the visible crest (051). */
+export const A_DISPLAY = 10;
+export const AGENT_STRIDE = 11;
 
 // stateCode packing: (stage << STATE_STAGE_SHIFT) | action
 export const STATE_ACTION_MASK = 0b111;
@@ -93,6 +95,7 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
     out[offset + A_ENERGY] = energy[s] / energyCapacity(size);
     out[offset + A_DIET] = normalise(traits[DIET][s], DIET);
     out[offset + A_SENSE] = normalise(traits[SENSE_RADIUS][s], SENSE_RADIUS);
+    out[offset + A_DISPLAY] = normalise(traits[DISPLAY][s], DISPLAY);
     offset += AGENT_STRIDE;
     for (let t = 0; t < TRAIT_COUNT; t++) sums[t] += traits[t][s];
     species.add(speciesId[s]);
