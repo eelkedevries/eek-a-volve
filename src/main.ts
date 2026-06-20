@@ -13,6 +13,8 @@ import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
 import { Renderer, PALETTES } from './render/renderer.ts';
+import type { RenderSurface } from './render/surface.ts';
+import { OffscreenRenderClient, isOffscreenSupported } from './render/offscreenClient.ts';
 import { Director } from './render/director.ts';
 import { SoundKit } from './audio/sound.ts';
 import {
@@ -60,19 +62,56 @@ async function run(
   population?: PopulationRecord[],
 ): Promise<void> {
   if (mount === null) return;
-  const renderer = new Renderer();
-  await renderer.init(host, params.worldWidth, params.worldHeight, params.viewMode, {
-    seed: params.seed,
-    strength: params.biomeStrength,
-  });
+
+  // Default render path: the main-thread Renderer. The optional, experimental
+  // OffscreenCanvas worker (params.offscreenRender) is tried only when supported,
+  // and any init failure falls back here automatically (spec v0.4.2).
+  const biome = { seed: params.seed, strength: params.biomeStrength };
+  const makeMainRenderer = async (): Promise<Renderer> => {
+    const r = new Renderer();
+    await r.init(host, params.worldWidth, params.worldHeight, params.viewMode, biome);
+    return r;
+  };
+
+  let surface: RenderSurface;
+  let directorRenderer: Renderer | null = null;
+  let offscreen: OffscreenRenderClient | null = null;
+  if (params.offscreenRender && isOffscreenSupported()) {
+    try {
+      const oc = new OffscreenRenderClient();
+      await oc.init(host, params.worldWidth, params.worldHeight, params.viewMode, 0, 'species');
+      surface = oc;
+      offscreen = oc;
+    } catch {
+      surface = directorRenderer = await makeMainRenderer();
+    }
+  } else {
+    surface = directorRenderer = await makeMainRenderer();
+  }
 
   const feed = createFeed();
-  const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
+
+  // If the experimental offscreen worker fails after init, switch to the proven
+  // main-thread renderer so the run continues unbroken.
+  let swapping = false;
+  const swapToMain = async (): Promise<void> => {
+    if (swapping || directorRenderer !== null) return;
+    swapping = true;
+    offscreen?.dispose();
+    offscreen = null;
+    const r = await makeMainRenderer();
+    surface = r;
+    directorRenderer = r;
+    feed.note('Offscreen renderer hit a snag — switched to the standard renderer.', 'milestone');
+  };
+  offscreen?.setErrorHandler(() => void swapToMain());
+
+  const inspector = createInspector({ onAdopt: (on) => surface.setFollowing(on) });
   const records = createRecordsPanel();
   const charts = createCharts();
   const family = createFamilyPanel();
   const minimap = createMinimap(params.worldWidth, params.worldHeight, (x, y) =>
-    renderer.centreCameraOn(x, y),
+    surface.centreCameraOn(x, y),
   );
   const legend = createLegend();
   const onboarding = createOnboarding({ onOpenLegend: () => legend.toggle() });
@@ -124,17 +163,17 @@ async function run(
         if (familyOpen && inspectId !== -1) client.requestFamily(inspectId);
       },
       onOverlay: (mode) => {
-        renderer.setOverlayMode(mode);
+        surface.setOverlayMode(mode);
         client.setOverlay(mode === 'pheromone');
       },
       onMinimap: () => minimap.element.classList.toggle('hidden'),
-      onColourMode: (mode) => renderer.setColourMode(mode),
+      onColourMode: (mode) => surface.setColourMode(mode),
       onExport: () => client.exportPopulation(),
       palettes: PALETTES.map((p) => p.name),
-      onPalette: (index) => renderer.setPalette(index),
-      onQuality: (level) => renderer.setQuality(level),
-      reducedMotion: renderer.isReducedMotion(),
-      onReducedMotion: (on) => renderer.setReducedMotion(on),
+      onPalette: (index) => surface.setPalette(index),
+      onQuality: (level) => surface.setQuality(level),
+      reducedMotion: surface.isReducedMotion(),
+      onReducedMotion: (on) => surface.setReducedMotion(on),
       soundEnabled: sound.isEnabled(),
       onToggleSound: (on) => sound.setEnabled(on),
     }),
@@ -157,7 +196,7 @@ async function run(
   requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 
   client.setFieldHandler((field, cols, rows, w, h) =>
-    renderer.setPheromoneField(field, cols, rows, w, h),
+    surface.setPheromoneField(field, cols, rows, w, h),
   );
   client.setFamilyHandler((f) => family.update(f));
   client.setPopulationHandler((save) => {
@@ -173,10 +212,10 @@ async function run(
   client.start(
     params,
     (view, count) => {
-      renderer.draw(view, count);
+      surface.draw(view, count);
 
       // Mirror the renderer's selection to the worker so the inspector stays live.
-      const selected = renderer.getSelectedId();
+      const selected = surface.getSelectedId();
       if (selected !== inspectId) {
         inspectId = selected;
         client.inspect(selected);
@@ -184,14 +223,15 @@ async function run(
         else inspector.show();
       }
 
-      // The auto-director eases the camera to the most interesting subject.
-      director.update(view, count, performance.now(), renderer);
+      // The auto-director eases the camera to the most interesting subject. It
+      // drives the main-thread camera directly, so it is active only on that path.
+      if (directorRenderer !== null) director.update(view, count, performance.now(), directorRenderer);
 
-      if (frame % 3 === 0) minimap.update(view, count, renderer.getViewportBounds());
+      if (frame % 3 === 0) minimap.update(view, count, surface.getViewportBounds());
 
       // Sound, from the same real signals as the visual cues (no-ops when muted).
       if (sound.isEnabled()) {
-        if (renderer.getFrameAte() > 0) sound.eat();
+        if (surface.getFrameAte() > 0) sound.eat();
         if (view[H_BIRTHS] > 0) sound.birth();
         if (view[H_DEATHS] > 0) sound.death();
       }
@@ -246,7 +286,7 @@ async function run(
     (detail) => {
       if (!detail.alive) {
         inspector.hide();
-        renderer.clearSelection();
+        surface.clearSelection();
         inspectId = -1;
       } else {
         inspector.update(detail);

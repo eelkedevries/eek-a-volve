@@ -80,9 +80,13 @@ This file records what *is* (current reality). The binding design canon is `docs
   other parameters are configured pre-start. Observation tools (adopt, follow,
   inspect, camera, director) do not alter the simulation.
 - **Optional-capability principle (spec v0.4.0):** large features ship only as
-  default-off toggles with the original path as fallback. First such capability:
+  default-off toggles with the original path as fallback. Capabilities so far:
   **neural brains** (v0.4.1) — an evolvable fixed-topology net drives movement
   when `neuralBrains` is on; the hand-coded policy is the default and fallback.
+  **OffscreenCanvas rendering** (v0.4.2, experimental) — `offscreenRender` runs a
+  self-contained PixiJS scene in a worker via a transferred OffscreenCanvas, with
+  a capability check, a ready-handshake, and automatic fallback to the main-thread
+  `Renderer`; effects/overlays/director are simplified in that mode.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

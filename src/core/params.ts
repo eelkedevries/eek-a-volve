@@ -65,6 +65,9 @@ export interface SimulationParameters {
   /** Optional capability: drive movement with an evolvable neural net (default off). */
   neuralBrains: boolean;
 
+  /** Optional capability: render via OffscreenCanvas in a worker (experimental, default off). */
+  offscreenRender: boolean;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -102,6 +105,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   seasonAmplitude: 0,
   seasonPeriod: 1200,
   neuralBrains: false,
+  offscreenRender: false,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
