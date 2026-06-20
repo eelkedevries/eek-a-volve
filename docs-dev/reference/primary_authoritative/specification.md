@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.0
+Version: 0.3.1
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -13,7 +13,7 @@ The user configures parameters before starting. After starting, the only control
 
 Target platforms are desktop browsers on Windows, Linux, and macOS: current Chrome and Firefox on all three, and Safari on macOS. On macOS, Chrome runs on Blink and Firefox on Gecko (full desktop engines); the WebKit-only constraint applies to iOS and iPadOS, which are not targets. The rendering baseline is WebGL2, which is available across all target browsers; WebGPU is used as an automatic upgrade where the browser provides it, via the rendering library, with no WebGPU-specific code in the project.
 
-Long unattended runs ("for days") are supported on desktop, subject to the ordinary constraint that the machine must not sleep. Operating-system sleep suspends everything; background-tab throttling of timers and animation frames is mitigated by running the simulation in a Web Worker. Mobile platforms are explicitly out of scope, so no mobile memory ceiling or WebKit-specific handling is required.
+Long unattended runs ("for days") are supported on desktop, subject to the ordinary constraint that the machine must not sleep. Operating-system sleep suspends everything; background-tab throttling of timers and animation frames is mitigated by running the simulation in a Web Worker. Desktop remains the primary, tested platform. The UI layout is responsive and usable on small and portrait screens as a best-effort enhancement (v0.3.1), but mobile is not a tested target: no mobile memory ceiling or WebKit-specific handling is implemented, and iOS/iPadOS behaviour is unverified.
 
 Out of scope for the first version, recorded here as decisions rather than omissions: learned neural-network brains, topology-evolving neuroevolution (NEAT), WebAssembly or GPU-compute simulation cores, OffscreenCanvas rendering, a server-side narrator proxy, and cross-reload persistence. Each is a candidate later enhancement (see Locked decisions).
 
@@ -95,7 +95,7 @@ The humour register is wry and affectionate, never mean. The optional narrator a
 - The core uses trait-only, continuous, energy-driven natural selection. Learned neural-network brains are deferred to a later enhancement and are the first stretch goal once the core is stable. NEAT is a distant follow-on, not on the critical path.
 - Rendering uses PixiJS v8 with a `ParticleContainer`; simulation runs in a Web Worker; the two communicate by transferable typed arrays. `SharedArrayBuffer` is not used.
 - The rendering baseline is WebGL2, with WebGPU as an automatic upgrade via PixiJS. No WebGPU-specific code is written.
-- Target platforms are desktop browsers on Windows, Linux, and macOS. Mobile and iOS or iPadOS are out of scope. Long unattended runs are a desktop capability, contingent on the machine not sleeping.
+- Target (tested) platforms are desktop browsers on Windows, Linux, and macOS. The UI is responsive for small/portrait screens as a best-effort enhancement (v0.3.1); iOS/iPadOS remain untested, with no WebKit-specific or mobile-memory handling. Long unattended runs are a desktop capability, contingent on the machine not sleeping.
 - Parameters are configurable before start only. After start, only the time multiplier and pause are adjustable.
 - The optional narrator uses OpenRouter with a user-supplied key stored in the browser; no key is embedded or committed. Narrator calls are rate-limited and non-blocking, and the feature degrades to templated lines when no key is present or a call fails. A default low-cost model is used, and the model is user-configurable.
 - Cross-reload persistence is out of scope for the first version. Because a run is reproducible from seed and parameters, an export and import of seed, parameters, and optionally genomes is the intended low-cost route to persistence later.

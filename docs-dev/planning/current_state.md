@@ -12,23 +12,40 @@ This file records what *is* (current reality). The binding design canon is `docs
   `/eek-a-volve/`, reproducible install via committed `package-lock.json`.
 - **Deterministic core (`src/core/`)** — a complete, headless, tested simulation:
   seeded `mulberry32` RNG, parameters + genome trait definitions, structure-of-
-  arrays world with pooled agent/food slots, uniform spatial grid, genome
-  inheritance + mutation (+ freak mutations), energy/metabolism/death, food
-  regeneration, the trait-driven behaviour policy (seek/flee/eat/reproduce),
+  arrays world with pooled agent/food slots + stable creature identity, uniform
+  spatial grid, genome inheritance + mutation (+ freak mutations), energy/
+  metabolism/death, food regeneration + carrion scavenging, the trait-driven
+  behaviour policy (seek/flee/eat/court/reproduce) with a per-tick action/state,
   population bounds (ceiling, near-extinction, optional immigration), predation,
-  speciation (cosmetic labels), catastrophes, and the fixed-timestep `Simulation`
-  loop.
+  speciation (cosmetic labels), life stages (juvenile/adult/elder), catastrophes,
+  sexual reproduction (uniform crossover, default-off), an append-only render
+  snapshot, a bounded event log + records/hall-of-fame, and the fixed-timestep
+  `Simulation` loop.
 - **Worker boundary (`src/worker/`)** — the simulation runs in a Web Worker
   behind a typed message protocol; compact snapshots are posted via two
-  transferable ping-pong buffers (no `SharedArrayBuffer`).
-- **Rendering (`src/render/`)** — PixiJS v8 `ParticleContainer` drawing agents
-  from snapshots, coloured by species. (Food is not yet in the snapshot, so it
-  is not drawn.)
-- **UI (`src/ui/`)** — pre-start setup form, runtime controls (speed/pause/reset),
-  live population chart, toasts, and the narrator panel.
+  transferable ping-pong buffers (no `SharedArrayBuffer`); also serves inspect,
+  events, and records messages.
+- **Rendering (`src/render/`)** — PixiJS v8 with a world container under a
+  pan/zoom/fit/follow **camera** and level-of-detail (batched `ParticleContainer`
+  haze ↔ detailed creatures, with culling + a detail budget). Detailed creatures
+  are genome-driven (body from size, eyes from sense radius, maw from diet,
+  energy fade, juvenile scale, oriented by heading); pooled behaviour **effects**
+  (eat/hunt/flee/court/birth/death + parent→newborn lineage line), **emotes** +
+  elder crown, **visual juice** (squash/flash/trails/capped shake), an
+  **auto-director** with screen-space nameplates, and selectable species
+  **palettes** (incl. colour-blind-safe). Food is drawn by type (plant/carrion).
+- **UI (`src/ui/`)** — a single fit-to-screen **dock** (capped at ≤20% of the
+  viewport; its message **log** is the only scrollable element) holding live
+  stats, all controls, and the feed. Plus a **creature inspector** with
+  adopt/follow, a **hall-of-fame** records popover, a **legend**, first-run
+  **onboarding**, and the **setup screen** with Community/Swarm preset cards.
+  Controls: speed, pause, reset, director toggle, palette, quality/scale,
+  reduce-motion, sound. (The earlier standalone population chart and toasts were
+  folded into the dock/log during the single-toolbar consolidation.)
 - **Humour + narrator (`src/humour/`, `src/narrator/`)** — mock-Latin binomials,
-  milestone/extinction lines, and the optional OpenRouter narrator with a
-  templated fallback (key stored in-browser; never committed).
+  silly individual names, milestone/extinction/obituary lines, and the optional
+  OpenRouter narrator with a templated fallback (key stored in-browser; never
+  committed).
 
 ## Key decisions
 
@@ -37,11 +54,32 @@ This file records what *is* (current reality). The binding design canon is `docs
 - Sequencing is planned in [`roadmap.md`](roadmap.md) (non-binding); the core is
   trait-only, continuous, energy-driven selection per the spec.
 - Test runner: **Vitest** (`npm test`), established by prompt 002.
-- **Reproduction is asexual** for the first version (single parent + mutation);
-  sexual crossover and its toggle are deferred.
-- Tuning constants (`MAX_POPULATION`, `MAX_AGE`, food energy, mutation scaling,
+- **Reproduction supports both modes**, selected by the `sexualReproduction`
+  parameter: asexual budding (default) and sexual reproduction by uniform genome
+  crossover with compatibility-by-genetic-distance and shared parental energy
+  cost. (Earlier this was asexual-only; sexual shipped default-off in prompt 028.)
+- **After start, only the time multiplier and pause change** (spec lock); all
+  other parameters are configured pre-start. Observation tools (adopt, follow,
+  inspect, camera, director) do not alter the simulation.
+- Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
-  — default runs hold ~200–500 agents over 20k+ ticks, no extinction or explosion.
+  — default runs hold within bounds over thousands of ticks, no extinction or
+  explosion.
+
+## Recent UI / ops work (post-042, by direct request — not numbered prompts)
+
+- **Single-toolbar UI + responsive layout.** The scattered panels were
+  consolidated into one bottom **dock** (stats + controls + log), made to fit the
+  viewport with no page scrolling, and the dock capped at ≤20% of the screen.
+  Responsive/portrait support (safe-area insets, iOS-zoom prevention) was added at
+  the maintainer's request — this goes **beyond the spec's desktop-only target**
+  (see spec v0.3.1: responsive UI is now best-effort, desktop remains the tested
+  platform).
+- **"Primordial lab" visual reskin** applied from a Claude Design hand-off (fonts,
+  palette, gradients) — visual only, no architecture change.
+- **Deploy fixed to auto-publish.** The Pages deploy workflow was
+  `workflow_dispatch`-only (manual); it now also runs `on: push` to `main`, so
+  every push redeploys.
 
 ## In progress / next
 
