@@ -6,6 +6,7 @@ import { Toasts } from './ui/toasts.ts';
 import { createFeed } from './ui/feed.ts';
 import { createInspector } from './ui/inspector.ts';
 import { createRecordsPanel } from './ui/records.ts';
+import { createLegend, createOnboarding } from './ui/legend.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
@@ -51,6 +52,8 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const feed = createFeed();
   const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
   const records = createRecordsPanel();
+  const legend = createLegend();
+  const onboarding = createOnboarding({ onOpenLegend: () => legend.toggle() });
   const narratorUI = createNarratorPanel();
   mount.append(
     chart.element,
@@ -58,6 +61,8 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
     feed.element,
     inspector.element,
     records.element,
+    legend.element,
+    onboarding.element,
     narratorUI.element,
   );
 
@@ -143,6 +148,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       },
       directorEnabled: director.enabled,
       onToggleDirector: (on) => director.setEnabled(on),
+      onLegend: () => legend.toggle(),
     }),
   );
 }

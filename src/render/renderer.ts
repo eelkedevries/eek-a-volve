@@ -41,7 +41,7 @@ import { ELDER } from '../core/lifestage.ts';
 import type { SimulationParameters } from '../core/params.ts';
 
 /** Palette indexed by species colour index; -1 (unassigned/immigrant) renders pale grey. */
-const SPECIES_COLOURS = [
+export const SPECIES_COLOURS = [
   0xff5d5d, 0x5dff7a, 0x5d9bff, 0xffd14d, 0xc77dff, 0x46d8c4, 0xff8fc4, 0x9aa7b4,
 ];
 

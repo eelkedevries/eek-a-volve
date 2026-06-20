@@ -10,6 +10,8 @@ export interface ControlsConfig {
   directorEnabled: boolean;
   /** Toggle the auto-director on/off. */
   onToggleDirector: (on: boolean) => void;
+  /** Open/close the legend. */
+  onLegend: () => void;
 }
 
 /**
@@ -62,10 +64,14 @@ export function createControls(config: ControlsConfig): HTMLElement {
     config.onToggleDirector(directing);
   });
 
+  const legend = document.createElement('button');
+  legend.textContent = '🛈 Legend';
+  legend.addEventListener('click', () => config.onLegend());
+
   const reset = document.createElement('button');
   reset.textContent = 'Reset';
   reset.addEventListener('click', () => config.onReset());
 
-  bar.append(pause, speedLabel, director, reset);
+  bar.append(pause, speedLabel, director, legend, reset);
   return bar;
 }

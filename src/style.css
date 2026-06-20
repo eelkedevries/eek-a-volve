@@ -191,6 +191,119 @@ canvas {
   border-left-color: #9aa7b4;
 }
 
+.legend {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  bottom: 1rem;
+  width: 19rem;
+  max-width: 86vw;
+  padding: 0.8rem 1rem;
+  overflow-y: auto;
+  background: rgba(11, 14, 17, 0.96);
+  border: 1px solid #2b3440;
+  border-radius: 8px;
+  z-index: 20;
+}
+
+.legend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.legend-close {
+  background: transparent;
+  color: #9aa7b4;
+  border: 0;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.legend-section {
+  margin-top: 0.8rem;
+}
+
+.legend-section h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9aa7b4;
+  margin-bottom: 0.3rem;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  margin: 0.22rem 0;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.legend-glyph {
+  display: inline-block;
+  width: 1.1rem;
+  text-align: center;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+
+.legend-swatches {
+  display: inline-flex;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.onboarding {
+  position: fixed;
+  left: 50%;
+  bottom: 5rem;
+  transform: translateX(-50%);
+  width: 30rem;
+  max-width: 90vw;
+  padding: 0.9rem 1.1rem;
+  background: rgba(20, 26, 33, 0.97);
+  border: 1px solid #2b3440;
+  border-radius: 10px;
+  z-index: 30;
+}
+
+.onboarding p {
+  font-size: 0.9rem;
+  color: #cdd9e5;
+}
+
+.onboarding-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+}
+
+.onboarding-buttons button {
+  padding: 0.4rem 0.9rem;
+  color: #e6edf3;
+  background: #1b222b;
+  border: 1px solid #2b3440;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.onboarding-buttons .onboarding-primary {
+  color: #06210f;
+  background: #5dff7a;
+  border: 0;
+  font-weight: 600;
+}
+
 .records {
   position: fixed;
   top: 1rem;
