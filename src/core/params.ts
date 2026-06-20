@@ -38,6 +38,8 @@ export interface SimulationParameters {
   catastrophes: boolean;
   /** Whether a trickle of fresh-genome immigrants is introduced over time. */
   immigration: boolean;
+  /** Whether reproduction is sexual (two parents, crossover) rather than asexual. */
+  sexualReproduction: boolean;
 
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
@@ -65,6 +67,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   predation: true,
   catastrophes: false,
   immigration: false,
+  sexualReproduction: false,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

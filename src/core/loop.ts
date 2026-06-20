@@ -16,6 +16,9 @@ const GRID_CELL_SIZE = 32;
 /** Re-cluster species every this many ticks (labels only; not every tick). */
 const SPECIATION_INTERVAL = 60;
 
+/** Spread of random ages given to the founding population. */
+const FOUNDER_AGE_SPREAD = 900;
+
 /**
  * One fixed-timestep simulation. It owns the world, the reused spatial grids,
  * behaviour, generator, and counters, so a tick allocates nothing
@@ -99,7 +102,12 @@ export class Simulation {
     const { world, params, rng } = this;
     const species = Math.max(1, params.startingSpeciesCount);
     const target = Math.min(params.initialPopulation, world.agentCapacity);
-    for (let i = 0; i < target; i++) spawnRandomAgent(world, params, rng, i % species);
+    for (let i = 0; i < target; i++) {
+      const slot = spawnRandomAgent(world, params, rng, i % species);
+      // Vary founder ages so the starting population is not all juveniles at
+      // once (which would force a birth-less crash before any can mature).
+      if (slot !== -1) world.age[slot] = rng.int(FOUNDER_AGE_SPREAD);
+    }
     seedFood(world, params, rng);
     this.speciation.cluster(world);
   }

@@ -49,3 +49,38 @@ export function breed(
   }
   return false;
 }
+
+/**
+ * Sexual reproduction: write the offspring genome into `child` by uniform
+ * crossover of parents `a` and `b`, then the same per-trait Gaussian mutation,
+ * clamping, and rare freak mutation as {@link breed}. Returns whether a freak
+ * mutation occurred (specification: Domain rules → Reproduction and mutation).
+ */
+export function breedSexual(
+  world: World,
+  child: number,
+  a: number,
+  b: number,
+  params: SimulationParameters,
+  rng: Rng,
+): boolean {
+  const { mutationRate, mutationMagnitude } = params;
+  const cols = world.traits;
+  for (let t = 0; t < TRAIT_COUNT; t++) {
+    let value = rng.next() < 0.5 ? cols[t][a] : cols[t][b];
+    if (rng.next() < mutationRate) {
+      const range = TRAIT_RANGES[t];
+      value += rng.gaussian() * mutationMagnitude * (range.max - range.min);
+      value = clampTrait(t, value);
+    }
+    cols[t][child] = value;
+  }
+
+  if (rng.next() < FREAK_MUTATION_RATE) {
+    const t = rng.int(TRAIT_COUNT);
+    const range = TRAIT_RANGES[t];
+    cols[t][child] = range.min + rng.next() * (range.max - range.min);
+    return true;
+  }
+  return false;
+}

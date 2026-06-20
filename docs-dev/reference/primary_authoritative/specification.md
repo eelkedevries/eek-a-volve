@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.2.0
+Version: 0.3.0
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -69,6 +69,8 @@ Behaviour. A hand-coded policy parameterised by the agent's traits, not a learne
 Reproduction and mutation. Reproduction requires crossing the energy threshold and pays an energy cost shared with the offspring. Offspring traits are inherited and then perturbed: each trait mutates with the configured probability by a Gaussian step of the configured magnitude, after which all traits are clamped to valid ranges to prevent the propagation of invalid values.
 
 Life stages (v0.2.0). Creatures pass through stages derived from age — juvenile, adult, elder. Only mature creatures (adult or elder) reproduce, so a creature must survive to maturity before it can breed; juveniles are rendered smaller.
+
+Reproduction mode (v0.3.0). A `sexualReproduction` parameter selects the mode. In sexual mode, two ready, compatible (low genetic distance), mature adults that meet produce one offspring by uniform genome crossover followed by the usual mutation; both parents pay an energy cost. In asexual mode, a single mature adult buds a mutated offspring. The shipped default is asexual, which is robust across world densities; sexual reproduction is an opt-in that thrives in denser populations (e.g. the community view) where adults readily meet. The founding population is seeded with varied ages so it is not uniformly juvenile at the start.
 
 Predation. When enabled, a sufficiently carnivorous agent that is larger than a neighbour may consume it for energy. The expected population signature, when predators and prey coexist, is lagged, noisy oscillation reminiscent of Lotka-Volterra. The Lotka-Volterra equations are a reference for expected behaviour only and are never used as the engine.
 
