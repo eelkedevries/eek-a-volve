@@ -7,7 +7,7 @@ import { DEFAULT_PARAMETERS, type SimulationParameters } from './params.ts';
 import { SIZE, SPEED, SENSE_RADIUS, DIET } from './genome.ts';
 import { Behaviour } from './behaviour.ts';
 import { inspectCreature } from './inspect.ts';
-import { LineageRegistry, resolveAncestry } from './lineage.ts';
+import { LineageRegistry, resolveAncestry, resolveFamily } from './lineage.ts';
 
 function params(over: Partial<SimulationParameters> = {}): SimulationParameters {
   return { ...DEFAULT_PARAMETERS, worldWidth: 200, worldHeight: 200, ...over };
@@ -108,5 +108,27 @@ describe('lineage in behaviour and the loop', () => {
     expect(detail.alive).toBe(true);
     expect(detail.ancestry.length).toBeGreaterThanOrEqual(1);
     expect(detail.ancestry[0]).toBe(w.parentId[descendant]);
+  });
+
+  it('resolveFamily returns ancestors and living descendants', () => {
+    const sim = createSimulation(params({ initialPopulation: 3, foodAbundance: 20 }));
+    const w = sim.world;
+    // Overwrite the three founders into a known chain: 100 → 101 → 102.
+    const slots: number[] = [];
+    for (let s = 0; s < w.agentCapacity && slots.length < 3; s++) if (w.alive[s] === 1) slots.push(s);
+    const [a, b, c] = slots; // grandparent, parent, child
+    w.id[a] = 100; w.parentId[a] = 0;
+    w.id[b] = 101; w.parentId[b] = 100;
+    w.id[c] = 102; w.parentId[c] = 101;
+    sim.lineage.record(101, 100);
+    sim.lineage.record(102, 101);
+
+    const grandparent = resolveFamily(sim, 100);
+    expect(grandparent.ancestry).toEqual([]); // a founder
+    expect(grandparent.descendants.sort()).toEqual([101, 102]);
+
+    const parent = resolveFamily(sim, 101);
+    expect(parent.ancestry).toEqual([100]);
+    expect(parent.descendants).toEqual([102]);
   });
 });

@@ -6,6 +6,7 @@ import { createFeed } from './ui/feed.ts';
 import { createInspector } from './ui/inspector.ts';
 import { createRecordsPanel } from './ui/records.ts';
 import { createCharts } from './ui/charts.ts';
+import { createFamilyPanel } from './ui/family.ts';
 import { createLegend, createOnboarding } from './ui/legend.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
@@ -63,6 +64,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const inspector = createInspector({ onAdopt: (on) => renderer.setFollowing(on) });
   const records = createRecordsPanel();
   const charts = createCharts();
+  const family = createFamilyPanel();
   const legend = createLegend();
   const onboarding = createOnboarding({ onOpenLegend: () => legend.toggle() });
   const narratorUI = createNarratorPanel();
@@ -77,6 +79,12 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   const chartsPopover = document.createElement('div');
   chartsPopover.className = 'popover charts-popover';
   chartsPopover.append(charts.element);
+
+  // Family-tree popover, opened from the toolbar's 📜 button.
+  const familyPopover = document.createElement('div');
+  familyPopover.className = 'popover family-popover';
+  familyPopover.append(family.element);
+  let familyOpen = false;
 
   const milestones = new Milestones();
   const director = new Director(params.worldWidth, params.worldHeight);
@@ -102,6 +110,10 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       onLegend: () => legend.toggle(),
       onRecords: () => statsPopover.classList.toggle('open'),
       onCharts: () => charts.setOpen(chartsPopover.classList.toggle('open')),
+      onFamily: () => {
+        familyOpen = familyPopover.classList.toggle('open');
+        if (familyOpen && inspectId !== -1) client.requestFamily(inspectId);
+      },
       onOverlay: (mode) => {
         renderer.setOverlayMode(mode);
         client.setOverlay(mode === 'pheromone');
@@ -123,6 +135,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
     dock.element,
     statsPopover,
     chartsPopover,
+    familyPopover,
     legend.element,
     onboarding.element,
     inspector.element,
@@ -134,6 +147,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
   client.setFieldHandler((field, cols, rows, w, h) =>
     renderer.setPheromoneField(field, cols, rows, w, h),
   );
+  client.setFamilyHandler((f) => family.update(f));
 
   client.start(
     params,
@@ -163,6 +177,7 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
       if (frame % 5 === 0) dock.updateStats(population, view[H_SPECIES_COUNT], view[H_TICK]);
       if (frame % 30 === 0) {
         charts.push({ tick: view[H_TICK], population, species: view[H_SPECIES_COUNT] });
+        if (familyOpen && inspectId !== -1) client.requestFamily(inspectId);
       }
 
       const near = population > 0 && population <= NEAR_EXTINCTION_THRESHOLD;

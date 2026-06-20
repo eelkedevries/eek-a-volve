@@ -1,4 +1,5 @@
 import type { World } from './world.ts';
+import type { Simulation } from './loop.ts';
 
 /** Number of recent `id → parent` links the registry remembers. */
 export const LINEAGE_CAPACITY = 16384;
@@ -81,4 +82,47 @@ export function resolveAncestry(
     cur = parent;
   }
   return chain;
+}
+
+/** A creature's bounded family: its ancestry and its living descendants. */
+export interface CreatureFamily {
+  id: number;
+  /** Ancestor ids, nearest-first (parent, grandparent, …). */
+  ancestry: number[];
+  /** Ids of living creatures descended from this one, capped. */
+  descendants: number[];
+}
+
+/**
+ * The bounded family of `id`: the ancestry chain (reusing {@link resolveAncestry})
+ * plus the living creatures descended from it, found by walking each living
+ * creature's parent chain (via a one-pass id→slot map for the living and the
+ * registry for the dead) up to `maxDepth` and checking whether it reaches `id`.
+ * On-demand only; the id→slot map is the single allocation here.
+ */
+export function resolveFamily(
+  sim: Simulation,
+  id: number,
+  maxDescendants = 16,
+  maxDepth: number = MAX_ANCESTRY,
+): CreatureFamily {
+  const w = sim.world;
+  const ancestry = resolveAncestry(w, sim.lineage, id);
+  const slotOf = new Map<number, number>();
+  for (let s = 0; s < w.agentCapacity; s++) if (w.alive[s] === 1) slotOf.set(w.id[s], s);
+
+  const descendants: number[] = [];
+  for (let s = 0; s < w.agentCapacity && descendants.length < maxDescendants; s++) {
+    if (w.alive[s] !== 1 || w.id[s] === id) continue;
+    let cur = w.parentId[s];
+    for (let d = 0; d < maxDepth && cur !== 0; d++) {
+      if (cur === id) {
+        descendants.push(w.id[s]);
+        break;
+      }
+      const slot = slotOf.get(cur);
+      cur = slot !== undefined ? w.parentId[slot] : sim.lineage.parentOf(cur);
+    }
+  }
+  return { id, ancestry, descendants };
 }

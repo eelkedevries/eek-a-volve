@@ -16,6 +16,8 @@ export interface ControlsConfig {
   onRecords: () => void;
   /** Open/close the live charts popover. */
   onCharts: () => void;
+  /** Open/close the family-tree popover. */
+  onFamily: () => void;
   /** Cycle the field overlay (off → fertility → pheromone). */
   onOverlay: (mode: 'off' | 'fertility' | 'pheromone') => void;
   /** Choose how creature bodies are coloured. */
@@ -94,6 +96,10 @@ export function createControls(config: ControlsConfig): HTMLElement {
   const chartsBtn = document.createElement('button');
   chartsBtn.textContent = '📈 Charts';
   chartsBtn.addEventListener('click', () => config.onCharts());
+
+  const familyBtn = document.createElement('button');
+  familyBtn.textContent = '📜 Family';
+  familyBtn.addEventListener('click', () => config.onFamily());
 
   const overlayModes = ['off', 'fertility', 'pheromone'] as const;
   const overlayName = { off: 'off', fertility: 'biome', pheromone: 'trails' };
@@ -182,6 +188,7 @@ export function createControls(config: ControlsConfig): HTMLElement {
     legend,
     recordsBtn,
     chartsBtn,
+    familyBtn,
     overlayBtn,
     colourLabel,
     paletteLabel,

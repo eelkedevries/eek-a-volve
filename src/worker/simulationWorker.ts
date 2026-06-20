@@ -2,6 +2,7 @@ import type { MainToWorker } from './protocol.ts';
 import { createSimulation, type Simulation } from '../core/loop.ts';
 import { serialiseSnapshot, snapshotLength } from '../core/snapshot.ts';
 import { inspectCreature } from '../core/inspect.ts';
+import { resolveFamily } from '../core/lineage.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
 
 /** Minimal view of the dedicated-worker global, avoiding DOM/WebWorker lib clashes. */
@@ -106,6 +107,9 @@ ctx.onmessage = (event: MessageEvent): void => {
       break;
     case 'setOverlay':
       postField = msg.pheromone;
+      break;
+    case 'family':
+      if (sim !== null) ctx.postMessage({ type: 'family', family: resolveFamily(sim, msg.id) }, []);
       break;
     case 'returnBuffer':
       freeBuffers.push(msg.buffer);

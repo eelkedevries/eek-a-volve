@@ -1,6 +1,7 @@
 import type { SimulationParameters } from '../core/params.ts';
 import type { SimEvent } from '../core/eventlog.ts';
 import type { CreatureDetail } from '../core/inspect.ts';
+import type { CreatureFamily } from '../core/lineage.ts';
 import type { RecordsView } from '../core/records.ts';
 import type { MainToWorker, WorkerToMain } from './protocol.ts';
 
@@ -15,6 +16,9 @@ export type InspectHandler = (detail: CreatureDetail) => void;
 
 /** Called with the hall-of-fame records each frame. */
 export type RecordsHandler = (records: RecordsView) => void;
+
+/** Called with a creature's bounded family in reply to a family request. */
+export type FamilyHandler = (family: CreatureFamily) => void;
 
 /** Called with a pheromone field for the overlay (only while enabled). */
 export type FieldHandler = (
@@ -37,6 +41,7 @@ export class SimulationClient {
   private onInspect: InspectHandler | null = null;
   private onRecords: RecordsHandler | null = null;
   private onField: FieldHandler | null = null;
+  private onFamily: FamilyHandler | null = null;
 
   constructor() {
     this.worker = new Worker(new URL('./simulationWorker.ts', import.meta.url), {
@@ -55,8 +60,19 @@ export class SimulationClient {
         this.onRecords?.(msg.records);
       } else if (msg.type === 'field') {
         this.onField?.(new Float32Array(msg.buffer), msg.cols, msg.rows, msg.width, msg.height);
+      } else if (msg.type === 'family') {
+        this.onFamily?.(msg.family);
       }
     };
+  }
+
+  /** Register a handler for family replies, and request a creature's family. */
+  setFamilyHandler(handler: FamilyHandler): void {
+    this.onFamily = handler;
+  }
+
+  requestFamily(id: number): void {
+    this.send({ type: 'family', id });
   }
 
   /** Register a handler for pheromone-field overlay updates. */
