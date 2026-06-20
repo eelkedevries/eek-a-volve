@@ -4,6 +4,7 @@ import {
   SWARM_PRESET,
   type SimulationParameters,
 } from '../core/params.ts';
+import { encodeParams, SHARE_HASH_PREFIX } from '../core/share.ts';
 
 /** Turn a camelCase parameter key into a British-English label. */
 function humanise(key: string): string {
@@ -41,7 +42,11 @@ const MODE_BLURBS: Record<ViewMode, { emoji: string; title: string; desc: string
  * sync. On submit it reads the values and calls `onStart` (specification: Scope —
  * parameters are configured before starting only).
  */
-export function createSetupScreen(onStart: (params: SimulationParameters) => void): HTMLElement {
+export function createSetupScreen(
+  onStart: (params: SimulationParameters) => void,
+  initial?: SimulationParameters,
+): HTMLElement {
+  const seed = initial ?? DEFAULT_PARAMETERS;
   const screen = document.createElement('div');
   screen.className = 'setup-screen';
 
@@ -82,7 +87,7 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
   const controls = new Map<string, HTMLInputElement | HTMLSelectElement>();
   let viewModeSelect: HTMLSelectElement | undefined;
 
-  for (const [key, value] of Object.entries(DEFAULT_PARAMETERS)) {
+  for (const [key, value] of Object.entries(seed)) {
     const label = document.createElement('label');
     label.textContent = humanise(key);
     let control: HTMLInputElement | HTMLSelectElement;
@@ -129,25 +134,27 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
     }
   }
 
-  /** Pick a world: highlight its card, sync the select, and rescale the form. */
-  function selectMode(mode: ViewMode): void {
+  /** Highlight a mode's card and sync the select, without touching the numbers. */
+  function highlightMode(mode: ViewMode): void {
     for (const [m, button] of modeButtons) {
       button.setAttribute('aria-pressed', m === mode ? 'true' : 'false');
     }
     if (viewModeSelect !== undefined) viewModeSelect.value = mode;
+  }
+
+  /** Pick a world: highlight its card, sync the select, and rescale the form to its preset. */
+  function selectMode(mode: ViewMode): void {
+    highlightMode(mode);
     applyPreset(mode);
   }
 
-  // Seed the form with the default mode's preset so mode and numbers start consistent.
-  selectMode(DEFAULT_PARAMETERS.viewMode);
+  // A shared link seeds exact numbers (highlight only); a fresh form applies the
+  // default mode's preset so mode and numbers start consistent.
+  if (initial !== undefined) highlightMode(initial.viewMode);
+  else selectMode(DEFAULT_PARAMETERS.viewMode);
 
-  const start = document.createElement('button');
-  start.type = 'submit';
-  start.textContent = 'Breathe life into it →';
-  form.appendChild(start);
-
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
+  /** Read the current form values back into a parameter set. */
+  function readParams(): SimulationParameters {
     const params: SimulationParameters = { ...DEFAULT_PARAMETERS };
     const target = params as unknown as Record<string, unknown>;
     for (const [key, control] of controls) {
@@ -160,7 +167,49 @@ export function createSetupScreen(onStart: (params: SimulationParameters) => voi
         target[key] = Number(control.value);
       }
     }
-    onStart(params);
+    return params;
+  }
+
+  // "Copy share link": encode the current form into a #w=… URL and copy it. The
+  // run is reproducible from these parameters, so the link hands over the world.
+  const share = document.createElement('button');
+  share.type = 'button';
+  share.className = 'setup-share';
+  share.textContent = 'Copy share link 🔗';
+  share.setAttribute('aria-live', 'polite');
+  share.addEventListener('click', () => {
+    const hash = `${SHARE_HASH_PREFIX}${encodeParams(readParams())}`;
+    const url = `${location.origin}${location.pathname}${location.search}#${hash}`;
+    const original = 'Copy share link 🔗';
+    const confirm = (text: string): void => {
+      share.textContent = text;
+      window.setTimeout(() => {
+        share.textContent = original;
+      }, 1600);
+    };
+    if (navigator.clipboard?.writeText !== undefined) {
+      navigator.clipboard.writeText(url).then(
+        () => confirm('Link copied ✓'),
+        () => {
+          location.hash = hash; // fallback: the address bar now holds the link
+          confirm('Link in address bar');
+        },
+      );
+    } else {
+      location.hash = hash;
+      confirm('Link in address bar');
+    }
+  });
+  form.appendChild(share);
+
+  const start = document.createElement('button');
+  start.type = 'submit';
+  start.textContent = 'Breathe life into it →';
+  form.appendChild(start);
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    onStart(readParams());
   });
 
   screen.appendChild(form);

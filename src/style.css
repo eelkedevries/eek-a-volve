@@ -241,6 +241,24 @@ button {
   transform: translateY(0);
 }
 
+/* The share button is secondary: a quiet outline, not the green CTA. */
+.setup-form button.setup-share {
+  margin-top: 0.6rem;
+  padding: 0.6rem;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+.setup-form button.setup-share:hover {
+  filter: none;
+  transform: none;
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
 /* --- The dock (single toolbar) ----------------------------------------- */
 
 .dock {

@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.3.3
+Version: 0.3.4
 Last updated: 2026-06-20
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -106,5 +106,5 @@ The humour register is wry and affectionate, never mean. The optional narrator a
 - Target (tested) platforms are desktop browsers on Windows, Linux, and macOS. The UI is responsive for small/portrait screens as a best-effort enhancement (v0.3.1); iOS/iPadOS remain untested, with no WebKit-specific or mobile-memory handling. Long unattended runs are a desktop capability, contingent on the machine not sleeping.
 - Parameters are configurable before start only. After start, only the time multiplier and pause are adjustable.
 - The optional narrator uses OpenRouter with a user-supplied key stored in the browser; no key is embedded or committed. Narrator calls are rate-limited and non-blocking, and the feature degrades to templated lines when no key is present or a call fails. A default low-cost model is used, and the model is user-configurable.
-- Cross-reload persistence is out of scope for the first version. Because a run is reproducible from seed and parameters, an export and import of seed, parameters, and optionally genomes is the intended low-cost route to persistence later.
+- Cross-reload autosave persistence is out of scope for the first version. Because a run is reproducible from seed and parameters, seed + parameter sharing is implemented as a URL-encoded, validated share link (`#w=…`) that prefills the setup screen (v0.3.4); exporting genomes or live simulation state remains a later enhancement.
 - The repository is a single public repository. Development material in `docs-dev/` is kept out of the deployed build, and no secrets are committed.

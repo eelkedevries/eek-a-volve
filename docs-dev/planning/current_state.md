@@ -46,7 +46,9 @@ This file records what *is* (current reality). The binding design canon is `docs
   grandparent …) resolved from the lineage registry.
   Controls: speed, pause, reset, director toggle, palette, quality/scale,
   reduce-motion, sound. (The earlier standalone population chart and toasts were
-  folded into the dock/log during the single-toolbar consolidation.)
+  folded into the dock/log during the single-toolbar consolidation.) The setup
+  screen can **copy a share link** (`#w=…`) that encodes the whole parameter set
+  and seed; opening such a link prefills the form, reproducing the exact run.
 - **Humour + narrator (`src/humour/`, `src/narrator/`)** — mock-Latin binomials,
   silly individual names, milestone/extinction/obituary lines, and the optional
   OpenRouter narrator with a templated fallback (key stored in-browser; never

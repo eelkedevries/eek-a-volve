@@ -22,15 +22,23 @@ import {
 } from './core/snapshot.ts';
 import { TRAIT_COUNT } from './core/genome.ts';
 import { NEAR_EXTINCTION_THRESHOLD } from './core/bounds.ts';
+import { decodeParams, SHARE_HASH_PREFIX } from './core/share.ts';
 import type { SimulationParameters } from './core/params.ts';
 
 const mount = document.querySelector<HTMLDivElement>('#app');
 const NARRATE_EVERY_FRAMES = 150;
 
+/** Decode a `#w=…` share link into parameters, or undefined when absent. */
+function paramsFromHash(hash: string): SimulationParameters | undefined {
+  const body = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (!body.startsWith(SHARE_HASH_PREFIX)) return undefined;
+  return decodeParams(body.slice(SHARE_HASH_PREFIX.length));
+}
+
 function showSetup(): void {
   if (mount === null) return;
   mount.innerHTML = '';
-  mount.appendChild(createSetupScreen(start));
+  mount.appendChild(createSetupScreen(start, paramsFromHash(location.hash)));
 }
 
 function start(params: SimulationParameters): void {
