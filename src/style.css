@@ -1,3 +1,34 @@
+/*
+ * eek-a-volve UI styling.
+ *
+ * The simulation canvas fills the viewport; everything else is a set of fixed
+ * overlay panels. Tokens below keep the look consistent, and a portrait
+ * breakpoint (bottom of file) reflows the panels so they never overlap on a
+ * phone. British English throughout.
+ */
+
+:root {
+  --bg: #0d1117;
+  --panel: rgba(17, 23, 30, 0.82);
+  --panel-solid: rgba(13, 17, 22, 0.97);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --field: #0b0e11;
+  --field-2: #1b222b;
+  --text: #e6edf3;
+  --muted: #9aa7b4;
+  --accent: #5dff7a;
+  --accent-ink: #06210f;
+  --gold: #ffd14d;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
+  --blur: saturate(140%) blur(12px);
+  --edge: 0.85rem;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
 * {
   margin: 0;
   box-sizing: border-box;
@@ -11,10 +42,14 @@ body,
 }
 
 body {
-  background: #101418;
+  background: radial-gradient(125% 125% at 50% 0%, #141b24 0%, var(--bg) 58%);
   overflow: hidden;
-  font-family: system-ui, sans-serif;
-  color: #e6edf3;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--text);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
 }
 
 canvas {
@@ -26,75 +61,115 @@ canvas {
   width: 100%;
 }
 
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- Setup screen ------------------------------------------------------ */
+
 .setup-screen {
-  max-width: 640px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: max(2rem, var(--safe-t)) 1.5rem 2rem;
   height: 100%;
   overflow-y: auto;
 }
 
 .setup-screen h1 {
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 800;
+  font-size: clamp(1.8rem, 7vw, 2.6rem);
+  letter-spacing: -0.01em;
+  background: linear-gradient(90deg, #8affa0, #5d9bff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .setup-screen p {
   margin: 0.5rem 0 1.5rem;
-  color: #9aa7b4;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .setup-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.6rem 1rem;
+  gap: 0.7rem 1.1rem;
 }
 
 .setup-form label {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   font-size: 0.9rem;
+  color: var(--muted);
 }
 
-.setup-form input[type='number'] {
-  width: 7rem;
-  padding: 0.2rem 0.4rem;
-  background: #0b0e11;
-  color: #e6edf3;
-  border: 1px solid #2b3440;
-  border-radius: 4px;
+.setup-form input[type='number'],
+.setup-form select {
+  width: 7.5rem;
+  padding: 0.35rem 0.5rem;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.setup-form input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--accent);
 }
 
 .setup-form button {
   grid-column: 1 / -1;
-  margin-top: 1rem;
-  padding: 0.6rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #06210f;
-  background: #5dff7a;
+  margin-top: 1.2rem;
+  padding: 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
   border: 0;
-  border-radius: 6px;
-  cursor: pointer;
+  border-radius: var(--radius);
+  transition: filter 0.15s ease, transform 0.05s ease;
 }
+
+.setup-form button:hover {
+  filter: brightness(1.08);
+}
+
+.setup-form button:active {
+  transform: translateY(1px);
+}
+
+/* --- Controls bar ------------------------------------------------------ */
 
 .controls {
   position: fixed;
   left: 50%;
-  bottom: 1rem;
+  bottom: max(1rem, var(--safe-b));
   transform: translateX(-50%);
+  z-index: 15;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 0.6rem 1rem;
+  gap: 0.55rem 0.9rem;
   max-width: 96vw;
-  padding: 0.5rem 1rem;
-  background: rgba(11, 14, 17, 0.85);
-  border: 1px solid #2b3440;
-  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
 }
 
 .controls .control-select,
@@ -102,52 +177,114 @@ canvas {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.controls .control-check input {
+  accent-color: var(--accent);
+}
+
+.controls select,
+.controls button {
+  color: var(--text);
+  background: var(--field-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
 }
 
 .controls select {
-  padding: 0.2rem 0.3rem;
-  color: #e6edf3;
-  background: #1b222b;
-  border: 1px solid #2b3440;
-  border-radius: 5px;
+  padding: 0.3rem 0.4rem;
 }
 
 .controls button {
-  padding: 0.35rem 0.8rem;
-  color: #e6edf3;
-  background: #1b222b;
-  border: 1px solid #2b3440;
-  border-radius: 5px;
-  cursor: pointer;
+  padding: 0.4rem 0.8rem;
+}
+
+.controls button:hover,
+.controls select:hover {
+  background: #283140;
+  border-color: var(--border-strong);
+}
+
+.controls button:active {
+  transform: translateY(1px);
 }
 
 .controls .speed {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .controls .speed span {
   min-width: 3rem;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
+
+.controls input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8rem;
+  height: 4px;
+  border-radius: 3px;
+  background: #2b3440;
+  cursor: pointer;
+}
+
+.controls input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.controls input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* --- Population chart --------------------------------------------------- */
 
 .chart {
   position: fixed;
-  top: 1rem;
+  top: max(1rem, var(--safe-t));
   right: 1rem;
-  background: rgba(11, 14, 17, 0.85);
-  border: 1px solid #2b3440;
-  border-radius: 6px;
+  z-index: 10;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  overflow: hidden;
 }
+
+.chart canvas {
+  display: block;
+  max-width: 40vw;
+  height: auto;
+}
+
+/* --- Toasts ------------------------------------------------------------ */
 
 .toasts {
   position: fixed;
-  top: 1rem;
+  top: max(1rem, var(--safe-t));
   left: 1rem;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -156,10 +293,12 @@ canvas {
 
 .toast {
   padding: 0.5rem 0.8rem;
-  background: rgba(255, 209, 77, 0.95);
+  background: rgba(255, 209, 77, 0.96);
   color: #241a00;
-  border-radius: 6px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   font-size: 0.9rem;
+  font-weight: 500;
   transition: opacity 0.4s ease;
 }
 
@@ -167,27 +306,34 @@ canvas {
   opacity: 0;
 }
 
+/* --- Story feed -------------------------------------------------------- */
+
 .story-feed {
   position: fixed;
   right: 1rem;
-  bottom: 1rem;
+  bottom: max(1rem, var(--safe-b));
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
   width: 22rem;
-  max-width: 40vw;
+  max-width: 38vw;
   max-height: 45vh;
   overflow: hidden;
   pointer-events: none; /* never block canvas pan/zoom/select */
 }
 
 .feed-line {
-  padding: 0.35rem 0.6rem;
-  background: rgba(11, 14, 17, 0.85);
-  border: 1px solid #2b3440;
+  padding: 0.4rem 0.65rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-left: 3px solid #5d9bff;
-  border-radius: 6px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   font-size: 0.85rem;
+  line-height: 1.35;
   color: #cdd9e5;
 }
 
@@ -210,18 +356,23 @@ canvas {
   border-left-color: #9aa7b4;
 }
 
+/* --- Legend ------------------------------------------------------------ */
+
 .legend {
   position: fixed;
   left: 1rem;
-  top: 1rem;
+  top: max(1rem, var(--safe-t));
   bottom: 1rem;
   width: 19rem;
   max-width: 86vw;
-  padding: 0.8rem 1rem;
+  padding: 0.9rem 1.1rem;
   overflow-y: auto;
-  background: rgba(11, 14, 17, 0.96);
-  border: 1px solid #2b3440;
-  border-radius: 8px;
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   z-index: 20;
 }
 
@@ -233,22 +384,22 @@ canvas {
 
 .legend-close {
   background: transparent;
-  color: #9aa7b4;
+  color: var(--muted);
   border: 0;
-  font-size: 1rem;
-  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.4rem;
 }
 
 .legend-section {
-  margin-top: 0.8rem;
+  margin-top: 0.9rem;
 }
 
 .legend-section h3 {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #9aa7b4;
-  margin-bottom: 0.3rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
 }
 
 .legend-row {
@@ -281,22 +432,28 @@ canvas {
   flex: 0 0 auto;
 }
 
+/* --- Onboarding hint --------------------------------------------------- */
+
 .onboarding {
   position: fixed;
   left: 50%;
-  bottom: 5rem;
+  bottom: 5.5rem;
   transform: translateX(-50%);
   width: 30rem;
   max-width: 90vw;
-  padding: 0.9rem 1.1rem;
-  background: rgba(20, 26, 33, 0.97);
-  border: 1px solid #2b3440;
-  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  background: var(--panel-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   z-index: 30;
 }
 
 .onboarding p {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
   color: #cdd9e5;
 }
 
@@ -304,35 +461,40 @@ canvas {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-  margin-top: 0.7rem;
+  margin-top: 0.8rem;
 }
 
 .onboarding-buttons button {
-  padding: 0.4rem 0.9rem;
-  color: #e6edf3;
-  background: #1b222b;
-  border: 1px solid #2b3440;
-  border-radius: 6px;
-  cursor: pointer;
+  padding: 0.45rem 1rem;
+  color: var(--text);
+  background: var(--field-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .onboarding-buttons .onboarding-primary {
-  color: #06210f;
-  background: #5dff7a;
+  color: var(--accent-ink);
+  background: var(--accent);
   border: 0;
-  font-weight: 600;
+  font-weight: 700;
 }
+
+/* --- Hall of fame ------------------------------------------------------ */
 
 .records {
   position: fixed;
-  top: 1rem;
+  top: max(1rem, var(--safe-t));
   left: 50%;
   transform: translateX(-50%);
+  z-index: 10;
   max-width: 92vw;
-  padding: 0.5rem 0.8rem;
-  background: rgba(11, 14, 17, 0.85);
-  border: 1px solid #2b3440;
-  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   font-size: 0.82rem;
 }
 
@@ -344,39 +506,45 @@ canvas {
 .records-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.15rem 0.8rem;
+  gap: 0.18rem 0.85rem;
   margin-top: 0.5rem;
 }
 
 .records-list dt {
-  color: #9aa7b4;
+  color: var(--muted);
 }
 
 .records-list dd {
   margin: 0;
-  color: #e6edf3;
+  color: var(--text);
 }
+
+/* --- Creature inspector ------------------------------------------------ */
 
 .inspector {
   position: fixed;
   left: 1rem;
   top: 5rem;
+  z-index: 12;
   width: 19rem;
   max-width: 80vw;
-  padding: 0.8rem 0.9rem;
-  background: rgba(11, 14, 17, 0.92);
-  border: 1px solid #2b3440;
-  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
 }
 
 .inspector-name {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
 .inspector-binomial {
   font-style: italic;
-  color: #9aa7b4;
+  color: var(--muted);
   font-size: 0.85rem;
   margin-bottom: 0.5rem;
 }
@@ -387,27 +555,28 @@ canvas {
 }
 
 .inspector-meta {
-  color: #9aa7b4;
+  color: var(--muted);
   font-size: 0.8rem;
-  margin: 0.3rem 0 0.5rem;
+  margin: 0.35rem 0 0.5rem;
 }
 
 .energy-bar,
 .trait-bar {
   height: 0.55rem;
-  background: #1b222b;
+  background: var(--field-2);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .energy-fill {
   height: 100%;
-  background: #5dff7a;
+  background: var(--accent);
+  transition: width 0.2s ease;
 }
 
 .inspector-traits {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.3rem;
   margin: 0.5rem 0;
   font-size: 0.78rem;
 }
@@ -422,41 +591,57 @@ canvas {
 .trait-fill {
   height: 100%;
   background: #5d9bff;
+  transition: width 0.2s ease;
 }
 
 .trait-value {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  color: #9aa7b4;
+  color: var(--muted);
 }
 
 .inspector-adopt {
   width: 100%;
-  margin-top: 0.4rem;
-  padding: 0.45rem;
-  font-weight: 600;
-  color: #06210f;
-  background: #ffd14d;
+  margin-top: 0.5rem;
+  padding: 0.55rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--gold);
   border: 0;
-  border-radius: 6px;
-  cursor: pointer;
+  border-radius: var(--radius);
+  transition: filter 0.15s ease, transform 0.05s ease;
 }
+
+.inspector-adopt:hover {
+  filter: brightness(1.06);
+}
+
+.inspector-adopt:active {
+  transform: translateY(1px);
+}
+
+/* --- Narrator ---------------------------------------------------------- */
 
 .narrator {
   position: fixed;
   left: 1rem;
-  bottom: 1rem;
+  bottom: max(1rem, var(--safe-b));
+  z-index: 10;
   max-width: 22rem;
-  padding: 0.6rem 0.8rem;
-  background: rgba(11, 14, 17, 0.85);
-  border: 1px solid #2b3440;
-  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   font-size: 0.9rem;
 }
 
 .narrator-line {
   font-style: italic;
   color: #cdd9e5;
+  line-height: 1.4;
   min-height: 1.2em;
 }
 
@@ -466,7 +651,7 @@ canvas {
 
 .narrator summary {
   cursor: pointer;
-  color: #9aa7b4;
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
@@ -474,9 +659,130 @@ canvas {
   display: block;
   width: 100%;
   margin-top: 0.4rem;
-  padding: 0.25rem 0.4rem;
-  background: #0b0e11;
-  color: #e6edf3;
-  border: 1px solid #2b3440;
-  border-radius: 4px;
+  padding: 0.3rem 0.45rem;
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* --- Portrait / phone reflow ------------------------------------------ */
+/*
+ * Below ~700px the panels would pile into the corners and overlap, so the
+ * layout is split into clean zones: records dock at the top, the controls
+ * become a full-width scrollable strip at the very bottom, the story feed
+ * sits just above them, and the inspector/legend become full-width sheets.
+ * The sparkline chart and narrator panel hide to give the canvas more room.
+ */
+@media (max-width: 700px) {
+  :root {
+    --edge: 0.5rem;
+  }
+
+  .chart,
+  .narrator {
+    display: none;
+  }
+
+  /* Records: a slim, scrollable strip across the top. */
+  .records {
+    left: var(--edge);
+    right: var(--edge);
+    transform: none;
+    max-width: none;
+    max-height: 32vh;
+    overflow-y: auto;
+  }
+
+  /* Toasts span the top (they float briefly over the records). */
+  .toasts {
+    left: var(--edge);
+    right: var(--edge);
+    max-width: none;
+  }
+
+  /* Controls: a full-width, single-row scrollable strip at the bottom. */
+  .controls {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    max-width: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    padding-bottom: max(0.45rem, var(--safe-b));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .controls > * {
+    flex: 0 0 auto;
+  }
+
+  .controls button,
+  .controls select {
+    min-height: 2.4rem; /* comfortable touch targets */
+  }
+
+  /* Prevent iOS from zooming when a small form control is focused. */
+  .controls select,
+  .setup-form input,
+  .setup-form select {
+    font-size: 16px;
+  }
+
+  /* Story feed: full width, just above the controls strip. */
+  .story-feed {
+    left: var(--edge);
+    right: var(--edge);
+    width: auto;
+    max-width: none;
+    bottom: calc(var(--safe-b) + 3.5rem);
+    max-height: 26vh;
+  }
+
+  /* Inspector: a bottom sheet above the controls (covers the feed while focused). */
+  .inspector {
+    left: var(--edge);
+    right: var(--edge);
+    top: auto;
+    width: auto;
+    max-width: none;
+    bottom: calc(var(--safe-b) + 3.5rem);
+    max-height: 62vh;
+    overflow-y: auto;
+  }
+
+  /* Legend: a full-width sheet above the controls. */
+  .legend {
+    left: var(--edge);
+    right: var(--edge);
+    width: auto;
+    max-width: none;
+    bottom: calc(var(--safe-b) + 3.5rem);
+  }
+
+  /* Onboarding: clear of the controls strip. */
+  .onboarding {
+    left: var(--edge);
+    right: var(--edge);
+    width: auto;
+    max-width: none;
+    transform: none;
+    bottom: calc(var(--safe-b) + 3.8rem);
+  }
+
+  .setup-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Honour reduced-motion at the CSS level too. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
