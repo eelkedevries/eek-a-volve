@@ -3,6 +3,7 @@ import { createSetupScreen } from './ui/setupScreen.ts';
 import { createControls } from './ui/controls.ts';
 import { PopulationChart } from './ui/chart.ts';
 import { Toasts } from './ui/toasts.ts';
+import { createFeed } from './ui/feed.ts';
 import { createNarratorPanel } from './ui/narratorPanel.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
@@ -44,15 +45,19 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
 
   const chart = new PopulationChart();
   const toasts = new Toasts();
+  const feed = createFeed();
   const narratorUI = createNarratorPanel();
-  mount.append(chart.element, toasts.element, narratorUI.element);
+  mount.append(chart.element, toasts.element, feed.element, narratorUI.element);
 
   const milestones = new Milestones();
   const client = new SimulationClient();
   let frame = 0;
   let wasNearExtinction = false;
+  let latestEvent: string | null = null;
 
-  client.start(params, (view, count) => {
+  client.start(
+    params,
+    (view, count) => {
     renderer.draw(view, count);
     const population = view[H_POPULATION];
     if (frame % 5 === 0) chart.push(population);
@@ -77,11 +82,17 @@ async function run(params: SimulationParameters, host: HTMLElement): Promise<voi
         speciesCount: view[H_SPECIES_COUNT],
         traitMeans: view.subarray(H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT),
         milestone,
+        latestEvent,
       };
       narratorUI.show(narratorUI.narrator.narrate(stats, (line) => narratorUI.show(line)));
     }
     frame++;
-  });
+    },
+    (events) => {
+      const line = feed.push(events);
+      if (line !== null) latestEvent = line;
+    },
+  );
 
   mount.appendChild(
     createControls({

@@ -148,6 +148,49 @@ canvas {
   opacity: 0;
 }
 
+.story-feed {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 22rem;
+  max-width: 40vw;
+  max-height: 45vh;
+  overflow: hidden;
+  pointer-events: none; /* never block canvas pan/zoom/select */
+}
+
+.feed-line {
+  padding: 0.35rem 0.6rem;
+  background: rgba(11, 14, 17, 0.85);
+  border: 1px solid #2b3440;
+  border-left: 3px solid #5d9bff;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #cdd9e5;
+}
+
+.feed-catastrophe {
+  border-left-color: #ff5d5d;
+}
+.feed-freak {
+  border-left-color: #c77dff;
+}
+.feed-species {
+  border-left-color: #5dff7a;
+}
+.feed-massDeath {
+  border-left-color: #ff8f3f;
+}
+.feed-nearExtinction {
+  border-left-color: #ffd14d;
+}
+.feed-obituary {
+  border-left-color: #9aa7b4;
+}
+
 .narrator {
   position: fixed;
   left: 1rem;

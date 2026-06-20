@@ -29,6 +29,10 @@ function frame(): void {
   accumulator -= ticks;
   for (let i = 0; i < ticks; i++) sim.step();
 
+  // Post any notable events drained from the log (cheap; usually empty).
+  const events = sim.eventLog.drain();
+  if (events.length > 0) ctx.postMessage({ type: 'events', events }, []);
+
   const buffer = freeBuffers.pop();
   if (buffer !== undefined) {
     const count = serialiseSnapshot(sim, new Float32Array(buffer));

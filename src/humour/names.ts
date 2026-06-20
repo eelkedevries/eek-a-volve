@@ -1,8 +1,38 @@
 import { TRAITS, TRAIT_COUNT, TRAIT_RANGES } from '../core/genome.ts';
+import { Rng } from '../core/rng.ts';
 
 interface Roots {
   high: string;
   low: string;
+}
+
+/** Mundane first names, for the "Gary" half of the joke. */
+const PLAIN_NAMES = [
+  'Gary', 'Mabel', 'Keith', 'Brenda', 'Nigel', 'Doris', 'Trevor', 'Sandra',
+  'Colin', 'Ethel', 'Barry', 'Glenda', 'Norman', 'Gwen', 'Reg', 'Pam',
+  'Clive', 'Maureen', 'Derek', 'Sheila',
+];
+
+/** Silly compound-name parts, for the "Wigglethorpe" half. */
+const NAME_PREFIXES = [
+  'Wiggle', 'Snuffle', 'Bumble', 'Squish', 'Wobble', 'Grumble', 'Doodle',
+  'Pickle', 'Noodle', 'Toddle', 'Fluster', 'Squelch', 'Mumble', 'Waddle', 'Bramble',
+];
+const NAME_SUFFIXES = [
+  'thorpe', 'bottom', 'worth', 'sworth', 'button', 'kins', 'sby', 'ington',
+  'snout', 'whistle', 'puff', 'bert', 'wick', 'ridge', 'bury',
+];
+
+/**
+ * A silly, stable individual name for a creature, seeded by its stable id (025).
+ * Distinct from the species {@link binomial}: this is the relatability spine the
+ * feed, inspector, and records reuse so the same creature is always the same
+ * "Gary" or "Wigglethorpe". Deterministic for a given id.
+ */
+export function personalName(id: number): string {
+  const rng = new Rng((id >>> 0) || 1);
+  if (rng.next() < 0.45) return PLAIN_NAMES[rng.int(PLAIN_NAMES.length)];
+  return NAME_PREFIXES[rng.int(NAME_PREFIXES.length)] + NAME_SUFFIXES[rng.int(NAME_SUFFIXES.length)];
 }
 
 /** Mock-Latin roots per trait, for its high and low extremes. */

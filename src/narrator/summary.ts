@@ -9,6 +9,8 @@ export interface NarratorStats {
   speciesCount: number;
   traitMeans: ArrayLike<number>;
   milestone?: string | null;
+  /** The most recent notable event line, so the narrator's words match the feed. */
+  latestEvent?: string | null;
 }
 
 /**
@@ -24,6 +26,7 @@ export function summarise(stats: NarratorStats): string {
     `${stats.births} born and ${stats.deaths} died since the last look.`,
     `The dominant form is a ${name}.`,
   ];
+  if (stats.latestEvent) parts.push(`Lately: ${stats.latestEvent}`);
   if (stats.milestone) parts.push(stats.milestone);
   return parts.join(' ');
 }

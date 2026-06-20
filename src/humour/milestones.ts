@@ -8,7 +8,7 @@ export interface MilestoneStats {
 
 const POPULATION_MARKS = [50, 100, 250, 500, 1000, 2000];
 
-function catastropheLine(event: { kind: string; deaths: number }): string {
+export function catastropheLine(event: { kind: string; deaths: number }): string {
   switch (event.kind) {
     case 'meteor':
       return `A meteor strikes! ${event.deaths} lost in a heartbeat.`;

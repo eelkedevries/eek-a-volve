@@ -4,6 +4,7 @@ import { Behaviour } from './behaviour.ts';
 import { Predation } from './predation.ts';
 import { Speciation } from './speciation.ts';
 import { Events, type CatastropheEvent } from './events.ts';
+import { EventLog } from './eventlog.ts';
 import { Rng } from './rng.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
@@ -18,6 +19,11 @@ const SPECIATION_INTERVAL = 60;
 
 /** Spread of random ages given to the founding population. */
 const FOUNDER_AGE_SPREAD = 900;
+
+/** Deaths in a single tick beyond this floor, and beyond this fraction of the
+ *  population, count as a (non-catastrophe) mass die-off worth logging. */
+const MASS_DEATH_FLOOR = 10;
+const MASS_DEATH_FRACTION = 0.04;
 
 /**
  * One fixed-timestep simulation. It owns the world, the reused spatial grids,
@@ -36,6 +42,8 @@ export class Simulation {
   private readonly predation: Predation;
   private readonly speciation: Speciation;
   private readonly events = new Events();
+  /** Bounded log of notable moments, drained by the worker for the UI and narrator. */
+  readonly eventLog = new EventLog();
 
   tick = 0;
   /** Births during the most recent tick. */
@@ -44,6 +52,9 @@ export class Simulation {
   deaths = 0;
   /** Whether the population is currently near extinction. */
   nearExtinction = false;
+
+  private prevSpeciesCount = 0;
+  private prevNearExtinction = false;
 
   /** The most recent catastrophe event, if any (for display/narration). */
   get lastEvent(): CatastropheEvent | null {
@@ -65,12 +76,17 @@ export class Simulation {
 
   /** Advance the simulation by one tick. */
   step(): void {
-    const { world, params, rng, agentGrid, foodGrid, behaviour } = this;
+    const { world, params, rng, agentGrid, foodGrid, behaviour, eventLog } = this;
+    eventLog.setTick(this.tick);
     // 1. Rebuild spatial indices from current positions.
     agentGrid.rebuildFromAgents(world);
     this.rebuildFoodGrid();
-    // 2. Behaviour: movement, eating, asexual reproduction.
+    // 2. Behaviour: movement, eating, reproduction (and freak mutations).
     let births = behaviour.step(world, params, foodGrid, agentGrid, rng);
+    for (let i = 0; i < behaviour.freakBirthCount; i++) {
+      const slot = behaviour.freakBirths[i];
+      eventLog.freak(world.id[slot], slot, world.x[slot], world.y[slot]);
+    }
     // 3. Predation: carnivores eat smaller neighbours (positions have moved).
     let deaths = 0;
     if (params.predation) {
@@ -81,17 +97,33 @@ export class Simulation {
     deaths += metaboliseAndReap(world, params);
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
-    // 4. Food regeneration and carrion decay.
+    const catastrophe = this.events.last !== null && this.events.last.tick === this.tick;
+    if (catastrophe && this.events.last !== null) {
+      eventLog.catastrophe(this.events.last.kind, this.events.last.deaths);
+    }
+    // 6. Food regeneration and carrion decay.
     regenerateFood(world, params, rng);
     decayCarrion(world);
-    // 5. Immigration (optional).
+    // 7. Immigration (optional).
     births += immigrate(world, params, rng);
-    // 6. Near-extinction detection and counters.
+    // 8. Mass die-off (a death spike that was not itself a logged catastrophe).
+    if (!catastrophe && deaths > MASS_DEATH_FLOOR && deaths > world.population * MASS_DEATH_FRACTION) {
+      eventLog.massDeath(deaths);
+    }
+    // 9. Near-extinction detection (on the transition into it) and counters.
     this.nearExtinction = isNearExtinction(world);
+    if (this.nearExtinction && !this.prevNearExtinction) eventLog.nearExtinction();
+    this.prevNearExtinction = this.nearExtinction;
     this.births = births;
     this.deaths = deaths;
+    // 10. Obituaries for notable creatures that died this tick.
+    eventLog.reconcile(world);
     this.tick++;
-    if (this.tick % SPECIATION_INTERVAL === 0) this.speciation.cluster(world);
+    if (this.tick % SPECIATION_INTERVAL === 0) {
+      const count = this.speciation.cluster(world);
+      if (count > this.prevSpeciesCount) eventLog.species(count);
+      this.prevSpeciesCount = count;
+    }
   }
 
   /** Advance the simulation by `ticks` ticks. */
@@ -110,7 +142,7 @@ export class Simulation {
       if (slot !== -1) world.age[slot] = rng.int(FOUNDER_AGE_SPREAD);
     }
     seedFood(world, params, rng);
-    this.speciation.cluster(world);
+    this.prevSpeciesCount = this.speciation.cluster(world);
   }
 
   private rebuildFoodGrid(): void {

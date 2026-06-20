@@ -41,6 +41,10 @@ export class Behaviour {
   private readonly mated: Uint8Array;
   private readonly selfNorm = new Float64Array(TRAIT_COUNT);
 
+  /** Slots of offspring born with a freak mutation this tick (drained by the Simulation). */
+  readonly freakBirths: Int32Array;
+  freakBirthCount = 0;
+
   private world!: World;
   private self = -1;
   private px = 0;
@@ -64,6 +68,7 @@ export class Behaviour {
   constructor(agentCapacity: number) {
     this.live = new Int32Array(agentCapacity);
     this.mated = new Uint8Array(agentCapacity);
+    this.freakBirths = new Int32Array(agentCapacity);
   }
 
   private readonly onFood = (id: number, dist2: number): void => {
@@ -133,6 +138,7 @@ export class Behaviour {
     let n = 0;
     for (let s = 0; s < agentCapacity; s++) if (alive[s] === 1) this.live[n++] = s;
     if (params.sexualReproduction) this.mated.fill(0);
+    this.freakBirthCount = 0;
 
     let births = 0;
     for (let i = 0; i < n; i++) {
@@ -225,7 +231,9 @@ export class Behaviour {
         ) {
           const child = world.spawnAgent();
           if (child !== -1) {
-            breedSexual(world, child, s, mate, params, rng);
+            if (breedSexual(world, child, s, mate, params, rng)) {
+              this.freakBirths[this.freakBirthCount++] = child;
+            }
             const giveA = energy[s] * SEXUAL_COST_FRACTION;
             const giveB = energy[mate] * SEXUAL_COST_FRACTION;
             energy[s] -= giveA;
@@ -249,7 +257,9 @@ export class Behaviour {
       } else if (energy[s] > this.threshold && isMature(age[s])) {
         const child = world.spawnAgent();
         if (child !== -1) {
-          breed(world, child, s, params, rng);
+          if (breed(world, child, s, params, rng)) {
+            this.freakBirths[this.freakBirthCount++] = child;
+          }
           const give = energy[s] * REPRODUCTION_COST_FRACTION;
           energy[s] -= give;
           energy[child] = give;
