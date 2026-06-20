@@ -4,7 +4,7 @@ import type { Rng } from './rng.ts';
 import type { SpatialGrid } from './grid.ts';
 import { SIZE, SPEED, SENSE_RADIUS, DIET, TRAIT_COUNT, TRAIT_RANGES } from './genome.ts';
 import { feed } from './energy.ts';
-import { consumeFood } from './food.ts';
+import { consumeFood, PLANT, CARRION } from './food.ts';
 import { breed, breedSexual } from './mutation.ts';
 import { IDLE, SEEKING, EATING, FLEEING, COURTING } from './state.ts';
 import { isMature } from './lifestage.ts';
@@ -22,6 +22,8 @@ export const REPRODUCTION_COST_FRACTION = 0.5;
 export const MATE_RADIUS = 24;
 /** Fraction of each parent's energy invested in a sexual offspring. */
 export const SEXUAL_COST_FRACTION = 0.3;
+/** Distance multiplier applied to non-preferred food types when choosing what to eat. */
+export const FOOD_TYPE_PENALTY = 4;
 
 /**
  * The hand-coded, trait-parameterised behaviour policy (specification: Domain
@@ -49,7 +51,7 @@ export class Behaviour {
   private selfReady = false;
 
   private bestFood = -1;
-  private bestFoodDist2 = Infinity;
+  private bestFoodWeighted = Infinity;
 
   private hasThreat = false;
   private threatX = 0;
@@ -65,8 +67,11 @@ export class Behaviour {
   }
 
   private readonly onFood = (id: number, dist2: number): void => {
-    if (dist2 < this.bestFoodDist2) {
-      this.bestFoodDist2 = dist2;
+    // Prefer the diet-appropriate food type, but fall back to any if much closer.
+    const preferred = this.selfDiet > 0.5 ? CARRION : PLANT;
+    const weighted = this.world.foodType[id] === preferred ? dist2 : dist2 * FOOD_TYPE_PENALTY;
+    if (weighted < this.bestFoodWeighted) {
+      this.bestFoodWeighted = weighted;
       this.bestFood = id;
     }
   };
@@ -138,7 +143,7 @@ export class Behaviour {
       this.selfSize = sizeCol[s];
       this.selfDiet = dietCol[s];
       this.bestFood = -1;
-      this.bestFoodDist2 = Infinity;
+      this.bestFoodWeighted = Infinity;
       this.hasThreat = false;
       this.threatDist2 = Infinity;
       this.bestMate = -1;
@@ -199,7 +204,7 @@ export class Behaviour {
         const fdx = world.foodX[food] - nx;
         const fdy = world.foodY[food] - ny;
         if (fdx * fdx + fdy * fdy <= EAT_RADIUS * EAT_RADIUS) {
-          feed(world, s, FOOD_ENERGY);
+          feed(world, s, world.foodEnergy[food]);
           consumeFood(world, food);
           world.action[s] = EATING;
         }

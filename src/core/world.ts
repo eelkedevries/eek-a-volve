@@ -38,9 +38,17 @@ export class World {
   readonly foodX: Float32Array;
   readonly foodY: Float32Array;
   readonly foodAlive: Uint8Array;
+  /** Food type per slot: 0 = plant, 1 = carrion. */
+  readonly foodType: Uint8Array;
+  /** Energy yielded by eating this food item. */
+  readonly foodEnergy: Float32Array;
+  /** Ticks of decay remaining for carrion (ignored for plants). */
+  readonly foodDecay: Uint16Array;
 
   population = 0;
   foodCount = 0;
+  plantCount = 0;
+  carrionCount = 0;
 
   private nextId = 1;
   private readonly freeAgents: Int32Array;
@@ -69,6 +77,9 @@ export class World {
     this.foodX = new Float32Array(foodCapacity);
     this.foodY = new Float32Array(foodCapacity);
     this.foodAlive = new Uint8Array(foodCapacity);
+    this.foodType = new Uint8Array(foodCapacity);
+    this.foodEnergy = new Float32Array(foodCapacity);
+    this.foodDecay = new Uint16Array(foodCapacity);
 
     // Free-lists used as stacks; every slot starts free.
     this.freeAgents = new Int32Array(agentCapacity);
@@ -115,6 +126,8 @@ export class World {
   killFood(slot: number): void {
     if (this.foodAlive[slot] === 0) return;
     this.foodAlive[slot] = 0;
+    if (this.foodType[slot] === 0) this.plantCount--;
+    else this.carrionCount--;
     this.freeFood[this.freeFoodCount++] = slot;
     this.foodCount--;
   }

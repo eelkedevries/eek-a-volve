@@ -7,7 +7,7 @@ import { Events, type CatastropheEvent } from './events.ts';
 import { Rng } from './rng.ts';
 import type { SimulationParameters } from './params.ts';
 import { metaboliseAndReap } from './energy.ts';
-import { seedFood, regenerateFood } from './food.ts';
+import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
 /** Spatial-grid cell size; a few times the typical sense radius keeps queries cheap. */
@@ -53,7 +53,7 @@ export class Simulation {
   constructor(params: SimulationParameters) {
     this.params = params;
     this.rng = new Rng(params.seed);
-    const foodCapacity = params.foodAbundance;
+    const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(MAX_POPULATION, foodCapacity);
     this.agentGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, MAX_POPULATION);
     this.foodGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, foodCapacity);
@@ -81,8 +81,9 @@ export class Simulation {
     deaths += metaboliseAndReap(world, params);
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
-    // 4. Food regeneration.
+    // 4. Food regeneration and carrion decay.
     regenerateFood(world, params, rng);
+    decayCarrion(world);
     // 5. Immigration (optional).
     births += immigrate(world, params, rng);
     // 6. Near-extinction detection and counters.

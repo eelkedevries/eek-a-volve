@@ -1,6 +1,7 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import { SIZE, SPEED, METABOLIC_EFFICIENCY } from './genome.ts';
+import { dropCarrion } from './food.ts';
 
 /**
  * Maximum age in ticks before an agent dies of old age. Provisional; tuned for
@@ -49,6 +50,7 @@ export function metaboliseAndReap(world: World, params: SimulationParameters): n
     energy[s] -= metabolicCost(world, s, params);
     age[s] += 1;
     if (energy[s] <= 0 || age[s] > MAX_AGE) {
+      dropCarrion(world, world.x[s], world.y[s], world.traits[SIZE][s]);
       world.killAgent(s);
       deaths++;
     }

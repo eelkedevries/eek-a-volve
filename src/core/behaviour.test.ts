@@ -26,7 +26,7 @@ describe('Behaviour', () => {
     w.x[a] = 100; w.y[a] = 100; w.energy[a] = 20;
     w.traits[SIZE][a] = 1; w.traits[SPEED][a] = 5; w.traits[SENSE_RADIUS][a] = 50; w.traits[DIET][a] = 0;
     const f = w.spawnFood();
-    w.foodX[f] = 103; w.foodY[f] = 100;
+    w.foodX[f] = 103; w.foodY[f] = 100; w.foodEnergy[f] = FOOD_ENERGY;
     const { food, agents } = buildGrids(w, p);
     new Behaviour(w.agentCapacity).step(w, p, food, agents, new Rng(1));
     expect(w.x[a]).toBeGreaterThan(100);

@@ -1,6 +1,8 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import type { Rng } from './rng.ts';
+import { dropCarrion } from './food.ts';
+import { SIZE } from './genome.ts';
 
 export type CatastropheKind = 'meteor' | 'plague' | 'iceAge' | 'drought';
 
@@ -64,6 +66,7 @@ export class Events {
       const dx = world.x[s] - cx;
       const dy = world.y[s] - cy;
       if (dx * dx + dy * dy <= r2) {
+        dropCarrion(world, world.x[s], world.y[s], world.traits[SIZE][s]);
         world.killAgent(s);
         deaths++;
       }
@@ -76,6 +79,7 @@ export class Events {
     for (let s = 0; s < world.agentCapacity; s++) {
       if (world.alive[s] === 0) continue;
       if (rng.next() < PLAGUE_KILL_PROBABILITY) {
+        dropCarrion(world, world.x[s], world.y[s], world.traits[SIZE][s]);
         world.killAgent(s);
         deaths++;
       }
@@ -89,6 +93,7 @@ export class Events {
       if (world.alive[s] === 0) continue;
       world.energy[s] -= ICE_AGE_ENERGY_LOSS;
       if (world.energy[s] <= 0) {
+        dropCarrion(world, world.x[s], world.y[s], world.traits[SIZE][s]);
         world.killAgent(s);
         deaths++;
       }

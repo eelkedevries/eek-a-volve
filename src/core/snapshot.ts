@@ -86,13 +86,13 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
     count++;
   }
 
-  const { foodAlive, foodX, foodY, foodCapacity } = w;
+  const { foodAlive, foodX, foodY, foodType, foodCapacity } = w;
   let foodCount = 0;
   for (let f = 0; f < foodCapacity; f++) {
     if (foodAlive[f] === 0) continue;
     out[offset + FOOD_X] = foodX[f];
     out[offset + FOOD_Y] = foodY[f];
-    out[offset + FOOD_TYPE] = 0; // food type filled in by 029
+    out[offset + FOOD_TYPE] = foodType[f];
     offset += FOOD_STRIDE;
     foodCount++;
   }
