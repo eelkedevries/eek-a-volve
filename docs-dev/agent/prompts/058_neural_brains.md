@@ -1,63 +1,92 @@
-# Task: learned neural-network brains (SPEC-LOCKED — needs approval before running)
-
-> ⚠️ **This prompt conflicts with a locked spec decision and is a major,
-> multi-prompt effort.** `specification.md` records learned neural-network brains
-> as *deferred* — "the first stretch goal once the core is stable" — i.e. out of
-> scope for the first version. Per `AGENTS.md`, the spec is ground truth and a
-> conflicting change must be flagged and the spec deliberately updated first. Do
-> **not** run this as a single automated prompt. It should be (a) approved by the
-> maintainer, (b) split into a numbered sub-sequence, and (c) preceded by a spec
-> change that un-defers it. This file captures the intent and the risks.
+# Task: optional learned neural-network brains (default-off)
 
 ## Goal
 
-Replace or augment the hand-coded behaviour policy with a small, fixed-topology
-neural network per creature whose weights are part of the genome and evolve, so
-behaviour itself is selected rather than scripted.
+Add an optional, default-off capability where each creature's movement is driven
+by a small fixed-topology neural network whose weights are part of its genome and
+evolve, instead of the hand-coded movement policy. The hand-coded behaviour
+remains the default and the fallback.
 
-## Why this is large and risky
+## Scope
 
-- **Genome change:** the genome gains many real-valued weights; world columns,
-  mutation/crossover, snapshot trait-means, naming, speciation, and the inspector
-  all assume a small fixed trait set. Adding a weight vector touches most of
-  `core/` and the data schemas.
-- **Determinism:** the network evaluation must be deterministic and seeded; no
-  platform randomness on the sim path.
-- **Performance:** evaluating a net for up to `MAX_POPULATION` (2000) agents every
-  tick, allocation-free, within the worker's budget, is the hard part — sensory
-  encoding, fixed-size buffers, and no per-tick allocation.
-- **Behaviour parity:** the existing seek/flee/eat/court/reproduce outcomes and
-  the population-stability guarantees must be preserved or re-tuned; the 012
-  stability test and determinism tests must stay green.
-- **Scope:** this is realistically several prompts (genome+net representation;
-  sensory inputs/motor outputs; integration behind a toggle; tuning/stability;
-  inspector/visualisation), not one.
+Implement the network, evolvable per-creature weights, and the behaviour
+integration behind a `neuralBrains` toggle. Do not implement NEAT (topology
+evolution), learning within a lifetime, or a brain visualiser. Eating,
+reproduction, energy, predation, and bounds are unchanged — only the per-tick
+movement *heading* is produced by the net when the toggle is on.
 
-## Suggested decomposition (to be authored as a sub-sequence, after a spec update)
+## Context (optional-capability principle, spec v0.4.0)
 
-1. Spec: un-defer learned brains; record the chosen representation (fixed-topology
-   MLP), determinism, and performance constraints; bump the version.
-2. A deterministic, allocation-free network module in `core/` with fixed input
-   (senses) and output (motor) layout, plus genome weights.
-3. A behaviour mode that uses the network outputs instead of the hand-coded
-   policy, behind a parameter (default off → existing behaviour and tests
-   unchanged).
-4. Stability/determinism tuning and tests at population scale.
-5. Inspector/legend support to show a creature's "brain" at a high level.
+The toggle must be **default-off**, leave the default run byte-for-byte unchanged
+(no extra RNG draws, identical code path when off), preserve determinism, and keep
+the 012 stability guarantee on the default path. The hand-coded policy is in
+`src/core/behaviour.ts` (it already computes the nearest-food direction, the
+threat direction, and energy each tick). The genome/world is structure-of-arrays
+(`src/core/world.ts`, `src/core/genome.ts`); founders are seeded in
+`src/core/bounds.ts` (`spawnRandomAgent`); offspring inherit/mutate in
+`src/core/mutation.ts` (`breed`, `breedSexual`); the deterministic RNG is
+`src/core/rng.ts`. Per-tick paths must not allocate.
+
+## Required changes
+
+1. Add `src/core/brain.ts`: a fixed-topology MLP (e.g. inputs → one hidden layer →
+   2 outputs) with a constant `BRAIN_WEIGHT_COUNT` (weights + biases) and a pure,
+   allocation-free `evaluate(weights, weightBase, inputs, out)` using a reused
+   hidden-layer scratch and `tanh`. Deterministic; no RNG, no platform randomness.
+2. Add an optional per-creature weight store to `World`: a `brainWeights:
+   Float32Array | null` (default `null`) and an `enableBrains(weightCount)` that
+   allocates `agentCapacity * weightCount` once. Everything else keys off
+   `brainWeights !== null`, so the column does not exist when brains are off.
+3. Add a `neuralBrains: boolean` parameter (default `false`) to
+   `SimulationParameters` / `DEFAULT_PARAMETERS` (`src/core/params.ts`), and clamp
+   it in the share codec. When set, the `Simulation` calls `world.enableBrains(...)`
+   before seeding.
+4. Seed and inherit weights only when enabled: in `spawnRandomAgent`, fill a
+   founder's weights with small seeded random values; in `breed` / `breedSexual`,
+   copy (asexual) or uniformly cross over (sexual) the parents' weights and apply
+   the same per-weight Gaussian mutation as traits. All gated on `brainWeights`.
+5. In `behaviour.ts`, when `world.brainWeights !== null`, build the sensory input
+   vector from values already computed (normalised nearest-food direction, threat
+   direction, energy fraction, a bias) and set the movement heading from the net's
+   two outputs, replacing the flee/court/seek/wander heading chain for that tick;
+   eating and reproduction proceed as before. When `brainWeights === null` the
+   existing chain runs unchanged (no net, no extra RNG).
+6. Update `specification.md` (Data schemas: the optional brain-weight store and the
+   `neuralBrains` parameter; Domain rules → Behaviour: when enabled, a fixed
+   evolvable network produces movement, default-off and fallback per the
+   optional-capability principle) and bump the version. Update
+   `docs-dev/planning/current_state.md`.
+
+## Do not implement
+
+Do not implement: NEAT/topology evolution; lifetime learning; a brain
+visualiser/inspector panel (a later prompt); any change to the default (off) path;
+networks for anything other than the movement heading.
 
 ## Acceptance criteria
 
-Not runnable as-is. Complete only when the maintainer has approved the direction,
-the spec has been updated to un-defer it, and the decomposed sub-prompts each pass
-`npm run build` and `npm test` with determinism and the 012 stability test green
-and the default (hand-coded) path unchanged.
+- With `neuralBrains` off, the run is byte-for-byte identical to before (the
+  determinism and 012 stability tests stay green on the defaults), and no
+  brain-weight memory is allocated.
+- With `neuralBrains` on, a fixed seed and parameters reproduce a run exactly (a
+  determinism test passes), the network drives movement (a test asserts movement
+  follows the weights — e.g. weights that map a food-direction input to the output
+  steer the creature toward food), and weights are inherited and mutated.
+- The per-tick path performs no new allocation in either mode.
+- `npm run build` and `npm test` pass.
+
+## Checks
+
+Run `npm run build` and `npm test`. Add core tests for the network (determinism,
+allocation-free), weight inheritance/mutation, and the on-vs-off behaviour
+(off-path unchanged; on-path steered by weights).
 
 ## Commit and push
 
-Do not implement or commit from this file. It is a flagged proposal; await
-explicit approval and a spec decision, then author and run the sub-sequence.
+If and only if the scope was followed and checks pass, create one commit on `main`
+using this file's exact filename (`058_neural_brains.md`) as the commit message,
+then push. Do not commit partially completed or failing work.
 
 ## Final report
 
-If asked to act on this file, stop and flag the spec conflict per `AGENTS.md`
-instead, then end with the required final report.
+End with the required final report specified in `AGENTS.md`.
