@@ -5,6 +5,8 @@ import { inspectCreature } from '../core/inspect.ts';
 import { resolveFamily } from '../core/lineage.ts';
 import { extractPopulation } from '../core/population.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
+import { createMetabolismKernel, type MetabolismKernel } from '../wasm/metabolismCore.ts';
+import metabolismWasmUrl from '../wasm/metabolism.wasm?url';
 
 /** Minimal view of the dedicated-worker global, avoiding DOM/WebWorker lib clashes. */
 interface WorkerContext {
@@ -28,6 +30,29 @@ let adoptedId = -1;
 let postField = false;
 let fieldFrame = 0;
 const freeBuffers: ArrayBuffer[] = [];
+/** Bumped on every init/reset so a slow async wasm load cannot clobber a newer run. */
+let initGen = 0;
+
+/** Load the optional WebAssembly metabolism core, or null if off/unsupported/failed. */
+async function loadMetabolism(useWasm: boolean): Promise<MetabolismKernel | null> {
+  if (!useWasm || typeof WebAssembly === 'undefined') return null;
+  try {
+    const bytes = await fetch(metabolismWasmUrl).then((r) => r.arrayBuffer());
+    return createMetabolismKernel(bytes);
+  } catch {
+    return null;
+  }
+}
+
+/** Finish initialising the simulation (after any async wasm load) unless superseded. */
+async function setupSim(msg: Extract<MainToWorker, { type: 'init' }>, gen: number): Promise<void> {
+  const metabolism = await loadMetabolism(msg.params.wasmCore);
+  if (gen !== initGen) return; // a reset/init arrived while we were loading
+  sim = createSimulation(msg.params, msg.population, metabolism ?? undefined);
+  const bytes = snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
+  freeBuffers.length = 0;
+  freeBuffers.push(new ArrayBuffer(bytes), new ArrayBuffer(bytes));
+}
 
 function frame(): void {
   if (sim === null || !running) return;
@@ -75,14 +100,13 @@ ctx.onmessage = (event: MessageEvent): void => {
   const msg = event.data as MainToWorker;
   switch (msg.type) {
     case 'init': {
-      sim = createSimulation(msg.params, msg.population);
+      // Setup may be async (optional wasm core load); frame() no-ops until `sim`
+      // is set and buffers exist, so starting the timer now is race-safe.
+      sim = null;
       accumulator = 0;
-      const bytes =
-        snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
-      freeBuffers.length = 0;
-      freeBuffers.push(new ArrayBuffer(bytes), new ArrayBuffer(bytes));
       running = true;
       if (timer === null) timer = setInterval(frame, TARGET_FRAME_MS);
+      void setupSim(msg, ++initGen);
       break;
     }
     case 'start':
@@ -95,6 +119,7 @@ ctx.onmessage = (event: MessageEvent): void => {
       multiplier = msg.multiplier;
       break;
     case 'reset':
+      initGen++;
       running = false;
       sim = null;
       adoptedId = -1;

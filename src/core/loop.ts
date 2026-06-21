@@ -14,6 +14,7 @@ import type { PopulationRecord } from './population.ts';
 import { TRAIT_COUNT, SIZE, clampTrait } from './genome.ts';
 import { metaboliseAndReap, energyCapacity } from './energy.ts';
 import { BRAIN_WEIGHT_COUNT } from './brain.ts';
+import type { MetabolismKernel } from '../wasm/metabolismCore.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
@@ -67,14 +68,21 @@ export class Simulation {
 
   private prevSpeciesCount = 0;
   private prevNearExtinction = false;
+  /** Optional WebAssembly metabolism core; null on the default (TS) path. */
+  private readonly metabolism: MetabolismKernel | null;
 
   /** The most recent catastrophe event, if any (for display/narration). */
   get lastEvent(): CatastropheEvent | null {
     return this.events.last;
   }
 
-  constructor(params: SimulationParameters, population?: PopulationRecord[]) {
+  constructor(
+    params: SimulationParameters,
+    population?: PopulationRecord[],
+    metabolism?: MetabolismKernel,
+  ) {
     this.params = params;
+    this.metabolism = metabolism ?? null;
     this.rng = new Rng(params.seed);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(MAX_POPULATION, foodCapacity);
@@ -113,8 +121,11 @@ export class Simulation {
       agentGrid.rebuildFromAgents(world);
       deaths += this.predation.step(world, params, agentGrid);
     }
-    // 4. Metabolism, ageing, death.
-    deaths += metaboliseAndReap(world, params);
+    // 4. Metabolism, ageing, death (optionally via the WebAssembly core).
+    deaths +=
+      this.metabolism !== null
+        ? this.metabolism.apply(world, params)
+        : metaboliseAndReap(world, params);
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
     const catastrophe = this.events.last !== null && this.events.last.tick === this.tick;
@@ -209,10 +220,12 @@ export class Simulation {
   }
 }
 
-/** Create a fully seeded simulation from a parameter set, optionally from a saved population. */
+/** Create a fully seeded simulation from a parameter set, optionally from a saved
+ *  population and an optional WebAssembly metabolism core (else the TS core runs). */
 export function createSimulation(
   params: SimulationParameters,
   population?: PopulationRecord[],
+  metabolism?: MetabolismKernel,
 ): Simulation {
-  return new Simulation(params, population);
+  return new Simulation(params, population, metabolism);
 }

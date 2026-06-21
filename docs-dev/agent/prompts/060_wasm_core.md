@@ -74,3 +74,19 @@ unverifiable work.
 ## Final report
 
 End with the required final report specified in `AGENTS.md`.
+
+## Delivery status (incremental)
+
+A full-core port (~2,757 lines of interdependent logic to AssemblyScript) is not a
+single-session unit, so this prompt is delivered incrementally, equivalence-gated:
+
+- **Increment 1 (done, v0.4.3):** the per-tick metabolism/reap pass runs in a
+  WebAssembly kernel (`src/wasm/metabolism.as.ts` → `metabolism.wasm`, via
+  `metabolismCore.ts`), **bit-for-bit identical** to the TS pass (proven by a
+  full-run equivalence test) behind the default-off `wasmCore` toggle, with the
+  AssemblyScript toolchain wired into `npm run build` and automatic TS fallback.
+- **Remaining (TS for now):** spatial-grid build, behaviour/movement, food
+  regeneration, mutation/reproduction, predation, bounds, and the loop driver. The
+  equivalence contract for those becomes *statistical* once transcendentals
+  (`sin/cos/log` in the RNG/seasons) are involved. Performance gains require these
+  heavy passes ported and copy-free shared memory between JS and wasm.

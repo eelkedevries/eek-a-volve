@@ -36,6 +36,7 @@ const HELP: Record<string, string> = {
   seasonPeriod: 'Length of one seasonal cycle, in ticks.',
   neuralBrains: 'Experimental: drive movement with a small evolvable neural network instead of the hand-coded rules. Off keeps the tried-and-tested behaviour.',
   offscreenRender: 'Experimental: render in a background worker via OffscreenCanvas to free the main thread. Falls back automatically to the standard renderer if unsupported. Some overlays/effects are simplified in this mode.',
+  wasmCore: 'Experimental: run the metabolism step in a WebAssembly core (bit-identical to the standard core). A proof-of-concept; falls back automatically if WebAssembly is unavailable. Results are unchanged.',
   minTimeMultiplier: 'Slowest post-start speed (ticks per frame).',
   maxTimeMultiplier: 'Fastest post-start speed (ticks per frame).',
 };

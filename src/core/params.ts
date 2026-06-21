@@ -68,6 +68,9 @@ export interface SimulationParameters {
   /** Optional capability: render via OffscreenCanvas in a worker (experimental, default off). */
   offscreenRender: boolean;
 
+  /** Optional capability: run the metabolism pass in a WebAssembly core (experimental, default off). */
+  wasmCore: boolean;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -106,6 +109,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   seasonPeriod: 1200,
   neuralBrains: false,
   offscreenRender: false,
+  wasmCore: false,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

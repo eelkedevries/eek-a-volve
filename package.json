@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "asbuild": "asc src/wasm/metabolism.as.ts --outFile src/wasm/metabolism.wasm --runtime stub --importMemory --use abort= --optimize",
+    "build": "npm run asbuild && tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "devDependencies": {
+    "@types/node": "^26.0.0",
+    "assemblyscript": "^0.27.36",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vitest": "^4.1.9"
