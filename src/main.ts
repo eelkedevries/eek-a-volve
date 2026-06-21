@@ -24,6 +24,11 @@ import {
   H_BIRTHS,
   H_DEATHS,
   H_SPECIES_COUNT,
+  HEADER_LENGTH,
+  AGENT_STRIDE,
+  A_X,
+  A_Y,
+  A_ID,
 } from './core/snapshot.ts';
 import { NEAR_EXTINCTION_THRESHOLD } from './core/bounds.ts';
 import { decodeParams, SHARE_HASH_PREFIX } from './core/share.ts';
@@ -132,6 +137,66 @@ async function run(
       openWindow('inspector');
     }
   }
+
+  // Reliable creature picking on the canvas, independent of the renderer's own
+  // (touch-flaky) tap-to-select. Each frame we copy a compact [x, y, id] table
+  // from the snapshot; a tap then resolves the nearest creature against it and
+  // the camera viewport bounds. Using the cached table means a tap still works
+  // while paused (the frozen positions are exactly what's on screen).
+  let picks = new Float32Array(0);
+  let pickCount = 0;
+  let tapStartX = 0;
+  let tapStartY = 0;
+  let tapMoved = false;
+
+  function rememberPicks(view: Float32Array, count: number): void {
+    const need = count * 3;
+    if (picks.length < need) picks = new Float32Array(need);
+    for (let i = 0; i < count; i++) {
+      const o = HEADER_LENGTH + i * AGENT_STRIDE;
+      picks[i * 3] = view[o + A_X];
+      picks[i * 3 + 1] = view[o + A_Y];
+      picks[i * 3 + 2] = view[o + A_ID];
+    }
+    pickCount = count;
+  }
+
+  /** Inspect the nearest creature to a tapped screen point (forgiving for touch). */
+  function pickCreatureAt(clientX: number, clientY: number): void {
+    if (pickCount === 0 || uiHidden) return;
+    const rect = host.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const vb = surface.getViewportBounds();
+    const worldPerPxX = (vb.maxX - vb.minX) / rect.width;
+    const worldPerPxY = (vb.maxY - vb.minY) / rect.height;
+    const wx = vb.minX + (clientX - rect.left) * worldPerPxX;
+    const wy = vb.minY + (clientY - rect.top) * worldPerPxY;
+    let bestId = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < pickCount; i++) {
+      const dx = picks[i * 3] - wx;
+      const dy = picks[i * 3 + 1] - wy;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        bestId = picks[i * 3 + 2];
+      }
+    }
+    const pickR = 30 * worldPerPxX; // accept within ~30px of a creature
+    if (bestId >= 0 && bestD <= pickR * pickR) setInspect(bestId);
+  }
+
+  host.addEventListener('pointerdown', (e) => {
+    tapStartX = e.clientX;
+    tapStartY = e.clientY;
+    tapMoved = false;
+  });
+  host.addEventListener('pointermove', (e) => {
+    if (Math.abs(e.clientX - tapStartX) + Math.abs(e.clientY - tapStartY) > 10) tapMoved = true;
+  });
+  host.addEventListener('pointerup', (e) => {
+    if (!tapMoved) pickCreatureAt(e.clientX, e.clientY);
+  });
 
   // --- Window content bodies ---
   const inspector = createInspector({ onAdopt: (on) => surface.setFollowing(on) });
@@ -327,12 +392,14 @@ async function run(
       surface.draw(view, count);
 
       // A canvas tap changes the renderer's selection; react to that change and
-      // drive the inspector. (A Map tap drives it directly via setInspect.)
+      // drive the inspector. (Our own pick below also handles taps directly.)
       const selected = surface.getSelectedId();
       if (selected !== rendererSelectedId) {
         rendererSelectedId = selected;
         setInspect(selected);
       }
+      // Keep the compact pick table fresh so canvas taps resolve reliably.
+      rememberPicks(view, count);
 
       // The auto-director eases the camera to the most interesting subject. It
       // drives the main-thread camera directly, so it is active only on that path.
