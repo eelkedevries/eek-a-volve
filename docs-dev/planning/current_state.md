@@ -50,12 +50,15 @@ This file records what *is* (current reality). The binding design canon is `docs
   one row of seven buttons (Legend, Records, Charts, Family, Map, Close all, Hide
   UI); **Settings** is one row of six (Director, Sound, Calm, Palette, Quality,
   Reset). The **world** is the area above the toolbar (the live sim); the canvas
-  stage is inset to it. A **floating-window manager** (`windowManager.ts`) tiles
-  up to four uniform, resizable windows over the world by open order — **Small
-  (25%)** = a quarter (two sit side by side), **Medium (50%)** = full-width half,
-  **Large (100%)** = the whole world, **Close**. Window bodies: Inspector
-  (adopt/follow), Legend, Records, Charts, Family, Map (recentres the camera),
-  Story-log, Event-detail. The story log (`storyLog.ts`) is the shared event
+  stage is inset to it. A **floating-window manager** (`windowManager.ts`) packs
+  up to four uniform, resizable windows over the world **without overlapping** —
+  **Small (25%)** = a quarter (two sit side by side), **Medium (50%)** =
+  full-width half, **Large (100%)** = the whole world, **Close**; a greedy packer
+  honours the chosen sizes when they fit and demotes the largest (oldest) window
+  otherwise. Window bodies: Inspector (adopt/follow), Legend, Records, Charts,
+  Family, Map (drag recentres the camera, a tap picks the nearest creature →
+  Inspector), Story-log, Event-detail. A creature is inspected by tapping it on
+  the canvas or via the Map. The story log (`storyLog.ts`) is the shared event
   store behind the Log tab, the Story-log window, and Event-detail. Icons are a
   shared inline-SVG set (`icons.ts`) — no emoji in chrome. **Hide UI** clears the
   chrome behind a single restore button; **Reset** goes through a confirm modal

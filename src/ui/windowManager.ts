@@ -33,12 +33,14 @@ const WINMETA: Record<WinId, WinMeta> = {
   detail: { title: 'Event detail', icon: 'detail', accent: '#c9f24a' },
 };
 
-/** Anchor quadrants assigned by open order (design: "newest first"). */
-const ANCHORS = ['bl', 'br', 'tl', 'tr'] as const;
-type Anchor = (typeof ANCHORS)[number];
-
-/** Up to four windows tile the four corners. */
+/** Up to four windows tile the world. */
 const MAX_WINDOWS = 4;
+
+/** Quadrant cells of the world (2×2). 50% = a full row; 100% = all four. */
+type Cell = 'tl' | 'tr' | 'bl' | 'br';
+
+/** Cells each size occupies (drives the no-overlap packing). */
+const CELL_COUNT: Record<WinSize, number> = { s: 1, l: 2, m: 4 };
 
 interface Frame {
   id: WinId;
@@ -71,35 +73,38 @@ export interface WindowManager {
   relayout(toolbarHeight: number): void;
 }
 
-/** Rectangle for an anchor quadrant at a given size class within the tiling area. */
-function sizeRect(area: Rect & { gap: number }, anchor: Anchor, size: WinSize): Rect {
+/** Geometry for the quadrant cells, full rows, and the whole world. */
+function cellGeometry(area: Rect & { gap: number }): {
+  cell: Record<Cell, Rect>;
+  rowTop: Rect;
+  rowBottom: Rect;
+  full: Rect;
+} {
   const halfW = (area.width - area.gap) / 2;
   const halfH = (area.height - area.gap) / 2;
-  const leftCol = area.left;
   const rightCol = area.left + halfW + area.gap;
-  const topRow = area.top;
-  const bottomRow = area.top + halfH + area.gap;
-
-  if (size === 'm') {
-    return { left: area.left, top: area.top, width: area.width, height: area.height };
-  }
-  if (size === 'l') {
-    const bottom = anchor === 'bl' || anchor === 'br';
-    return { left: area.left, top: bottom ? bottomRow : topRow, width: area.width, height: halfH };
-  }
-  const left = anchor === 'tl' || anchor === 'bl' ? leftCol : rightCol;
-  const top = anchor === 'tl' || anchor === 'tr' ? topRow : bottomRow;
-  return { left, top, width: halfW, height: halfH };
+  const lowerRow = area.top + halfH + area.gap;
+  return {
+    cell: {
+      tl: { left: area.left, top: area.top, width: halfW, height: halfH },
+      tr: { left: rightCol, top: area.top, width: halfW, height: halfH },
+      bl: { left: area.left, top: lowerRow, width: halfW, height: halfH },
+      br: { left: rightCol, top: lowerRow, width: halfW, height: halfH },
+    },
+    rowTop: { left: area.left, top: area.top, width: area.width, height: halfH },
+    rowBottom: { left: area.left, top: lowerRow, width: area.width, height: halfH },
+    full: { left: area.left, top: area.top, width: area.width, height: area.height },
+  };
 }
 
 /**
  * The floating-window manager (design: "Sizing & tiling model"). Owns a layer of
- * uniform window frames that tile into a 2×2 grid by open order (newest →
- * bottom-left, then bottom-right, top-left, top-right), each resizable to a
- * quadrant (25%), a half (50%), or the whole area (100%), or dismissed. No drag.
+ * uniform window frames that tile the **world** without ever overlapping: each
+ * window may be a 25% quadrant, a 50% full-width half, or the 100% whole world.
+ * A greedy packer honours the chosen sizes when they fit and demotes the largest
+ * (oldest) window when they don't, so the total never exceeds the four quadrants.
  * Window body elements are created once by their content components and
- * reparented in and out, so their live `update` methods keep working across
- * open/close. Two small windows tile side by side at every width.
+ * reparented in and out, so their live `update` methods keep working.
  */
 export function createWindowManager(config: WindowManagerConfig): WindowManager {
   const element = document.createElement('div');
@@ -201,41 +206,100 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
     config.onChange?.();
   }
 
-  function layout(): void {
+  /** Pack the open windows into non-overlapping cells, returning each window's
+   *  rectangle and the (possibly demoted) effective size used. */
+  function pack(): Map<WinId, { rect: Rect; size: WinSize }> {
     const area = windowArea(toolbarHeight);
-    // Windows must never cover each other: as soon as two or more are open they
-    // all tile as 25% quadrants. A lone window may grow to Medium/Large.
-    const tileAll = order.length >= 2;
+    const geo = cellGeometry(area);
+
+    // Effective sizes start from the chosen sizes, then demote the largest
+    // (oldest, to preserve recent intent) until the total fits four cells.
+    const eff = new Map<WinId, WinSize>();
+    for (const id of order) eff.set(id, sizes.get(id) ?? 's');
+    const total = (): number => order.reduce((n, id) => n + CELL_COUNT[eff.get(id) ?? 's'], 0);
+    while (total() > 4) {
+      let victim: WinId | null = null;
+      let victimCells = 1;
+      order.forEach((id, i) => {
+        const cells = CELL_COUNT[eff.get(id) ?? 's'];
+        if (cells > 1 && (victim === null || cells > victimCells || i > order.indexOf(victim))) {
+          victim = id;
+          victimCells = cells;
+        }
+      });
+      if (victim === null) break;
+      eff.set(victim, eff.get(victim) === 'm' ? 'l' : 's');
+    }
+
+    // Place largest-first (then newest-first) so halves claim whole rows before
+    // quarters fragment the grid.
+    const placeOrder = [...order].sort((a, b) => {
+      const d = CELL_COUNT[eff.get(b) ?? 's'] - CELL_COUNT[eff.get(a) ?? 's'];
+      return d !== 0 ? d : order.indexOf(a) - order.indexOf(b);
+    });
+    const free: Record<Cell, boolean> = { tl: true, tr: true, bl: true, br: true };
+    const take = (...cells: Cell[]): void => cells.forEach((c) => (free[c] = false));
+    const out = new Map<WinId, { rect: Rect; size: WinSize }>();
+    for (const id of placeOrder) {
+      let size = eff.get(id) ?? 's';
+      if (size === 'm' && free.tl && free.tr && free.bl && free.br) {
+        take('tl', 'tr', 'bl', 'br');
+        out.set(id, { rect: geo.full, size });
+        continue;
+      }
+      if (size === 'm') size = 'l';
+      if (size === 'l' && free.bl && free.br) {
+        take('bl', 'br');
+        out.set(id, { rect: geo.rowBottom, size });
+        continue;
+      }
+      if (size === 'l' && free.tl && free.tr) {
+        take('tl', 'tr');
+        out.set(id, { rect: geo.rowTop, size });
+        continue;
+      }
+      if (size === 'l') size = 's';
+      for (const c of ['bl', 'br', 'tl', 'tr'] as Cell[]) {
+        if (free[c]) {
+          take(c);
+          out.set(id, { rect: geo.cell[c], size: 's' });
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  function layout(): void {
+    const placed = pack();
+    const count = order.length;
     order.forEach((id, i) => {
       const frame = frames.get(id);
-      if (frame === undefined) return;
-      const anchor = ANCHORS[Math.min(i, ANCHORS.length - 1)];
-      const size: WinSize = tileAll ? 's' : sizes.get(id) ?? 's';
-      const rect = sizeRect(area, anchor, size);
+      const slot = placed.get(id);
+      if (frame === undefined || slot === undefined) return;
       const el = frame.el;
       el.style.position = 'fixed';
-      el.style.left = `${rect.left}px`;
-      el.style.top = `${rect.top}px`;
-      el.style.width = `${rect.width}px`;
-      el.style.height = `${rect.height}px`;
+      el.style.left = `${slot.rect.left}px`;
+      el.style.top = `${slot.rect.top}px`;
+      el.style.width = `${slot.rect.width}px`;
+      el.style.height = `${slot.rect.height}px`;
       // Newest highest, but always below the toolbar (z-index 22).
-      el.style.zIndex = String(16 + (order.length - i));
-      markActive(frame, tileAll);
+      el.style.zIndex = String(16 + (count - i));
+      markActive(frame, slot.size, count);
     });
   }
 
-  function markActive(frame: Frame, tileAll: boolean): void {
-    // The effective size is Small whenever the windows are forced to tile.
-    const size = tileAll ? 's' : sizes.get(frame.id) ?? 's';
+  function markActive(frame: Frame, effective: WinSize, count: number): void {
+    const disable = (button: HTMLButtonElement, off: boolean): void => {
+      button.disabled = off;
+      button.classList.toggle('is-disabled', off);
+    };
     for (const key of ['s', 'l', 'm'] as WinSize[]) {
-      const button = frame.sizeButtons[key];
-      button.classList.toggle('is-active', key === size);
-      // Medium/Large can't apply without covering a neighbour, so disable them.
-      if (key !== 's') {
-        button.disabled = tileAll;
-        button.classList.toggle('is-disabled', tileAll);
-      }
+      frame.sizeButtons[key].classList.toggle('is-active', key === effective);
     }
+    // 100% only fits a lone window; 50% needs two free cells (so up to 3 windows).
+    disable(frame.sizeButtons.m, count > 1);
+    disable(frame.sizeButtons.l, count > 3);
   }
 
   return {

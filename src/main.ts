@@ -114,17 +114,35 @@ async function run(
   let frame = 0;
   let wasNearExtinction = false;
   let inspectId = -1;
+  /** The renderer's last-seen selection, so we only react when it *changes*
+   *  (lets a Map tap drive the inspector without the loop overriding it). */
+  let rendererSelectedId = -1;
   let latestGen = 0;
   let uiHidden = false;
   let hintTimer = 0;
+
+  /** Inspect a creature by id (from a canvas tap or a Map tap): -1 clears it. */
+  function setInspect(id: number): void {
+    inspectId = id;
+    client.inspect(id);
+    if (id === -1) {
+      if (wm.isOpen('inspector')) wm.close('inspector');
+    } else if (!uiHidden) {
+      hideHint();
+      openWindow('inspector');
+    }
+  }
 
   // --- Window content bodies ---
   const inspector = createInspector({ onAdopt: (on) => surface.setFollowing(on) });
   const records = createRecordsPanel();
   const charts = createCharts();
   const family = createFamilyPanel();
-  const minimap = createMinimap(params.worldWidth, params.worldHeight, (x, y) =>
-    surface.centreCameraOn(x, y),
+  const minimap = createMinimap(
+    params.worldWidth,
+    params.worldHeight,
+    (x, y) => surface.centreCameraOn(x, y),
+    (id) => setInspect(id),
   );
   const legend = createLegend();
   const eventDetail = createEventDetail();
@@ -308,17 +326,12 @@ async function run(
     (view, count) => {
       surface.draw(view, count);
 
-      // Mirror the renderer's selection to the worker so the inspector stays live.
+      // A canvas tap changes the renderer's selection; react to that change and
+      // drive the inspector. (A Map tap drives it directly via setInspect.)
       const selected = surface.getSelectedId();
-      if (selected !== inspectId) {
-        inspectId = selected;
-        client.inspect(selected);
-        if (selected === -1) {
-          if (wm.isOpen('inspector')) wm.close('inspector');
-        } else if (!uiHidden) {
-          hideHint();
-          openWindow('inspector');
-        }
+      if (selected !== rendererSelectedId) {
+        rendererSelectedId = selected;
+        setInspect(selected);
       }
 
       // The auto-director eases the camera to the most interesting subject. It
