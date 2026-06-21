@@ -1,5 +1,13 @@
 import { TRAIT_COUNT } from './genome.ts';
-import { computeWorldLayout } from './worldLayout.ts';
+import {
+  computeWorldLayout,
+  COUNT_FREE_AGENT,
+  COUNT_FREE_FOOD,
+  COUNT_FOOD,
+  COUNT_PLANT,
+  COUNT_CARRION,
+  COUNT_POPULATION,
+} from './worldLayout.ts';
 
 /**
  * Structure-of-arrays world state.
@@ -117,14 +125,40 @@ export class World {
       this.foodType = new Uint8Array(foodCapacity);
     }
 
-    // Free-lists used as stacks; every slot starts free.
-    this.freeAgents = new Int32Array(agentCapacity);
+    // Free-lists used as stacks; every slot starts free. Shared with the WASM core
+    // when a shared buffer is given, so its allocation passes pop/push in place.
+    if (sharedBuffer !== undefined) {
+      const L = computeWorldLayout(agentCapacity, foodCapacity);
+      this.freeAgents = new Int32Array(sharedBuffer, L.freeAgents, agentCapacity);
+      this.freeFood = new Int32Array(sharedBuffer, L.freeFood, foodCapacity);
+    } else {
+      this.freeAgents = new Int32Array(agentCapacity);
+      this.freeFood = new Int32Array(foodCapacity);
+    }
     for (let i = 0; i < agentCapacity; i++) this.freeAgents[i] = i;
     this.freeAgentCount = agentCapacity;
-
-    this.freeFood = new Int32Array(foodCapacity);
     for (let i = 0; i < foodCapacity; i++) this.freeFood[i] = i;
     this.freeFoodCount = foodCapacity;
+  }
+
+  /** Copy the scalar counts into the WASM core's shared counts region (before a pass). */
+  writeCounts(counts: Int32Array): void {
+    counts[COUNT_FREE_AGENT] = this.freeAgentCount;
+    counts[COUNT_FREE_FOOD] = this.freeFoodCount;
+    counts[COUNT_FOOD] = this.foodCount;
+    counts[COUNT_PLANT] = this.plantCount;
+    counts[COUNT_CARRION] = this.carrionCount;
+    counts[COUNT_POPULATION] = this.population;
+  }
+
+  /** Read the scalar counts back from the shared counts region (after a pass). */
+  readCounts(counts: Int32Array): void {
+    this.freeAgentCount = counts[COUNT_FREE_AGENT];
+    this.freeFoodCount = counts[COUNT_FREE_FOOD];
+    this.foodCount = counts[COUNT_FOOD];
+    this.plantCount = counts[COUNT_PLANT];
+    this.carrionCount = counts[COUNT_CARRION];
+    this.population = counts[COUNT_POPULATION];
   }
 
   /** Allocate the per-creature brain-weight store (optional capability). Called once. */

@@ -1,9 +1,10 @@
 import type { World } from '../core/world.ts';
+import type { Rng } from '../core/rng.ts';
 import type { SimulationParameters } from '../core/params.ts';
 import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from '../core/genome.ts';
 import { DISPLAY_COST, MAX_AGE } from '../core/energy.ts';
-import { dropCarrion } from '../core/food.ts';
-import { computeWorldLayout, type WorldLayout } from '../core/worldLayout.ts';
+import { dropCarrion, PLANT_ENERGY } from '../core/food.ts';
+import { computeWorldLayout, COUNTS_LENGTH, type WorldLayout } from '../core/worldLayout.ts';
 
 /**
  * Optional WebAssembly core (spec v0.4.4+, default off). The world SoA lives in a
@@ -42,14 +43,34 @@ type DecayFn = (
   deathOff: number,
 ) => void;
 
+type RegenFn = (
+  rate: number,
+  plantCap: number,
+  worldW: number,
+  worldH: number,
+  plantEnergy: number,
+  foodXOff: number,
+  foodYOff: number,
+  foodTypeOff: number,
+  foodEnergyOff: number,
+  foodDecayOff: number,
+  foodAliveOff: number,
+  freeFoodOff: number,
+  countsOff: number,
+) => void;
+
 /** A constructed WASM core: the shared buffer the world is built over, plus passes. */
 export interface WasmCore {
   /** Backing buffer for the world SoA; pass to `new World(cap, foodCap, sharedBuffer)`. */
   readonly sharedBuffer: ArrayBuffer;
+  /** Bind the simulation RNG so WASM passes draw from the same stream. */
+  setRng(rng: Rng): void;
   /** Metabolism + reap for every live agent, in place; returns the death count. */
   metabolise(world: World, params: SimulationParameters): number;
   /** Carrion decay; reaps expired carrion via `killFood` in slot order. */
   decayCarrion(world: World): void;
+  /** Plant regeneration; returns false for the seasonal/biome cases (caller uses TS). */
+  regenerateFood(world: World, params: SimulationParameters): boolean;
 }
 
 /**
@@ -65,14 +86,24 @@ export function createWasmCore(
 ): WasmCore {
   const L: WorldLayout = computeWorldLayout(agentCapacity, foodCapacity);
   const memory = new WebAssembly.Memory({ initial: Math.ceil(L.byteLength / PAGE) });
-  const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), { env: { memory } });
+  // The RNG is bound per simulation; the imported `rngNext` advances the active stream.
+  let activeRng: Rng | null = null;
+  const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
+    env: { memory, rngNext: () => (activeRng as Rng).next() },
+  });
   const run = instance.exports.run as MetaboliseFn;
   const decay = instance.exports.decay as DecayFn;
+  const regen = instance.exports.regenFood as RegenFn;
   const deathView = new Uint8Array(memory.buffer, L.death, agentCapacity);
   const foodDeathView = new Uint8Array(memory.buffer, L.foodDeath, foodCapacity);
+  const countsView = new Int32Array(memory.buffer, L.counts, COUNTS_LENGTH);
 
   return {
     sharedBuffer: memory.buffer as ArrayBuffer,
+
+    setRng(rng: Rng): void {
+      activeRng = rng;
+    },
 
     metabolise(world: World, params: SimulationParameters): number {
       run(
@@ -108,6 +139,30 @@ export function createWasmCore(
       for (let f = 0; f < foodCapacity; f++) {
         if (foodDeathView[f] !== 0) world.killFood(f);
       }
+    },
+
+    regenerateFood(world: World, params: SimulationParameters): boolean {
+      // The seasonal and biome cases (transcendentals / rejection sampling) stay in
+      // TypeScript for now; the host returns false so the caller runs the TS pass.
+      if (params.seasonAmplitude > 0 || params.biomeStrength > 0) return false;
+      world.writeCounts(countsView);
+      regen(
+        params.foodRegenRate,
+        Math.min(params.foodAbundance, foodCapacity),
+        params.worldWidth,
+        params.worldHeight,
+        PLANT_ENERGY,
+        L.foodX,
+        L.foodY,
+        L.foodType,
+        L.foodEnergy,
+        L.foodDecay,
+        L.foodAlive,
+        L.freeFood,
+        L.counts,
+      );
+      world.readCounts(countsView);
+      return true;
     },
   };
 }

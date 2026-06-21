@@ -53,6 +53,15 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     expect(b.foodEnergy).toEqual(a.foodEnergy); // carrion dropped identically
   });
 
+  it('takes the WASM regen path for default params and falls back for biome/season', () => {
+    const core = createWasmCore(wasmBytes, 64, 64);
+    const w = new World(64, 64, core.sharedBuffer);
+    core.setRng(new Rng(1));
+    expect(core.regenerateFood(w, params())).toBe(true);
+    expect(core.regenerateFood(w, params({ seasonAmplitude: 0.5 }))).toBe(false);
+    expect(core.regenerateFood(w, params({ biomeStrength: 0.5 }))).toBe(false);
+  });
+
   it('reproduces a full run identically with the WASM core vs the TS core', () => {
     const p = params({
       seed: 11,

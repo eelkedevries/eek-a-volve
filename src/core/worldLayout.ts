@@ -39,9 +39,23 @@ export interface WorldLayout {
   foodAlive: number;
   foodType: number;
   foodDeath: number;
+  // Free-list stacks (Int32) and a small scalar-counts region (Int32), shared so
+  // WASM allocation passes can pop/push and update counts in place.
+  freeAgents: number;
+  freeFood: number;
+  counts: number;
   /** High-water byte offset; the shared memory must be at least this large. */
   byteLength: number;
 }
+
+/** Indices into the shared `counts` Int32 region (see WorldLayout.counts). */
+export const COUNT_FREE_AGENT = 0;
+export const COUNT_FREE_FOOD = 1;
+export const COUNT_FOOD = 2;
+export const COUNT_PLANT = 3;
+export const COUNT_CARRION = 4;
+export const COUNT_POPULATION = 5;
+export const COUNTS_LENGTH = 8;
 
 /** Compute the world SoA byte layout for the given capacities. */
 export function computeWorldLayout(agentCapacity: number, foodCapacity: number): WorldLayout {
@@ -77,6 +91,11 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
   const foodAlive = block(foodCapacity, 1);
   const foodType = block(foodCapacity, 1);
   const foodDeath = block(foodCapacity, 1);
+  // Re-align to 4 bytes for the Int32 free-lists and counts.
+  o = (o + 3) & ~3;
+  const freeAgents = block(agentCapacity, 4);
+  const freeFood = block(foodCapacity, 4);
+  const counts = block(COUNTS_LENGTH, 4);
   const byteLength = (o + 3) & ~3;
   return {
     x,
@@ -101,6 +120,9 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
     foodAlive,
     foodType,
     foodDeath,
+    freeAgents,
+    freeFood,
+    counts,
     byteLength,
   };
 }

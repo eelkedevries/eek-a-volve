@@ -84,6 +84,7 @@ export class Simulation {
     this.params = params;
     this.wasm = wasmCore ?? null;
     this.rng = new Rng(params.seed);
+    this.wasm?.setRng(this.rng);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(MAX_POPULATION, foodCapacity, wasmCore?.sharedBuffer);
     this.pheromone = new PheromoneField(params.worldWidth, params.worldHeight, params.pheromoneCellSize);
@@ -131,7 +132,9 @@ export class Simulation {
       eventLog.catastrophe(this.events.last.kind, this.events.last.deaths);
     }
     // 6. Food regeneration (seasonally modulated) and carrion decay.
-    regenerateFood(world, params, rng, this.tick);
+    if (this.wasm === null || !this.wasm.regenerateFood(world, params)) {
+      regenerateFood(world, params, rng, this.tick);
+    }
     if (this.wasm !== null) this.wasm.decayCarrion(world);
     else decayCarrion(world);
     // 6b. Pheromone field decay and diffusion (deterministic; only when enabled).
