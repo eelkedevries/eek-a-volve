@@ -86,16 +86,23 @@ This file records what *is* (current reality). The binding design canon is `docs
   **OffscreenCanvas rendering** (v0.4.2, experimental) — `offscreenRender` runs a
   self-contained PixiJS scene in a worker via a transferred OffscreenCanvas, with
   a capability check, a ready-handshake, and automatic fallback to the main-thread
-  `Renderer`; effects/overlays/director are simplified in that mode.
+  `Renderer`; effects/overlays/director are simplified in that mode. The worker
+  sets PixiJS's `WebWorkerAdapter` (no `document` in a worker) and renders
+  push-driven (no `requestAnimationFrame` in a worker — render on each frame and
+  camera move). Verified rendering headless (Chromium + SwiftShader).
   **WASM core** (v0.4.3–0.5.0, experimental) — `wasmCore` runs the **entire per-tick
   hot loop** in an AssemblyScript-compiled wasm kernel (`src/wasm/`, built by
   `npm run asbuild`) over a shared `WebAssembly.Memory` world SoA (zero-copy):
   metabolism, carrion decay, food regen, mutation, behaviour, and predation — all
   bit-for-bit identical to the TS core (proven by a 300-tick full-run equivalence
   test) and **~1.7× faster**. Capability-gated with automatic TS fallback; the WASM
-  behaviour path requires brains + pheromones off (else it falls back to TS). The
-  RNG is host-imported (shared stream); internalising it is an optional further
-  speed-up. Built across prompts 058/060–067.
+  behaviour path requires brains off (else it falls back to TS). The RNG is
+  host-imported (shared stream). Built across prompts 058/060–067. Internalising
+  the RNG (prompt 070) was measured and **declined**: the removable per-draw
+  crossings (~156/tick) are a minority versus the irreducible `jsCos`/`jsSin`
+  trig crossings (~297/tick), only call-overhead is removable (the maths still
+  runs), and moving the stream into WASM would add crossings to the TS-side
+  passes — so it cannot clear the prompt's "measurably faster" gate.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

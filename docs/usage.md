@@ -38,8 +38,7 @@ change a default run — the original behaviour is always retained as the fallba
   a background worker via a transferred `OffscreenCanvas`, freeing the main thread.
   It is capability-checked and falls back automatically to the standard main-thread
   renderer if unsupported; some effects and overlays are simplified in this mode.
-  *This path is experimental and has not yet been visually verified — the default
-  renderer is unaffected.*
+  *This path is experimental — the default renderer is unaffected.*
 - **WebAssembly core (`wasmCore`, experimental).** The per-tick simulation runs in a
   compiled WebAssembly core that is **bit-for-bit identical** to the standard core
   (same seed → same run) and roughly **1.7× faster**, which is what makes large
