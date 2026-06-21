@@ -1,215 +1,68 @@
 import type { SimulationClient } from '../worker/client.ts';
+import { icon } from './icons.ts';
 
-export interface ControlsConfig {
+export interface ControlBarConfig {
   client: SimulationClient;
   /** Time-multiplier bounds (ticks per rendered frame). */
   min: number;
   max: number;
-  onReset: () => void;
-  /** Whether the auto-director starts enabled. */
-  directorEnabled: boolean;
-  /** Toggle the auto-director on/off. */
-  onToggleDirector: (on: boolean) => void;
-  /** Open/close the legend. */
-  onLegend: () => void;
-  /** Open/close the hall-of-fame / stats popover. */
-  onRecords: () => void;
-  /** Open/close the live charts popover. */
-  onCharts: () => void;
-  /** Open/close the family-tree popover. */
-  onFamily: () => void;
-  /** Export the current population to a downloadable file. */
-  onExport: () => void;
-  /** Cycle the field overlay (off → fertility → pheromone). */
-  onOverlay: (mode: 'off' | 'fertility' | 'pheromone') => void;
-  /** Show/hide the minimap. */
-  onMinimap: () => void;
-  /** Choose how creature bodies are coloured. */
-  onColourMode: (mode: 'species' | 'diet' | 'size' | 'sense') => void;
-  /** Selectable species palette names; index passed back on change. */
-  palettes: string[];
-  onPalette: (index: number) => void;
-  /** Quality/scale level. */
-  onQuality: (level: 'low' | 'medium' | 'high') => void;
-  /** Whether reduced motion starts on (e.g. from the OS preference). */
-  reducedMotion: boolean;
-  onReducedMotion: (on: boolean) => void;
-  /** Whether sound starts on (off by default; remembered in localStorage). */
-  soundEnabled: boolean;
-  onToggleSound: (on: boolean) => void;
 }
 
 /**
- * The only post-start controls: pause/resume, the time multiplier, and reset
- * (specification: Scope — after start, only the multiplier and pause change;
- * reset returns to the setup screen).
+ * The bottom control bar (design: "2a. Bottom control bar"). The only persistent
+ * controls — pause/resume and the time multiplier — in a 58px bar pinned to the
+ * bottom edge. Everything else lives in the toolbar window (specification: Scope —
+ * after start, only the multiplier and pause change).
  */
-export function createControls(config: ControlsConfig): HTMLElement {
+export function createControlBar(config: ControlBarConfig): HTMLElement {
   const bar = document.createElement('div');
-  bar.className = 'controls';
+  bar.className = 'ev-controlbar';
 
   let paused = false;
+  const playGlyph = icon('play', 18);
+  const pauseGlyph = icon('pause', 18);
   const pause = document.createElement('button');
-  pause.textContent = 'Pause';
+  pause.type = 'button';
+  pause.className = 'ev-play-btn';
+  pause.title = 'Pause';
+  pause.setAttribute('aria-label', 'Pause');
+  pause.appendChild(pauseGlyph);
   pause.addEventListener('click', () => {
     paused = !paused;
     if (paused) {
       config.client.pause();
-      pause.textContent = 'Resume';
+      pause.replaceChildren(playGlyph);
+      pause.title = pause.ariaLabel = 'Resume';
     } else {
       config.client.resume();
-      pause.textContent = 'Pause';
+      pause.replaceChildren(pauseGlyph);
+      pause.title = pause.ariaLabel = 'Pause';
     }
   });
 
-  const speedLabel = document.createElement('label');
-  speedLabel.className = 'speed';
+  const speedWrap = document.createElement('div');
+  speedWrap.className = 'ev-speed';
+  const speedLabel = document.createElement('span');
+  speedLabel.className = 'ev-speed-label';
+  speedLabel.textContent = 'Speed';
   const speed = document.createElement('input');
   speed.type = 'range';
+  speed.className = 'ev-range';
   speed.min = String(config.min);
   speed.max = String(config.max);
-  speed.step = 'any';
+  speed.step = '0.05';
   speed.value = '1';
+  speed.setAttribute('aria-label', 'Speed');
   const readout = document.createElement('span');
-  readout.textContent = '1.0×';
+  readout.className = 'ev-speed-value';
+  readout.textContent = '1.00×';
   speed.addEventListener('input', () => {
     const multiplier = Number(speed.value);
     config.client.setMultiplier(multiplier);
-    readout.textContent = `${multiplier.toFixed(1)}×`;
+    readout.textContent = `${multiplier.toFixed(2)}×`;
   });
-  speedLabel.append('Speed', speed, readout);
+  speedWrap.append(speedLabel, speed, readout);
 
-  let directing = config.directorEnabled;
-  const director = document.createElement('button');
-  const directorLabel = (): string => `🎬 Director: ${directing ? 'on' : 'off'}`;
-  director.textContent = directorLabel();
-  director.addEventListener('click', () => {
-    directing = !directing;
-    director.textContent = directorLabel();
-    config.onToggleDirector(directing);
-  });
-
-  const legend = document.createElement('button');
-  legend.textContent = '🛈 Legend';
-  legend.addEventListener('click', () => config.onLegend());
-
-  const recordsBtn = document.createElement('button');
-  recordsBtn.textContent = '🏆 Records';
-  recordsBtn.addEventListener('click', () => config.onRecords());
-
-  const chartsBtn = document.createElement('button');
-  chartsBtn.textContent = '📈 Charts';
-  chartsBtn.addEventListener('click', () => config.onCharts());
-
-  const familyBtn = document.createElement('button');
-  familyBtn.textContent = '📜 Family';
-  familyBtn.addEventListener('click', () => config.onFamily());
-
-  const minimapBtn = document.createElement('button');
-  minimapBtn.textContent = '🗺 Map';
-  minimapBtn.addEventListener('click', () => config.onMinimap());
-
-  const overlayModes = ['off', 'fertility', 'pheromone'] as const;
-  const overlayName = { off: 'off', fertility: 'biome', pheromone: 'trails' };
-  let overlayIndex = 0;
-  const overlayBtn = document.createElement('button');
-  const overlayLabel = (): string => `🗺️ Overlay: ${overlayName[overlayModes[overlayIndex]]}`;
-  overlayBtn.textContent = overlayLabel();
-  overlayBtn.addEventListener('click', () => {
-    overlayIndex = (overlayIndex + 1) % overlayModes.length;
-    overlayBtn.textContent = overlayLabel();
-    config.onOverlay(overlayModes[overlayIndex]);
-  });
-
-  const colourLabel = document.createElement('label');
-  colourLabel.className = 'control-select';
-  const colour = document.createElement('select');
-  for (const [value, text] of [
-    ['species', 'Species'],
-    ['diet', 'Diet'],
-    ['size', 'Size'],
-    ['sense', 'Sense'],
-  ] as const) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = text;
-    colour.appendChild(option);
-  }
-  colour.addEventListener('change', () =>
-    config.onColourMode(colour.value as 'species' | 'diet' | 'size' | 'sense'),
-  );
-  colourLabel.append('Colour', colour);
-
-  const paletteLabel = document.createElement('label');
-  paletteLabel.className = 'control-select';
-  const palette = document.createElement('select');
-  config.palettes.forEach((name, i) => {
-    const option = document.createElement('option');
-    option.value = String(i);
-    option.textContent = name;
-    palette.appendChild(option);
-  });
-  palette.addEventListener('change', () => config.onPalette(Number(palette.value)));
-  paletteLabel.append('Palette', palette);
-
-  const qualityLabel = document.createElement('label');
-  qualityLabel.className = 'control-select';
-  const quality = document.createElement('select');
-  for (const level of ['low', 'medium', 'high'] as const) {
-    const option = document.createElement('option');
-    option.value = level;
-    option.textContent = level.charAt(0).toUpperCase() + level.slice(1);
-    if (level === 'medium') option.selected = true;
-    quality.appendChild(option);
-  }
-  quality.addEventListener('change', () =>
-    config.onQuality(quality.value as 'low' | 'medium' | 'high'),
-  );
-  qualityLabel.append('Quality', quality);
-
-  const motionLabel = document.createElement('label');
-  motionLabel.className = 'control-check';
-  const motion = document.createElement('input');
-  motion.type = 'checkbox';
-  motion.checked = config.reducedMotion;
-  motion.addEventListener('change', () => config.onReducedMotion(motion.checked));
-  motionLabel.append(motion, 'Reduce motion');
-
-  let sounding = config.soundEnabled;
-  const sound = document.createElement('button');
-  const soundLabel = (): string => (sounding ? '🔊 Sound: on' : '🔈 Sound: off');
-  sound.textContent = soundLabel();
-  sound.addEventListener('click', () => {
-    sounding = !sounding;
-    sound.textContent = soundLabel();
-    config.onToggleSound(sounding);
-  });
-
-  const exportBtn = document.createElement('button');
-  exportBtn.textContent = '💾 Export';
-  exportBtn.addEventListener('click', () => config.onExport());
-
-  const reset = document.createElement('button');
-  reset.textContent = 'Reset';
-  reset.addEventListener('click', () => config.onReset());
-
-  bar.append(
-    pause,
-    speedLabel,
-    director,
-    legend,
-    recordsBtn,
-    chartsBtn,
-    familyBtn,
-    minimapBtn,
-    overlayBtn,
-    colourLabel,
-    paletteLabel,
-    qualityLabel,
-    motionLabel,
-    sound,
-    exportBtn,
-    reset,
-  );
+  bar.append(pause, speedWrap);
   return bar;
 }

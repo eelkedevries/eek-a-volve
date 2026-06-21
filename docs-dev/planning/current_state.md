@@ -41,20 +41,28 @@ This file records what *is* (current reality). The binding design canon is `docs
   elder crown, **visual juice** (squash/flash/trails/capped shake), an
   **auto-director** with screen-space nameplates, and selectable species
   **palettes** (incl. colour-blind-safe). Food is drawn by type (plant/carrion).
-- **UI (`src/ui/`)** — a single fit-to-screen **dock** (capped at ≤20% of the
-  viewport; its message **log** is the only scrollable element) holding live
-  stats, all controls, and the feed. Plus a **creature inspector** with
-  adopt/follow, a **hall-of-fame** records popover, a **legend**, first-run
-  **onboarding**, and the **setup screen** with Community/Swarm preset cards.
-  The inspector also shows a creature's short **ancestry line** (parent ←
-  grandparent …) resolved from the lineage registry.
-  Controls: speed, pause, reset, director toggle, palette, quality/scale,
-  reduce-motion, sound. (The earlier standalone population chart and toasts were
-  folded into the dock/log during the single-toolbar consolidation.) The setup
-  screen can **copy a share link** (`#w=…`) that encodes the whole parameter set
-  and seed; opening such a link prefills the form, reproducing the exact run.
-  An evolved **population** can also be **exported** to a file and **imported**
-  to resume a run from it (fresh lineage; deterministic onward from the seed).
+- **UI (`src/ui/`)** — the chrome is a set of `position: fixed` layers over the
+  full-bleed PixiJS canvas (no page scroll), rebuilt from a design hand-off
+  ("UI / visuals refresh"). It has three regions: a 58px **control bar**
+  (play/pause + speed only); a **toolbar ("message") window** with live stat
+  **pills** (Gen/Pop/Species/Ticks) and a **Log / Windows / Settings** tab strip
+  over the one always-present scroll body; and a **floating-window manager**
+  (`windowManager.ts`) that tiles up to four uniform, resizable windows
+  (Small 25% / Large 50% / Maximise 100% / Close) into a 2×2 grid by open order,
+  stacking vertically on mobile. Window bodies: **Inspector** (adopt/follow),
+  **Legend**, **Records** (hall of fame), **Charts**, **Family** (lineage),
+  **Map** (recentres the camera), **Story-log**, and **Event-detail**. The story
+  log (`storyLog.ts`) is the shared event store behind the Log tab, the Story-log
+  window, and Event-detail. Icons are a shared inline-SVG set (`icons.ts`) — no
+  emoji in chrome. Settings expose director, sound, "Calm" (reduced motion),
+  palette, and quality; **Hide UI** clears the chrome behind a single restore
+  button; **Reset** goes through a confirm modal back to setup. The **setup
+  screen** has Community/Swarm preset cards, three core sliders, four behaviour
+  chips, and a tabbed "advanced soup chemistry" panel, all bound to the real
+  `params.ts`; it can **copy a share link** (`#w=…`) and **resume** from a saved
+  population file. (The refresh dropped the old overlay-cycle, colour-mode,
+  population-export, and AI-narrator controls from the running HUD; palette and
+  quality bind to the real renderer options.)
 - **Humour + narrator (`src/humour/`, `src/narrator/`)** — mock-Latin binomials,
   silly individual names, milestone/extinction/obituary lines, and the optional
   OpenRouter narrator with a templated fallback (key stored in-browser; never
@@ -119,6 +127,14 @@ This file records what *is* (current reality). The binding design canon is `docs
   platform).
 - **"Primordial lab" visual reskin** applied from a Claude Design hand-off (fonts,
   palette, gradients) — visual only, no architecture change.
+- **UI / visuals refresh hand-off** — the running HUD chrome was rebuilt from a
+  design hand-off into fixed layers over the canvas: a 58px control bar, a
+  tabbed toolbar window (Log/Windows/Settings), and a tiling floating-window
+  manager (Inspector/Legend/Records/Charts/Family/Map/Story-log/Event-detail),
+  plus a redesigned setup screen, an inline-SVG icon set, Hide-UI, and a reset
+  confirm modal. Chrome only (`src/ui/*`, `src/style.css`, `src/main.ts`
+  wiring); `render/`, `core/`, `worker/`, `wasm/` untouched. Dropped from the
+  HUD: overlay-cycle, colour-mode, population-export, and the AI-narrator panel.
 - **Deploy fixed to auto-publish.** The Pages deploy workflow was
   `workflow_dispatch`-only (manual); it now also runs `on: push` to `main`, so
   every push redeploys.

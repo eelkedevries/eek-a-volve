@@ -7,49 +7,88 @@ export interface FamilyPanel {
   update(family: CreatureFamily): void;
 }
 
+/** Up to this many lineage dots are drawn on each tier. */
+const MAX_DOTS = 6;
+
+/** A small coloured lineage dot. */
+function dot(size: number, colour: string, glow = false): HTMLElement {
+  const d = document.createElement('span');
+  d.className = 'ev-family-dot';
+  d.style.width = d.style.height = `${size}px`;
+  d.style.background = colour;
+  if (glow) d.style.boxShadow = '0 0 12px rgba(92,255,143,.5)';
+  return d;
+}
+
+/** A short vertical connector between tiers. */
+function connector(): HTMLElement {
+  const c = document.createElement('div');
+  c.className = 'ev-family-connector';
+  return c;
+}
+
 /**
- * The adopted creature's local family tree (specification: relatability —
- * lineage). A lightweight, layered view built from the bounded family the worker
- * resolves: ancestors oldest-first across the top, the focal creature in the
- * middle, and its living descendants below — all by procedural name. Shown in a
- * popover while a creature is adopted.
+ * The lineage body (design: "Family"). A simple ancestors → focus → descendants
+ * diagram for the selected creature, with its procedural name and a living-
+ * descendants line, built from the bounded family the worker resolves.
  */
 export function createFamilyPanel(): FamilyPanel {
   const element = document.createElement('div');
-  element.className = 'family';
+  element.className = 'ev-family';
 
-  const title = document.createElement('h2');
-  title.className = 'family-title';
-  title.textContent = 'Family tree';
+  const foreCaption = document.createElement('div');
+  foreCaption.className = 'ev-family-caption';
+  foreCaption.textContent = 'forebears';
 
   const ancestors = document.createElement('div');
-  ancestors.className = 'family-ancestors';
+  ancestors.className = 'ev-family-tier';
 
-  const focal = document.createElement('div');
-  focal.className = 'family-focal';
+  const focalWrap = document.createElement('div');
+  focalWrap.className = 'ev-family-focal';
+  const focalDot = dot(24, 'radial-gradient(circle at 35% 30%, #8dffb0, #2bb869)', true);
+  const focalName = document.createElement('span');
+  focalName.className = 'ev-family-name';
+  focalName.textContent = '—';
+  focalWrap.append(focalDot, focalName);
 
   const descendants = document.createElement('div');
-  descendants.className = 'family-descendants';
+  descendants.className = 'ev-family-tier';
 
-  const hint = document.createElement('div');
-  hint.className = 'family-hint';
-  hint.textContent = 'Adopt a creature to see its family.';
+  const descLine = document.createElement('div');
+  descLine.className = 'ev-family-desc';
+  descLine.textContent = 'select a creature';
 
-  element.append(title, hint, ancestors, focal, descendants);
+  element.append(
+    foreCaption,
+    ancestors,
+    connector(),
+    focalWrap,
+    connector(),
+    descendants,
+    descLine,
+  );
+
+  const fillTier = (tier: HTMLElement, count: number, size: number, colour: string): void => {
+    tier.replaceChildren();
+    const n = Math.min(count, MAX_DOTS);
+    for (let i = 0; i < n; i++) tier.appendChild(dot(size, colour));
+    if (n === 0) {
+      const none = document.createElement('span');
+      none.className = 'ev-family-none';
+      none.textContent = '·';
+      tier.appendChild(none);
+    }
+  };
 
   return {
     element,
     update: (family): void => {
-      hint.style.display = 'none';
-      focal.textContent = personalName(family.id);
-      ancestors.textContent =
-        family.ancestry.length > 0
-          ? family.ancestry.slice().reverse().map(personalName).join('  →  ')
-          : '(founder — no known ancestors)';
-      descendants.textContent =
-        family.descendants.length > 0
-          ? `Living descendants: ${family.descendants.map(personalName).join(', ')}`
-          : '(no living descendants yet)';
+      focalName.textContent = personalName(family.id);
+      fillTier(ancestors, family.ancestry.length, 14, '#5aa37c');
+      fillTier(descendants, family.descendants.length, 12, '#7fd0a0');
+      const n = family.descendants.length;
+      descLine.textContent =
+        n === 0 ? 'no living descendants yet' : `${n} living descendant${n === 1 ? '' : 's'}`;
     },
   };
 }

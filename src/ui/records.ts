@@ -1,5 +1,6 @@
 import type { RecordHolder, RecordsView } from '../core/records.ts';
 import { personalName, binomial } from '../humour/names.ts';
+import { icon } from './icons.ts';
 
 export interface RecordsPanel {
   element: HTMLElement;
@@ -13,56 +14,74 @@ function holderName(h: RecordHolder): string {
 }
 
 /**
- * The hall of fame (specification: relatability — stakes and stories). A compact
- * panel of the run's standing records and the reigning Elder, refreshed live from
- * the core {@link RecordsView}.
+ * The hall-of-fame body (design: "Records"). A list of trophy rows — title, who
+ * holds it, and the standing value — refreshed live from the core
+ * {@link RecordsView}. All-time records survive their holders' deaths.
  */
 export function createRecordsPanel(): RecordsPanel {
-  const element = document.createElement('details');
-  element.className = 'records';
-  element.open = true;
+  const element = document.createElement('div');
+  element.className = 'ev-records';
 
-  const summary = document.createElement('summary');
-  summary.textContent = '🏆 Hall of fame';
-  element.appendChild(summary);
-
-  const list = document.createElement('dl');
-  list.className = 'records-list';
-  element.appendChild(list);
-
-  /** A labelled row whose value element is returned for live updates. */
-  const row = (label: string): HTMLElement => {
-    const dt = document.createElement('dt');
-    dt.textContent = label;
-    const dd = document.createElement('dd');
-    list.append(dt, dd);
-    return dd;
+  /** A trophy row whose who/value elements are returned for live updates. */
+  const row = (title: string): { who: HTMLElement; value: HTMLElement } => {
+    const wrap = document.createElement('div');
+    wrap.className = 'ev-record';
+    const trophy = icon('records', 20);
+    trophy.classList.add('ev-record-trophy');
+    const text = document.createElement('div');
+    text.className = 'ev-record-text';
+    const t = document.createElement('div');
+    t.className = 'ev-record-title';
+    t.textContent = title;
+    const who = document.createElement('div');
+    who.className = 'ev-record-who';
+    who.textContent = '—';
+    text.append(t, who);
+    const value = document.createElement('div');
+    value.className = 'ev-record-value';
+    value.textContent = '—';
+    wrap.append(trophy, text, value);
+    element.appendChild(wrap);
+    return { who, value };
   };
 
-  const elderRow = row('Reigning Elder');
-  const oldestRow = row('Oldest ever');
-  const biggestRow = row('Largest ever');
-  const offspringRow = row('Most offspring');
-  const lineageRow = row('Longest bloodline');
-  const peakRow = row('Peak population');
+  const elder = row('Reigning Elder');
+  const oldest = row('Oldest ever');
+  const biggest = row('Largest ever');
+  const offspring = row('Most offspring');
+  const bloodline = row('Longest bloodline');
+  const peak = row('Peak population');
+
+  const set = (
+    target: { who: HTMLElement; value: HTMLElement },
+    who: string,
+    value: string,
+  ): void => {
+    target.who.textContent = who;
+    target.value.textContent = value;
+  };
 
   return {
     element,
     update: (r: RecordsView): void => {
-      elderRow.textContent = r.reigningElder.alive
-        ? `${personalName(r.reigningElder.id)} — ${r.reigningElder.age} ticks`
-        : '—';
-      oldestRow.textContent =
-        r.oldest.id < 0 ? '—' : `${holderName(r.oldest)} — ${r.oldest.value} ticks`;
-      biggestRow.textContent =
-        r.biggest.id < 0 ? '—' : `${holderName(r.biggest)} — size ${r.biggest.value.toFixed(2)}`;
-      offspringRow.textContent =
-        r.mostOffspring.id < 0 ? '—' : `${holderName(r.mostOffspring)} — ${r.mostOffspring.value} young`;
-      lineageRow.textContent =
-        r.longestBloodline.id < 0
-          ? '—'
-          : `${holderName(r.longestBloodline)} — generation ${r.longestBloodline.value}`;
-      peakRow.textContent = `${r.peakPopulation.value} (at tick ${r.peakPopulation.tick})`;
+      set(
+        elder,
+        r.reigningElder.alive ? personalName(r.reigningElder.id) : '—',
+        r.reigningElder.alive ? `${r.reigningElder.age.toLocaleString('en-GB')}` : '—',
+      );
+      set(oldest, holderName(r.oldest), r.oldest.id < 0 ? '—' : r.oldest.value.toLocaleString('en-GB'));
+      set(biggest, holderName(r.biggest), r.biggest.id < 0 ? '—' : `${r.biggest.value.toFixed(2)}×`);
+      set(
+        offspring,
+        holderName(r.mostOffspring),
+        r.mostOffspring.id < 0 ? '—' : String(r.mostOffspring.value),
+      );
+      set(
+        bloodline,
+        holderName(r.longestBloodline),
+        r.longestBloodline.id < 0 ? '—' : `gen ${r.longestBloodline.value}`,
+      );
+      set(peak, `at tick ${r.peakPopulation.tick.toLocaleString('en-GB')}`, String(r.peakPopulation.value));
     },
   };
 }
