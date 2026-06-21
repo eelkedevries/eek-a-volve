@@ -54,13 +54,56 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     expect(b.foodEnergy).toEqual(a.foodEnergy); // carrion dropped identically
   });
 
-  it('takes the WASM regen path for default params and falls back for biome/season', () => {
+  it('runs the WASM regen path for default, seasonal, and biome params', () => {
     const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
     const w = new World(64, 64, core.sharedBuffer);
     core.setRng(new Rng(1));
-    expect(core.regenerateFood(w, params())).toBe(true);
-    expect(core.regenerateFood(w, params({ seasonAmplitude: 0.5 }))).toBe(false);
-    expect(core.regenerateFood(w, params({ biomeStrength: 0.5 }))).toBe(false);
+    expect(core.regenerateFood(w, params(), 0)).toBe(true);
+    expect(core.regenerateFood(w, params({ seasonAmplitude: 0.5, seasonPeriod: 400 }), 100)).toBe(true);
+    expect(core.regenerateFood(w, params({ biomeStrength: 0.5 }), 0)).toBe(true);
+  });
+
+  it('reproduces seasonal and biome full runs identically (WASM regen vs TS)', () => {
+    for (const extra of [
+      { seasonAmplitude: 0.6, seasonPeriod: 300 },
+      { biomeStrength: 0.8 },
+    ]) {
+      const p = params({ seed: 21, initialPopulation: 70, foodAbundance: 300, ...extra });
+      const ts = createSimulation(p);
+      const wasm = createSimulation(
+        p,
+        undefined,
+        createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE),
+      );
+      for (let i = 0; i < 250; i++) {
+        ts.step();
+        wasm.step();
+      }
+      expect(wasm.world.population).toBe(ts.world.population);
+      expect(wasm.world.foodCount).toBe(ts.world.foodCount);
+      for (let s = 0; s < ts.world.agentCapacity; s++) {
+        if (ts.world.alive[s]) expect(wasm.world.x[s]).toBe(ts.world.x[s]);
+      }
+    }
+  });
+
+  it('reproduces a seasonal full run identically (WASM seasonal regen vs TS)', () => {
+    const p = params({ seed: 21, initialPopulation: 70, foodAbundance: 300, seasonAmplitude: 0.6, seasonPeriod: 300 });
+    const ts = createSimulation(p);
+    const wasm = createSimulation(
+      p,
+      undefined,
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE),
+    );
+    for (let i = 0; i < 250; i++) {
+      ts.step();
+      wasm.step();
+    }
+    expect(wasm.world.population).toBe(ts.world.population);
+    expect(wasm.world.foodCount).toBe(ts.world.foodCount);
+    for (let s = 0; s < ts.world.agentCapacity; s++) {
+      if (ts.world.alive[s]) expect(wasm.world.x[s]).toBe(ts.world.x[s]);
+    }
   });
 
   it('matches the TS breed/breedSexual bit-for-bit (mutation, clamping, freaks, RNG)', () => {

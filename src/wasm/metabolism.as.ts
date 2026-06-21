@@ -22,6 +22,8 @@ declare function rngGaussian(): f64;
 declare function jsCos(x: f64): f64;
 @external("env", "jsSin")
 declare function jsSin(x: f64): f64;
+@external("env", "jsFertility")
+declare function jsFertility(x: f64, y: f64): f64;
 
 export function run(
   n: i32,
@@ -115,6 +117,7 @@ export function regenFood(
   foodAliveOff: i32,
   freeFoodOff: i32,
   countsOff: i32,
+  biome: f64,
 ): void {
   let freeFoodCount: i32 = load<i32>(countsOff + (1 << 2));
   let foodCount: i32 = load<i32>(countsOff + (2 << 2));
@@ -128,8 +131,17 @@ export function regenFood(
     freeFoodCount--;
     store<u8>(foodAliveOff + slot, 1);
     foodCount++;
-    const px: f64 = rngNext() * worldW;
-    const py: f64 = rngNext() * worldH;
+    let px: f64 = rngNext() * worldW;
+    let py: f64 = rngNext() * worldH;
+    // With biomes on, reject barren candidates (imported fertilityAt, host-computed).
+    if (biome > 0.0) {
+      for (let tries: i32 = 0; tries < 8; tries++) {
+        const f: f64 = jsFertility(px, py);
+        if (rngNext() < 1.0 - biome + biome * f) break;
+        px = rngNext() * worldW;
+        py = rngNext() * worldH;
+      }
+    }
     store<f32>(foodXOff + (slot << 2), <f32>px);
     store<f32>(foodYOff + (slot << 2), <f32>py);
     store<u8>(foodTypeOff + slot, 0);

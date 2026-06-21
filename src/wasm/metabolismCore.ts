@@ -3,7 +3,8 @@ import type { Rng } from '../core/rng.ts';
 import type { SimulationParameters } from '../core/params.ts';
 import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY, TRAIT_COUNT, TRAIT_RANGES } from '../core/genome.ts';
 import { DISPLAY_COST, MAX_AGE } from '../core/energy.ts';
-import { dropCarrion, PLANT_ENERGY } from '../core/food.ts';
+import { dropCarrion, PLANT_ENERGY, seasonalFactor } from '../core/food.ts';
+import { fertilityAt } from '../core/biome.ts';
 import {
   computeWorldLayout,
   computeGridLayout,
@@ -63,6 +64,7 @@ type RegenFn = (
   foodAliveOff: number,
   freeFoodOff: number,
   countsOff: number,
+  biome: number,
 ) => void;
 
 /** Shared backing arrays for a spatial grid (views over the WASM core's memory). */
@@ -86,8 +88,8 @@ export interface WasmCore {
   metabolise(world: World, params: SimulationParameters): number;
   /** Carrion decay; reaps expired carrion via `killFood` in slot order. */
   decayCarrion(world: World): void;
-  /** Plant regeneration; returns false for the seasonal/biome cases (caller uses TS). */
-  regenerateFood(world: World, params: SimulationParameters): boolean;
+  /** Plant regeneration (incl. seasonal rate); returns false for biomes (caller uses TS). */
+  regenerateFood(world: World, params: SimulationParameters, tick: number): boolean;
   /** Asexual inheritance into `child` from `parent`; returns whether a freak occurred. */
   breed(child: number, parent: number, params: SimulationParameters): boolean;
   /** Sexual inheritance into `child` from parents `a`, `b`; returns whether a freak occurred. */
@@ -162,6 +164,11 @@ export function createWasmCore(
   const memory = new WebAssembly.Memory({ initial: Math.ceil(G.byteLength / PAGE) });
   // The RNG is bound per simulation; the imported `rngNext` advances the active stream.
   let activeRng: Rng | null = null;
+  // Biome fertility is host-computed (captures the current world dims + seed) so the
+  // WASM regen kernel's rejection sampling stays bit-identical to the TS placement.
+  let fertW = 1;
+  let fertH = 1;
+  let fertSeed = 0;
   const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
     env: {
       memory,
@@ -170,6 +177,7 @@ export function createWasmCore(
       rngGaussian: () => (activeRng as Rng).gaussian(),
       jsCos: (x: number) => Math.cos(x),
       jsSin: (x: number) => Math.sin(x),
+      jsFertility: (x: number, y: number) => fertilityAt(x, y, fertW, fertH, fertSeed),
     },
   });
   const run = instance.exports.run as MetaboliseFn;
@@ -262,13 +270,20 @@ export function createWasmCore(
       }
     },
 
-    regenerateFood(world: World, params: SimulationParameters): boolean {
-      // The seasonal and biome cases (transcendentals / rejection sampling) stay in
-      // TypeScript for now; the host returns false so the caller runs the TS pass.
-      if (params.seasonAmplitude > 0 || params.biomeStrength > 0) return false;
+    regenerateFood(world: World, params: SimulationParameters, tick: number): boolean {
+      // Seasonal rate is computed here in JS (same `seasonalFactor`); biome fertility
+      // is host-computed via the imported `jsFertility` — both keep the kernel
+      // bit-identical to the TS placement.
+      const rate =
+        params.seasonAmplitude > 0
+          ? params.foodRegenRate * seasonalFactor(tick, params)
+          : params.foodRegenRate;
+      fertW = params.worldWidth;
+      fertH = params.worldHeight;
+      fertSeed = params.seed;
       world.writeCounts(countsView);
       regen(
-        params.foodRegenRate,
+        rate,
         Math.min(params.foodAbundance, foodCapacity),
         params.worldWidth,
         params.worldHeight,
@@ -281,6 +296,7 @@ export function createWasmCore(
         L.foodAlive,
         L.freeFood,
         L.counts,
+        params.biomeStrength,
       );
       world.readCounts(countsView);
       return true;

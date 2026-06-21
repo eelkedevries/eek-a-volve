@@ -165,7 +165,7 @@ export class Simulation {
       eventLog.catastrophe(this.events.last.kind, this.events.last.deaths);
     }
     // 6. Food regeneration (seasonally modulated) and carrion decay.
-    if (this.wasm === null || !this.wasm.regenerateFood(world, params)) {
+    if (this.wasm === null || !this.wasm.regenerateFood(world, params, this.tick)) {
       regenerateFood(world, params, rng, this.tick);
     }
     if (this.wasm !== null) this.wasm.decayCarrion(world);
