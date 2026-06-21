@@ -62,6 +62,9 @@ export interface SimulationParameters {
   /** Length of one seasonal cycle, in ticks. */
   seasonPeriod: number;
 
+  /** Population ceiling and agent-pool capacity (default 2000 = MAX_POPULATION). */
+  maxPopulation: number;
+
   /** Optional capability: drive movement with an evolvable neural net (default off). */
   neuralBrains: boolean;
 
@@ -107,6 +110,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   biomeStrength: 0,
   seasonAmplitude: 0,
   seasonPeriod: 1200,
+  maxPopulation: 2000,
   neuralBrains: false,
   offscreenRender: false,
   wasmCore: false,

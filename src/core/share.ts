@@ -1,5 +1,5 @@
 import { DEFAULT_PARAMETERS, type SimulationParameters } from './params.ts';
-import { MAX_POPULATION } from './bounds.ts';
+import { MAX_POPULATION_CEILING } from './bounds.ts';
 
 /**
  * Pure, headless codec for a shareable run: the whole {@link SimulationParameters}
@@ -17,7 +17,8 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number; integer?: boole
   worldWidth: { min: 50, max: 4000, integer: true },
   worldHeight: { min: 50, max: 4000, integer: true },
   seed: { min: 0, max: 0xffffffff, integer: true },
-  initialPopulation: { min: 1, max: MAX_POPULATION, integer: true },
+  initialPopulation: { min: 1, max: MAX_POPULATION_CEILING, integer: true },
+  maxPopulation: { min: 10, max: MAX_POPULATION_CEILING, integer: true },
   startingSpeciesCount: { min: 1, max: 64, integer: true },
   foodAbundance: { min: 0, max: 5000, integer: true },
   foodRegenRate: { min: 0, max: 200 },

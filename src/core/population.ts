@@ -2,7 +2,7 @@ import type { Simulation } from './loop.ts';
 import { DEFAULT_PARAMETERS, type SimulationParameters } from './params.ts';
 import { coerceParams } from './share.ts';
 import { TRAIT_COUNT, TRAIT_RANGES, clampTrait } from './genome.ts';
-import { MAX_POPULATION } from './bounds.ts';
+import { MAX_POPULATION_CEILING } from './bounds.ts';
 
 /**
  * Export/import of an evolved population (specification: Locked decisions —
@@ -109,7 +109,7 @@ export function decodePopulation(text: string): PopulationSave {
   const creatures: PopulationRecord[] = [];
   const raw = Array.isArray(obj.creatures) ? obj.creatures : [];
   for (const item of raw) {
-    if (creatures.length >= MAX_POPULATION) break;
+    if (creatures.length >= MAX_POPULATION_CEILING) break;
     const rec = sanitiseRecord(item);
     if (rec !== null) creatures.push(rec);
   }

@@ -15,7 +15,10 @@ export const NEAR_EXTINCTION_THRESHOLD = 5;
  * itself enforces the ceiling (specification: Domain rules → Population bounds).
  * Provisional; tuned in 012 and then recorded in the specification.
  */
+/** Default population ceiling (and the agent-pool capacity for a default run). */
 export const MAX_POPULATION = 2000;
+/** Hard upper bound for the configurable `maxPopulation` parameter (memory safety). */
+export const MAX_POPULATION_CEILING = 20000;
 
 /** Expected immigrants per tick when immigration is enabled. */
 export const IMMIGRATION_RATE = 0.2;

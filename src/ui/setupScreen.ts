@@ -34,6 +34,7 @@ const HELP: Record<string, string> = {
   biomeStrength: 'How strongly food clusters into fertile regions (0 = spread evenly).',
   seasonAmplitude: 'How much food regeneration swings with the seasons (0 = no seasons).',
   seasonPeriod: 'Length of one seasonal cycle, in ticks.',
+  maxPopulation: 'Population ceiling and creature-pool size (default 2000). Higher allows bigger ecosystems but uses more memory; pair with more food. The WASM core makes large worlds cheaper.',
   neuralBrains: 'Experimental: drive movement with a small evolvable neural network instead of the hand-coded rules. Off keeps the tried-and-tested behaviour.',
   offscreenRender: 'Experimental: render in a background worker via OffscreenCanvas to free the main thread. Falls back automatically to the standard renderer if unsupported. Some overlays/effects are simplified in this mode.',
   wasmCore: 'Experimental: run the metabolism step in a WebAssembly core (bit-identical to the standard core). A proof-of-concept; falls back automatically if WebAssembly is unavailable. Results are unchanged.',

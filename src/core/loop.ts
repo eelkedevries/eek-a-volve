@@ -16,7 +16,7 @@ import { metaboliseAndReap, energyCapacity } from './energy.ts';
 import { BRAIN_WEIGHT_COUNT } from './brain.ts';
 import type { WasmCore } from '../wasm/metabolismCore.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
-import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
+import { spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
 /** Spatial-grid cell size; a few times the typical sense radius keeps queries cheap. */
 export const GRID_CELL_SIZE = 32;
@@ -86,13 +86,13 @@ export class Simulation {
     this.rng = new Rng(params.seed);
     this.wasm?.setRng(this.rng);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
-    this.world = new World(MAX_POPULATION, foodCapacity, wasmCore?.sharedBuffer);
+    this.world = new World(params.maxPopulation, foodCapacity, wasmCore?.sharedBuffer);
     this.pheromone = new PheromoneField(params.worldWidth, params.worldHeight, params.pheromoneCellSize);
     this.agentGrid = new SpatialGrid(
       params.worldWidth,
       params.worldHeight,
       GRID_CELL_SIZE,
-      MAX_POPULATION,
+      params.maxPopulation,
       this.wasm?.agentGridArrays,
     );
     this.foodGrid = new SpatialGrid(
@@ -102,7 +102,7 @@ export class Simulation {
       foodCapacity,
       this.wasm?.foodGridArrays,
     );
-    this.behaviour = new Behaviour(MAX_POPULATION);
+    this.behaviour = new Behaviour(params.maxPopulation);
     this.predation = new Predation();
     this.speciation = new Speciation();
     if (params.neuralBrains) this.world.enableBrains(BRAIN_WEIGHT_COUNT);

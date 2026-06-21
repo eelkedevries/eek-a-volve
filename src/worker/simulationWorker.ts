@@ -5,7 +5,6 @@ import { serialiseSnapshot, snapshotLength } from '../core/snapshot.ts';
 import { inspectCreature } from '../core/inspect.ts';
 import { resolveFamily } from '../core/lineage.ts';
 import { extractPopulation } from '../core/population.ts';
-import { MAX_POPULATION } from '../core/bounds.ts';
 import { GRID_CELL_SIZE } from '../core/loop.ts';
 import { CARRION_RESERVE } from '../core/food.ts';
 import { createWasmCore, type WasmCore } from '../wasm/metabolismCore.ts';
@@ -43,7 +42,7 @@ async function loadWasmCore(params: SimulationParameters): Promise<WasmCore | nu
     const bytes = await fetch(metabolismWasmUrl).then((r) => r.arrayBuffer());
     return createWasmCore(
       bytes,
-      MAX_POPULATION,
+      params.maxPopulation,
       params.foodAbundance + CARRION_RESERVE,
       params.worldWidth,
       params.worldHeight,
@@ -59,7 +58,8 @@ async function setupSim(msg: Extract<MainToWorker, { type: 'init' }>, gen: numbe
   const wasmCore = await loadWasmCore(msg.params);
   if (gen !== initGen) return; // a reset/init arrived while we were loading
   sim = createSimulation(msg.params, msg.population, wasmCore ?? undefined);
-  const bytes = snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
+  const bytes =
+    snapshotLength(sim.world.agentCapacity, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
   freeBuffers.length = 0;
   freeBuffers.push(new ArrayBuffer(bytes), new ArrayBuffer(bytes));
 }
