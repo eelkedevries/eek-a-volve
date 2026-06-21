@@ -22,6 +22,33 @@ to have events narrated by a wildlife-presenter voice. The key and model are
 stored only in your browser; nothing is sent anywhere except OpenRouter. Without
 a key, the narrator falls back to built-in templated lines.
 
+## Optional capabilities
+
+All of these are configured on the setup screen, are **off by default**, and never
+change a default run — the original behaviour is always retained as the fallback.
+
+- **Larger worlds (`maxPopulation`).** The population ceiling (and creature-pool
+  size) defaults to 2000. Raise it for bigger ecosystems — pair it with more food.
+  Large worlds are much cheaper with the WASM core (below); very high values use
+  more memory.
+- **Neural brains (`neuralBrains`, experimental).** Movement is driven by a small,
+  evolvable neural network that is part of each creature's genome, instead of the
+  hand-coded rules. The hand-coded policy remains the default and the fallback.
+- **OffscreenCanvas rendering (`offscreenRender`, experimental).** Rendering runs in
+  a background worker via a transferred `OffscreenCanvas`, freeing the main thread.
+  It is capability-checked and falls back automatically to the standard main-thread
+  renderer if unsupported; some effects and overlays are simplified in this mode.
+  *This path is experimental and has not yet been visually verified — the default
+  renderer is unaffected.*
+- **WebAssembly core (`wasmCore`, experimental).** The per-tick simulation runs in a
+  compiled WebAssembly core that is **bit-for-bit identical** to the standard core
+  (same seed → same run) and roughly **1.7× faster**, which is what makes large
+  worlds practical. It is capability-checked and falls back automatically to the
+  TypeScript core. For full speed it currently needs neural brains and pheromones
+  off; with those on, behaviour falls back to the (still correct) TypeScript path.
+  The WASM kernel is compiled from AssemblyScript by `npm run asbuild` (part of
+  `npm run build`).
+
 ## Run from source
 
 ```bash
