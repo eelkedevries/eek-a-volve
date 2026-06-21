@@ -312,20 +312,8 @@ function wasmKillFood(slot: i32): void {
   store<i32>(G_COUNTS + (2 << 2), load<i32>(G_COUNTS + (2 << 2)) - 1); // foodCount--
 }
 
-export function behaviourStep(
-  configOff: i32,
-  cap: i32,
-  cols: i32,
-  rows: i32,
-  cellSize: f64,
-  worldWidth: f64,
-  worldHeight: f64,
-  reproductionThreshold: f64,
-  sexual: i32,
-  mutationRate: f64,
-  mutationMagnitude: f64,
-  twoPi: f64,
-): void {
+/** Load all column/grid offsets from the config table into the module globals. */
+function loadConfig(configOff: i32, cap: i32, cols: i32, rows: i32, cellSize: f64): void {
   G_X = load<i32>(configOff + (0 << 2));
   G_Y = load<i32>(configOff + (1 << 2));
   G_VX = load<i32>(configOff + (2 << 2));
@@ -367,6 +355,23 @@ export function behaviourStep(
   G_COLS = cols;
   G_ROWS = rows;
   G_CELL = cellSize;
+}
+
+export function behaviourStep(
+  configOff: i32,
+  cap: i32,
+  cols: i32,
+  rows: i32,
+  cellSize: f64,
+  worldWidth: f64,
+  worldHeight: f64,
+  reproductionThreshold: f64,
+  sexual: i32,
+  mutationRate: f64,
+  mutationMagnitude: f64,
+  twoPi: f64,
+): void {
+  loadConfig(configOff, cap, cols, rows, cellSize);
 
   // Snapshot the agents alive at the start of the tick so newborns wait.
   let n = 0;
@@ -632,4 +637,61 @@ export function behaviourStep(
 @inline function clampCell(coord: f64, n: i32): i32 {
   let c = <i32>Math.floor(coord / G_CELL);
   return c < 0 ? 0 : c > n - 1 ? n - 1 : c;
+}
+
+// Predation (067): bit-identical port of core/predation.ts `Predation.step`.
+// Deterministic (no RNG): a carnivore eats the nearest smaller neighbour for energy.
+const A_HUNTING: i32 = 4;
+const CARNIVORY_THRESHOLD: f64 = 0.6;
+const PREY_SIZE_RATIO: f64 = 0.8;
+const ATTACK_RADIUS: f64 = 5.0;
+const PREY_ENERGY_FACTOR: f64 = 30.0;
+
+export function predationStep(configOff: i32, cap: i32, cols: i32, rows: i32, cellSize: f64): i32 {
+  loadConfig(configOff, cap, cols, rows, cellSize);
+  let deaths = 0;
+  for (let s = 0; s < cap; s++) {
+    if (load<u8>(G_ALIVE + s) == 0 || ftrait(T_DIET, s) <= CARNIVORY_THRESHOLD) continue;
+    const selfSize = ftrait(T_SIZE, s);
+    const px = <f64>load<f32>(G_X + (s << 2));
+    const py = <f64>load<f32>(G_Y + (s << 2));
+    let bestPrey = -1;
+    let bestPreyDist2 = Infinity;
+    const r2 = ATTACK_RADIUS * ATTACK_RADIUS;
+    const minCx = clampCell(px - ATTACK_RADIUS, G_COLS);
+    const maxCx = clampCell(px + ATTACK_RADIUS, G_COLS);
+    const minCy = clampCell(py - ATTACK_RADIUS, G_ROWS);
+    const maxCy = clampCell(py + ATTACK_RADIUS, G_ROWS);
+    for (let cy = minCy; cy <= maxCy; cy++) {
+      const rowBase = cy * G_COLS;
+      for (let cx = minCx; cx <= maxCx; cx++) {
+        let id = load<i32>(G_AHEAD + ((rowBase + cx) << 2));
+        while (id != -1) {
+          const dx = px - <f64>load<f32>(G_AITEMX + (id << 2));
+          const dy = py - <f64>load<f32>(G_AITEMY + (id << 2));
+          const d2 = dx * dx + dy * dy;
+          if (d2 <= r2 && id != s) {
+            if (ftrait(T_SIZE, id) < selfSize * PREY_SIZE_RATIO && d2 < bestPreyDist2) {
+              bestPreyDist2 = d2;
+              bestPrey = id;
+            }
+          }
+          id = load<i32>(G_ANEXT + (id << 2));
+        }
+      }
+    }
+    if (bestPrey != -1 && load<u8>(G_ALIVE + bestPrey) == 1) {
+      const cap2 = 100.0 * selfSize;
+      const gained = <f64>load<f32>(G_ENERGY + (s << 2)) + ftrait(T_SIZE, bestPrey) * PREY_ENERGY_FACTOR;
+      store<f32>(G_ENERGY + (s << 2), <f32>(gained > cap2 ? cap2 : gained));
+      store<u8>(G_ALIVE + bestPrey, 0);
+      const freeCount = load<i32>(G_COUNTS + (0 << 2));
+      store<i32>(G_FREEAGENTS + (freeCount << 2), bestPrey);
+      store<i32>(G_COUNTS + (0 << 2), freeCount + 1);
+      store<i32>(G_COUNTS + (5 << 2), load<i32>(G_COUNTS + (5 << 2)) - 1);
+      store<u8>(G_ACTION + s, A_HUNTING);
+      deaths++;
+    }
+  }
+  return deaths;
 }

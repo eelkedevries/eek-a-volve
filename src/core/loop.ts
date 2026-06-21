@@ -150,7 +150,10 @@ export class Simulation {
     let deaths = 0;
     if (params.predation) {
       agentGrid.rebuildFromAgents(world);
-      deaths += this.predation.step(world, params, agentGrid);
+      deaths +=
+        this.wasm !== null && this.wasm.canRunBehaviour(params)
+          ? this.wasm.predationStep(world)
+          : this.predation.step(world, params, agentGrid);
     }
     // 4. Metabolism, ageing, death (optionally via the WebAssembly core).
     deaths +=

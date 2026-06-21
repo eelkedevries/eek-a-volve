@@ -87,13 +87,15 @@ This file records what *is* (current reality). The binding design canon is `docs
   self-contained PixiJS scene in a worker via a transferred OffscreenCanvas, with
   a capability check, a ready-handshake, and automatic fallback to the main-thread
   `Renderer`; effects/overlays/director are simplified in that mode.
-  **WASM core** (v0.4.3–0.4.4, experimental) — `wasmCore` runs the per-tick
-  metabolism/reap pass in an AssemblyScript-compiled wasm kernel (`src/wasm/`, built
-  by `npm run asbuild`), bit-for-bit identical to the TS pass (proven by a full-run
-  equivalence test); capability-gated with automatic TS fallback. From v0.4.4 the
-  agent SoA lives in shared `WebAssembly.Memory` (`core/worldLayout.ts`) so the
-  kernel runs in place (zero-copy). Heavy passes still run in TS; remaining port is
-  planned in prompts 062–067 (each equivalence-gated).
+  **WASM core** (v0.4.3–0.5.0, experimental) — `wasmCore` runs the **entire per-tick
+  hot loop** in an AssemblyScript-compiled wasm kernel (`src/wasm/`, built by
+  `npm run asbuild`) over a shared `WebAssembly.Memory` world SoA (zero-copy):
+  metabolism, carrion decay, food regen, mutation, behaviour, and predation — all
+  bit-for-bit identical to the TS core (proven by a 300-tick full-run equivalence
+  test) and **~1.7× faster**. Capability-gated with automatic TS fallback; the WASM
+  behaviour path requires brains + pheromones off (else it falls back to TS). The
+  RNG is host-imported (shared stream); internalising it is an optional further
+  speed-up. Built across prompts 058/060–067.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

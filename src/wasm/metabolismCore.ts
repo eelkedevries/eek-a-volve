@@ -96,6 +96,8 @@ export interface WasmCore {
   canRunBehaviour(params: SimulationParameters): boolean;
   /** Run the behaviour pass in place; returns births. Fills `newborns`/`freakBirths`. */
   behaviourStep(world: World, params: SimulationParameters): number;
+  /** Run the predation pass in place (over the freshly-built agent grid); returns deaths. */
+  predationStep(world: World): number;
   readonly newborns: Int32Array;
   readonly freakBirths: Int32Array;
   newbornCount: number;
@@ -116,6 +118,14 @@ type BehaviourFn = (
   mutationMagnitude: number,
   twoPi: number,
 ) => void;
+
+type PredationFn = (
+  configOff: number,
+  cap: number,
+  cols: number,
+  rows: number,
+  cellSize: number,
+) => number;
 
 type BreedFn = (
   child: number,
@@ -167,6 +177,7 @@ export function createWasmCore(
   const regen = instance.exports.regenFood as RegenFn;
   const breedFn = instance.exports.breed as BreedFn;
   const behaviourFn = instance.exports.behaviourStep as BehaviourFn;
+  const predationFn = instance.exports.predationStep as PredationFn;
   const deathView = new Uint8Array(memory.buffer, L.death, agentCapacity);
   const foodDeathView = new Uint8Array(memory.buffer, L.foodDeath, foodCapacity);
   const countsView = new Int32Array(memory.buffer, L.counts, COUNTS_LENGTH);
@@ -338,6 +349,13 @@ export function createWasmCore(
       this.newbornCount = outputsView[1];
       this.freakBirthCount = outputsView[2];
       return outputsView[0];
+    },
+
+    predationStep(world: World): number {
+      world.writeCounts(countsView);
+      const deaths = predationFn(G.config, agentCapacity, cols, rows, cellSize);
+      world.readCounts(countsView);
+      return deaths;
     },
   };
 }

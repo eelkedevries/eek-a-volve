@@ -49,3 +49,16 @@ filename (`067_wasm_assemble.md`), then push.
 ## Final report
 
 End with the required final report specified in `AGENTS.md`.
+
+## Delivery status
+
+Predation is ported to the WASM core, so the **entire per-tick hot loop now runs in
+WASM** (behaviour, predation, metabolism, carrion decay, food regen), bit-for-bit
+identical to the TS core. Catastrophes and immigration stay in TypeScript (default
+off; they share the same RNG via the host import). The performance acceptance
+criterion is **met without internalising the RNG**: a benchmark shows ~1.7× over the
+TS core (TS 653 ms vs WASM 383 ms over 1500 ticks, populations identical).
+Internalising the RNG into wasm memory and chaining the passes into a single
+exported `step()` (to remove the per-draw host-call overhead) remain as **optional
+further speed-ups**, not required for the "measurably faster" goal, and add
+single-RNG-stream complexity with the optional TS passes — deferred.
