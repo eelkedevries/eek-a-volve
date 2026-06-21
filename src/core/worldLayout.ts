@@ -1,18 +1,19 @@
 import { TRAIT_COUNT } from './genome.ts';
 
 /**
- * Byte layout of the agent structure-of-arrays inside the shared WebAssembly
- * memory used by the optional WASM core (spec v0.4.4). Columns start above
- * `DATA_BASE`, which the AssemblyScript kernel keeps clear for its own stack and
- * static data. The 4-byte columns are laid out first (so their offsets are
- * 4-aligned for typed-array views), then the 1-byte columns, then a 1-byte
- * death-scratch the metabolism kernel writes. Same offsets are used by `World`
- * (to place its views) and by the kernel (to read/write in place), so there is no
+ * Byte layout of the world structure-of-arrays inside the shared WebAssembly
+ * memory used by the optional WASM core (spec v0.4.4+). Columns start above
+ * `DATA_BASE`, which the AssemblyScript kernels keep clear for their own stack and
+ * static data. Columns are grouped by element size so typed-array views stay
+ * aligned: 4-byte columns first, then the 2-byte `foodDecay`, then the 1-byte
+ * columns and the kernels' death-scratch. The same offsets are used by `World` (to
+ * place its views) and by the kernels (to read/write in place), so there is no
  * per-tick copy.
  */
 export const DATA_BASE = 1 << 16;
 
-export interface AgentLayout {
+export interface WorldLayout {
+  // Agent 4-byte columns.
   x: number;
   y: number;
   vx: number;
@@ -24,45 +25,58 @@ export interface AgentLayout {
   parentId: number;
   generation: number;
   offspringCount: number;
-  /** Byte offset of each trait column, in `TRAITS` order. */
   traits: number[];
+  // Food 4-byte columns.
+  foodX: number;
+  foodY: number;
+  foodEnergy: number;
+  // Food 2-byte column.
+  foodDecay: number;
+  // 1-byte columns and death-scratches.
   alive: number;
   action: number;
   death: number;
+  foodAlive: number;
+  foodType: number;
+  foodDeath: number;
   /** High-water byte offset; the shared memory must be at least this large. */
   byteLength: number;
 }
 
-/** Compute the agent-SoA byte layout for a given capacity. */
-export function computeAgentLayout(agentCapacity: number): AgentLayout {
-  const f = agentCapacity * 4;
+/** Compute the world SoA byte layout for the given capacities. */
+export function computeWorldLayout(agentCapacity: number, foodCapacity: number): WorldLayout {
   let o = DATA_BASE;
-  const next4 = (): number => {
+  const block = (count: number, bytes: number): number => {
     const at = o;
-    o += f;
+    o += count * bytes;
     return at;
   };
-  const x = next4();
-  const y = next4();
-  const vx = next4();
-  const vy = next4();
-  const energy = next4();
-  const age = next4();
-  const speciesId = next4();
-  const id = next4();
-  const parentId = next4();
-  const generation = next4();
-  const offspringCount = next4();
+  // 4-byte columns.
+  const x = block(agentCapacity, 4);
+  const y = block(agentCapacity, 4);
+  const vx = block(agentCapacity, 4);
+  const vy = block(agentCapacity, 4);
+  const energy = block(agentCapacity, 4);
+  const age = block(agentCapacity, 4);
+  const speciesId = block(agentCapacity, 4);
+  const id = block(agentCapacity, 4);
+  const parentId = block(agentCapacity, 4);
+  const generation = block(agentCapacity, 4);
+  const offspringCount = block(agentCapacity, 4);
   const traits: number[] = [];
-  for (let t = 0; t < TRAIT_COUNT; t++) traits.push(next4());
-  const nextB = (): number => {
-    const at = o;
-    o += agentCapacity;
-    return at;
-  };
-  const alive = nextB();
-  const action = nextB();
-  const death = nextB();
+  for (let t = 0; t < TRAIT_COUNT; t++) traits.push(block(agentCapacity, 4));
+  const foodX = block(foodCapacity, 4);
+  const foodY = block(foodCapacity, 4);
+  const foodEnergy = block(foodCapacity, 4);
+  // 2-byte column (offset stays 2-aligned: the 4-byte block ends 4-aligned).
+  const foodDecay = block(foodCapacity, 2);
+  // 1-byte columns and death-scratches.
+  const alive = block(agentCapacity, 1);
+  const action = block(agentCapacity, 1);
+  const death = block(agentCapacity, 1);
+  const foodAlive = block(foodCapacity, 1);
+  const foodType = block(foodCapacity, 1);
+  const foodDeath = block(foodCapacity, 1);
   const byteLength = (o + 3) & ~3;
   return {
     x,
@@ -77,9 +91,16 @@ export function computeAgentLayout(agentCapacity: number): AgentLayout {
     generation,
     offspringCount,
     traits,
+    foodX,
+    foodY,
+    foodEnergy,
+    foodDecay,
     alive,
     action,
     death,
+    foodAlive,
+    foodType,
+    foodDeath,
     byteLength,
   };
 }

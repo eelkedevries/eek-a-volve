@@ -7,6 +7,7 @@ import { createSimulation } from '../core/loop.ts';
 import { DEFAULT_PARAMETERS, type SimulationParameters } from '../core/params.ts';
 import { World } from '../core/world.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
+import { CARRION_RESERVE } from '../core/food.ts';
 import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from '../core/genome.ts';
 import { Rng } from '../core/rng.ts';
 
@@ -35,13 +36,13 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
   it('matches the TypeScript metabolise/reap pass bit-for-bit, in place', () => {
     const p = params({ sexualReproduction: true });
     const a = new World(64, 64);
-    const core = createWasmCore(wasmBytes, 64);
+    const core = createWasmCore(wasmBytes, 64, 64);
     const b = new World(64, 64, core.sharedBuffer); // columns live in shared memory
     seedWorld(a, 50, new Rng(7));
     seedWorld(b, 50, new Rng(7));
 
     const tsDeaths = metaboliseAndReap(a, p);
-    const wasmDeaths = core.metabolism.apply(b, p);
+    const wasmDeaths = core.metabolise(b, p);
 
     expect(wasmDeaths).toBe(tsDeaths);
     for (let s = 0; s < a.agentCapacity; s++) {
@@ -61,7 +62,11 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
       predation: true,
     });
     const ts = createSimulation(p);
-    const wasm = createSimulation(p, undefined, createWasmCore(wasmBytes, MAX_POPULATION));
+    const wasm = createSimulation(
+      p,
+      undefined,
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE),
+    );
 
     for (let i = 0; i < 300; i++) {
       ts.step();
@@ -76,6 +81,18 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
         expect(wasm.world.energy[s]).toBe(ts.world.energy[s]);
         expect(wasm.world.x[s]).toBe(ts.world.x[s]);
         expect(wasm.world.age[s]).toBe(ts.world.age[s]);
+      }
+    }
+
+    // Food state must match too, so carrion decay (062) is verified, not just agents.
+    expect(wasm.world.foodCount).toBe(ts.world.foodCount);
+    expect(wasm.world.carrionCount).toBe(ts.world.carrionCount);
+    for (let f = 0; f < ts.world.foodCapacity; f++) {
+      expect(wasm.world.foodAlive[f]).toBe(ts.world.foodAlive[f]);
+      if (ts.world.foodAlive[f]) {
+        expect(wasm.world.foodType[f]).toBe(ts.world.foodType[f]);
+        expect(wasm.world.foodDecay[f]).toBe(ts.world.foodDecay[f]);
+        expect(wasm.world.foodX[f]).toBe(ts.world.foodX[f]);
       }
     }
   });

@@ -14,7 +14,7 @@ import type { PopulationRecord } from './population.ts';
 import { TRAIT_COUNT, SIZE, clampTrait } from './genome.ts';
 import { metaboliseAndReap, energyCapacity } from './energy.ts';
 import { BRAIN_WEIGHT_COUNT } from './brain.ts';
-import type { MetabolismKernel, WasmCore } from '../wasm/metabolismCore.ts';
+import type { WasmCore } from '../wasm/metabolismCore.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
@@ -68,8 +68,8 @@ export class Simulation {
 
   private prevSpeciesCount = 0;
   private prevNearExtinction = false;
-  /** Optional WebAssembly metabolism core; null on the default (TS) path. */
-  private readonly metabolism: MetabolismKernel | null;
+  /** Optional WebAssembly core; null on the default (TS) path. */
+  private readonly wasm: WasmCore | null;
 
   /** The most recent catastrophe event, if any (for display/narration). */
   get lastEvent(): CatastropheEvent | null {
@@ -82,7 +82,7 @@ export class Simulation {
     wasmCore?: WasmCore,
   ) {
     this.params = params;
-    this.metabolism = wasmCore?.metabolism ?? null;
+    this.wasm = wasmCore ?? null;
     this.rng = new Rng(params.seed);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(MAX_POPULATION, foodCapacity, wasmCore?.sharedBuffer);
@@ -123,9 +123,7 @@ export class Simulation {
     }
     // 4. Metabolism, ageing, death (optionally via the WebAssembly core).
     deaths +=
-      this.metabolism !== null
-        ? this.metabolism.apply(world, params)
-        : metaboliseAndReap(world, params);
+      this.wasm !== null ? this.wasm.metabolise(world, params) : metaboliseAndReap(world, params);
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
     const catastrophe = this.events.last !== null && this.events.last.tick === this.tick;
@@ -134,7 +132,8 @@ export class Simulation {
     }
     // 6. Food regeneration (seasonally modulated) and carrion decay.
     regenerateFood(world, params, rng, this.tick);
-    decayCarrion(world);
+    if (this.wasm !== null) this.wasm.decayCarrion(world);
+    else decayCarrion(world);
     // 6b. Pheromone field decay and diffusion (deterministic; only when enabled).
     if (params.pheromones) this.pheromone.step(params.pheromoneDecay, params.pheromoneDiffusion);
     // 7. Immigration (optional).

@@ -1,38 +1,43 @@
-# Task: WASM carrion-decay and pheromone passes (WASM core, increment 3)
+# Task: shared food SoA + WASM carrion decay (WASM core, increment 3)
 
 ## Goal
 
-Port the two RNG-free per-tick passes — carrion decay (`decayCarrion`) and, when
-enabled, pheromone-field decay/diffusion (`PheromoneField.step`) — to the WASM core,
-operating on shared memory. Default off; TS fallback retained.
+Place the food structure-of-arrays in the shared memory and port carrion decay
+(`decayCarrion`) to the WASM core, operating in place. Default off; TS fallback.
 
-## Context
+## Scope adjustment (from 061's learning)
 
-These passes use only arithmetic and integer ops (no RNG, no transcendentals), so
-they are **bit-identical** in WASM. They build on 061's shared memory. The
-pheromone field is a separate grid (`src/core/pheromone.ts`); to share it it must
-also live in the shared `WebAssembly.Memory` when `wasmCore` is on.
+061 showed each pass needs its state in the shared buffer, and the path to the
+high-value behaviour pass (066) runs through the food SoA (eating, births,
+regrowth) — not the pheromone field, which is optional and off that path. So this
+increment puts the **food columns** in shared memory (foundation for 063 food regen
+and 066 behaviour) and ports the RNG-free carrion-decay pass; **the pheromone pass
+is deferred** (optional, cheap, not on the critical path — revisit after 067).
 
 ## Required changes
 
-1. Add WASM kernels for carrion decay and pheromone decay/diffusion (extend
-   `src/wasm/metabolism.as.ts` or add a sibling `.as.ts`), bit-identical to the TS
-   versions (same operation order and reap/slot side-effect order).
-2. Place the food columns and the pheromone field in shared memory under `wasmCore`
-   so the kernels work in place; keep TS fallbacks.
-3. Wire both into the loop behind the existing `wasmCore` branch.
+1. Extend the shared layout (`src/core/worldLayout.ts`) to a full world layout —
+   agent SoA (061) plus the food columns (foodX, foodY, foodAlive, foodType,
+   foodEnergy, foodDecay) and a food death-scratch — parameterised by foodCapacity.
+   `createWasmCore(bytes, agentCapacity, foodCapacity)` sizes the memory for it;
+   `World` places the food columns as views when a shared buffer is given.
+2. Add a WASM carrion-decay kernel (extend `metabolism.as.ts`): decrement carrion
+   `foodDecay`, mark expired carrion in the scratch; the loop reaps marked food via
+   `killFood` in ascending slot order (matching the TS side-effect order).
+3. Wire it into the loop behind `wasmCore`; keep `decayCarrion` as the TS fallback.
 
 ## Acceptance criteria
 
 - Default run unchanged; existing tests green.
-- With `wasmCore` on, the full-run equivalence test (with carrion and pheromones
-  active) stays **bit-for-bit** identical to the TS core.
+- With `wasmCore` on, the full-run equivalence test (predation on, so carrion is
+  dropped and decays over the run) stays **bit-for-bit** identical to the TS core.
 - `npm run build` and `npm test` pass.
 
 ## Checks
 
-`npm run build`, `npm test`; extend the equivalence test to enable pheromones and
-exercise carrion. Do not commit if equivalence is not met.
+`npm run build`, `npm test`; the existing full-run equivalence test already
+exercises carrion drop + decay over 300 ticks — it is the gate. Do not commit if
+equivalence is not met.
 
 ## Commit and push
 

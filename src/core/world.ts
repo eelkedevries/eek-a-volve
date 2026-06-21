@@ -1,5 +1,5 @@
 import { TRAIT_COUNT } from './genome.ts';
-import { computeAgentLayout } from './worldLayout.ts';
+import { computeWorldLayout } from './worldLayout.ts';
 
 /**
  * Structure-of-arrays world state.
@@ -73,7 +73,7 @@ export class World {
     this.foodCapacity = foodCapacity;
 
     if (sharedBuffer !== undefined) {
-      const L = computeAgentLayout(agentCapacity);
+      const L = computeWorldLayout(agentCapacity, foodCapacity);
       this.x = new Float32Array(sharedBuffer, L.x, agentCapacity);
       this.y = new Float32Array(sharedBuffer, L.y, agentCapacity);
       this.vx = new Float32Array(sharedBuffer, L.vx, agentCapacity);
@@ -88,6 +88,12 @@ export class World {
       this.generation = new Uint32Array(sharedBuffer, L.generation, agentCapacity);
       this.offspringCount = new Uint32Array(sharedBuffer, L.offspringCount, agentCapacity);
       this.action = new Uint8Array(sharedBuffer, L.action, agentCapacity);
+      this.foodX = new Float32Array(sharedBuffer, L.foodX, foodCapacity);
+      this.foodY = new Float32Array(sharedBuffer, L.foodY, foodCapacity);
+      this.foodEnergy = new Float32Array(sharedBuffer, L.foodEnergy, foodCapacity);
+      this.foodDecay = new Uint16Array(sharedBuffer, L.foodDecay, foodCapacity);
+      this.foodAlive = new Uint8Array(sharedBuffer, L.foodAlive, foodCapacity);
+      this.foodType = new Uint8Array(sharedBuffer, L.foodType, foodCapacity);
     } else {
       this.x = new Float32Array(agentCapacity);
       this.y = new Float32Array(agentCapacity);
@@ -103,14 +109,13 @@ export class World {
       this.generation = new Uint32Array(agentCapacity);
       this.offspringCount = new Uint32Array(agentCapacity);
       this.action = new Uint8Array(agentCapacity);
+      this.foodX = new Float32Array(foodCapacity);
+      this.foodY = new Float32Array(foodCapacity);
+      this.foodEnergy = new Float32Array(foodCapacity);
+      this.foodDecay = new Uint16Array(foodCapacity);
+      this.foodAlive = new Uint8Array(foodCapacity);
+      this.foodType = new Uint8Array(foodCapacity);
     }
-
-    this.foodX = new Float32Array(foodCapacity);
-    this.foodY = new Float32Array(foodCapacity);
-    this.foodAlive = new Uint8Array(foodCapacity);
-    this.foodType = new Uint8Array(foodCapacity);
-    this.foodEnergy = new Float32Array(foodCapacity);
-    this.foodDecay = new Uint16Array(foodCapacity);
 
     // Free-lists used as stacks; every slot starts free.
     this.freeAgents = new Int32Array(agentCapacity);

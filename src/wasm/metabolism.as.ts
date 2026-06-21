@@ -51,3 +51,31 @@ export function run(
   }
   return deaths;
 }
+
+/**
+ * Carrion decay, bit-identical to core/food.ts `decayCarrion`: for each live
+ * carrion (type 1), decrement its `foodDecay` (u16); when it reaches 1 or less,
+ * mark it in the death-scratch (the host reaps it via `killFood`, in slot order).
+ * Plants and dead/empty slots are skipped (death-scratch cleared).
+ */
+export function decay(
+  n: i32,
+  aliveOff: i32,
+  typeOff: i32,
+  decayOff: i32,
+  deathOff: i32,
+): void {
+  for (let f: i32 = 0; f < n; f++) {
+    if (load<u8>(aliveOff + f) == 0 || load<u8>(typeOff + f) != 1) {
+      store<u8>(deathOff + f, 0);
+      continue;
+    }
+    const d: u16 = load<u16>(decayOff + (f << 1));
+    if (d <= 1) {
+      store<u8>(deathOff + f, 1);
+    } else {
+      store<u16>(decayOff + (f << 1), d - 1);
+      store<u8>(deathOff + f, 0);
+    }
+  }
+}

@@ -1,10 +1,12 @@
 import type { MainToWorker } from './protocol.ts';
+import type { SimulationParameters } from '../core/params.ts';
 import { createSimulation, type Simulation } from '../core/loop.ts';
 import { serialiseSnapshot, snapshotLength } from '../core/snapshot.ts';
 import { inspectCreature } from '../core/inspect.ts';
 import { resolveFamily } from '../core/lineage.ts';
 import { extractPopulation } from '../core/population.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
+import { CARRION_RESERVE } from '../core/food.ts';
 import { createWasmCore, type WasmCore } from '../wasm/metabolismCore.ts';
 import metabolismWasmUrl from '../wasm/metabolism.wasm?url';
 
@@ -34,11 +36,11 @@ const freeBuffers: ArrayBuffer[] = [];
 let initGen = 0;
 
 /** Load the optional WebAssembly core, or null if off/unsupported/failed. */
-async function loadWasmCore(useWasm: boolean): Promise<WasmCore | null> {
-  if (!useWasm || typeof WebAssembly === 'undefined') return null;
+async function loadWasmCore(params: SimulationParameters): Promise<WasmCore | null> {
+  if (!params.wasmCore || typeof WebAssembly === 'undefined') return null;
   try {
     const bytes = await fetch(metabolismWasmUrl).then((r) => r.arrayBuffer());
-    return createWasmCore(bytes, MAX_POPULATION);
+    return createWasmCore(bytes, MAX_POPULATION, params.foodAbundance + CARRION_RESERVE);
   } catch {
     return null;
   }
@@ -46,7 +48,7 @@ async function loadWasmCore(useWasm: boolean): Promise<WasmCore | null> {
 
 /** Finish initialising the simulation (after any async wasm load) unless superseded. */
 async function setupSim(msg: Extract<MainToWorker, { type: 'init' }>, gen: number): Promise<void> {
-  const wasmCore = await loadWasmCore(msg.params.wasmCore);
+  const wasmCore = await loadWasmCore(msg.params);
   if (gen !== initGen) return; // a reset/init arrived while we were loading
   sim = createSimulation(msg.params, msg.population, wasmCore ?? undefined);
   const bytes = snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
