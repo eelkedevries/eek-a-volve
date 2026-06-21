@@ -1,11 +1,12 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { createMetabolismKernel } from './metabolismCore.ts';
+import { createWasmCore } from './metabolismCore.ts';
 import { metaboliseAndReap } from '../core/energy.ts';
 import { createSimulation } from '../core/loop.ts';
 import { DEFAULT_PARAMETERS, type SimulationParameters } from '../core/params.ts';
 import { World } from '../core/world.ts';
+import { MAX_POPULATION } from '../core/bounds.ts';
 import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from '../core/genome.ts';
 import { Rng } from '../core/rng.ts';
 
@@ -30,27 +31,25 @@ function seedWorld(world: World, n: number, rng: Rng): void {
   }
 }
 
-describe('wasm metabolism kernel', () => {
-  it('matches the TypeScript metabolise/reap pass bit-for-bit', () => {
+describe('wasm metabolism core (zero-copy shared memory)', () => {
+  it('matches the TypeScript metabolise/reap pass bit-for-bit, in place', () => {
     const p = params({ sexualReproduction: true });
     const a = new World(64, 64);
-    const b = new World(64, 64);
+    const core = createWasmCore(wasmBytes, 64);
+    const b = new World(64, 64, core.sharedBuffer); // columns live in shared memory
     seedWorld(a, 50, new Rng(7));
     seedWorld(b, 50, new Rng(7));
 
     const tsDeaths = metaboliseAndReap(a, p);
-    const kernel = createMetabolismKernel(wasmBytes);
-    const wasmDeaths = kernel.apply(b, p);
+    const wasmDeaths = core.metabolism.apply(b, p);
 
     expect(wasmDeaths).toBe(tsDeaths);
     for (let s = 0; s < a.agentCapacity; s++) {
       expect(b.alive[s]).toBe(a.alive[s]);
       expect(b.age[s]).toBe(a.age[s]);
-      // Bit-for-bit equality of the f32 energy after the pass.
-      expect(b.energy[s]).toBe(a.energy[s]);
+      expect(b.energy[s]).toBe(a.energy[s]); // bit-for-bit f32
     }
-    // Carrion was dropped identically (same count, same slots/energies).
-    expect(b.foodEnergy).toEqual(a.foodEnergy);
+    expect(b.foodEnergy).toEqual(a.foodEnergy); // carrion dropped identically
   });
 
   it('reproduces a full run identically with the WASM core vs the TS core', () => {
@@ -62,7 +61,7 @@ describe('wasm metabolism kernel', () => {
       predation: true,
     });
     const ts = createSimulation(p);
-    const wasm = createSimulation(p, undefined, createMetabolismKernel(wasmBytes));
+    const wasm = createSimulation(p, undefined, createWasmCore(wasmBytes, MAX_POPULATION));
 
     for (let i = 0; i < 300; i++) {
       ts.step();

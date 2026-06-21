@@ -14,7 +14,7 @@ import type { PopulationRecord } from './population.ts';
 import { TRAIT_COUNT, SIZE, clampTrait } from './genome.ts';
 import { metaboliseAndReap, energyCapacity } from './energy.ts';
 import { BRAIN_WEIGHT_COUNT } from './brain.ts';
-import type { MetabolismKernel } from '../wasm/metabolismCore.ts';
+import type { MetabolismKernel, WasmCore } from '../wasm/metabolismCore.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
@@ -79,13 +79,13 @@ export class Simulation {
   constructor(
     params: SimulationParameters,
     population?: PopulationRecord[],
-    metabolism?: MetabolismKernel,
+    wasmCore?: WasmCore,
   ) {
     this.params = params;
-    this.metabolism = metabolism ?? null;
+    this.metabolism = wasmCore?.metabolism ?? null;
     this.rng = new Rng(params.seed);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
-    this.world = new World(MAX_POPULATION, foodCapacity);
+    this.world = new World(MAX_POPULATION, foodCapacity, wasmCore?.sharedBuffer);
     this.pheromone = new PheromoneField(params.worldWidth, params.worldHeight, params.pheromoneCellSize);
     this.agentGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, MAX_POPULATION);
     this.foodGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, foodCapacity);
@@ -221,11 +221,11 @@ export class Simulation {
 }
 
 /** Create a fully seeded simulation from a parameter set, optionally from a saved
- *  population and an optional WebAssembly metabolism core (else the TS core runs). */
+ *  population and an optional WebAssembly core (else the TS core runs). */
 export function createSimulation(
   params: SimulationParameters,
   population?: PopulationRecord[],
-  metabolism?: MetabolismKernel,
+  wasmCore?: WasmCore,
 ): Simulation {
-  return new Simulation(params, population, metabolism);
+  return new Simulation(params, population, wasmCore);
 }

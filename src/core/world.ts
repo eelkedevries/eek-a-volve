@@ -1,4 +1,5 @@
 import { TRAIT_COUNT } from './genome.ts';
+import { computeAgentLayout } from './worldLayout.ts';
 
 /**
  * Structure-of-arrays world state.
@@ -61,24 +62,48 @@ export class World {
   private readonly freeFood: Int32Array;
   private freeFoodCount: number;
 
-  constructor(agentCapacity: number, foodCapacity: number) {
+  /**
+   * @param sharedBuffer When given (WASM core on), the agent columns are placed as
+   * views over this shared buffer at the {@link computeAgentLayout} offsets, so the
+   * WASM kernels operate on them in place. Omitted (default), each column is a fresh
+   * typed array exactly as before — the default path is unchanged.
+   */
+  constructor(agentCapacity: number, foodCapacity: number, sharedBuffer?: ArrayBuffer) {
     this.agentCapacity = agentCapacity;
     this.foodCapacity = foodCapacity;
 
-    this.x = new Float32Array(agentCapacity);
-    this.y = new Float32Array(agentCapacity);
-    this.vx = new Float32Array(agentCapacity);
-    this.vy = new Float32Array(agentCapacity);
-    this.energy = new Float32Array(agentCapacity);
-    this.age = new Uint32Array(agentCapacity);
-    this.speciesId = new Int32Array(agentCapacity);
-    this.alive = new Uint8Array(agentCapacity);
-    this.traits = Array.from({ length: TRAIT_COUNT }, () => new Float32Array(agentCapacity));
-    this.id = new Uint32Array(agentCapacity);
-    this.parentId = new Uint32Array(agentCapacity);
-    this.generation = new Uint32Array(agentCapacity);
-    this.offspringCount = new Uint32Array(agentCapacity);
-    this.action = new Uint8Array(agentCapacity);
+    if (sharedBuffer !== undefined) {
+      const L = computeAgentLayout(agentCapacity);
+      this.x = new Float32Array(sharedBuffer, L.x, agentCapacity);
+      this.y = new Float32Array(sharedBuffer, L.y, agentCapacity);
+      this.vx = new Float32Array(sharedBuffer, L.vx, agentCapacity);
+      this.vy = new Float32Array(sharedBuffer, L.vy, agentCapacity);
+      this.energy = new Float32Array(sharedBuffer, L.energy, agentCapacity);
+      this.age = new Uint32Array(sharedBuffer, L.age, agentCapacity);
+      this.speciesId = new Int32Array(sharedBuffer, L.speciesId, agentCapacity);
+      this.alive = new Uint8Array(sharedBuffer, L.alive, agentCapacity);
+      this.traits = L.traits.map((off) => new Float32Array(sharedBuffer, off, agentCapacity));
+      this.id = new Uint32Array(sharedBuffer, L.id, agentCapacity);
+      this.parentId = new Uint32Array(sharedBuffer, L.parentId, agentCapacity);
+      this.generation = new Uint32Array(sharedBuffer, L.generation, agentCapacity);
+      this.offspringCount = new Uint32Array(sharedBuffer, L.offspringCount, agentCapacity);
+      this.action = new Uint8Array(sharedBuffer, L.action, agentCapacity);
+    } else {
+      this.x = new Float32Array(agentCapacity);
+      this.y = new Float32Array(agentCapacity);
+      this.vx = new Float32Array(agentCapacity);
+      this.vy = new Float32Array(agentCapacity);
+      this.energy = new Float32Array(agentCapacity);
+      this.age = new Uint32Array(agentCapacity);
+      this.speciesId = new Int32Array(agentCapacity);
+      this.alive = new Uint8Array(agentCapacity);
+      this.traits = Array.from({ length: TRAIT_COUNT }, () => new Float32Array(agentCapacity));
+      this.id = new Uint32Array(agentCapacity);
+      this.parentId = new Uint32Array(agentCapacity);
+      this.generation = new Uint32Array(agentCapacity);
+      this.offspringCount = new Uint32Array(agentCapacity);
+      this.action = new Uint8Array(agentCapacity);
+    }
 
     this.foodX = new Float32Array(foodCapacity);
     this.foodY = new Float32Array(foodCapacity);

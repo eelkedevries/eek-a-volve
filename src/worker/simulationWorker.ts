@@ -5,7 +5,7 @@ import { inspectCreature } from '../core/inspect.ts';
 import { resolveFamily } from '../core/lineage.ts';
 import { extractPopulation } from '../core/population.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
-import { createMetabolismKernel, type MetabolismKernel } from '../wasm/metabolismCore.ts';
+import { createWasmCore, type WasmCore } from '../wasm/metabolismCore.ts';
 import metabolismWasmUrl from '../wasm/metabolism.wasm?url';
 
 /** Minimal view of the dedicated-worker global, avoiding DOM/WebWorker lib clashes. */
@@ -33,12 +33,12 @@ const freeBuffers: ArrayBuffer[] = [];
 /** Bumped on every init/reset so a slow async wasm load cannot clobber a newer run. */
 let initGen = 0;
 
-/** Load the optional WebAssembly metabolism core, or null if off/unsupported/failed. */
-async function loadMetabolism(useWasm: boolean): Promise<MetabolismKernel | null> {
+/** Load the optional WebAssembly core, or null if off/unsupported/failed. */
+async function loadWasmCore(useWasm: boolean): Promise<WasmCore | null> {
   if (!useWasm || typeof WebAssembly === 'undefined') return null;
   try {
     const bytes = await fetch(metabolismWasmUrl).then((r) => r.arrayBuffer());
-    return createMetabolismKernel(bytes);
+    return createWasmCore(bytes, MAX_POPULATION);
   } catch {
     return null;
   }
@@ -46,9 +46,9 @@ async function loadMetabolism(useWasm: boolean): Promise<MetabolismKernel | null
 
 /** Finish initialising the simulation (after any async wasm load) unless superseded. */
 async function setupSim(msg: Extract<MainToWorker, { type: 'init' }>, gen: number): Promise<void> {
-  const metabolism = await loadMetabolism(msg.params.wasmCore);
+  const wasmCore = await loadWasmCore(msg.params.wasmCore);
   if (gen !== initGen) return; // a reset/init arrived while we were loading
-  sim = createSimulation(msg.params, msg.population, metabolism ?? undefined);
+  sim = createSimulation(msg.params, msg.population, wasmCore ?? undefined);
   const bytes = snapshotLength(MAX_POPULATION, sim.world.foodCapacity) * Float32Array.BYTES_PER_ELEMENT;
   freeBuffers.length = 0;
   freeBuffers.push(new ArrayBuffer(bytes), new ArrayBuffer(bytes));

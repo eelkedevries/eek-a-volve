@@ -5,9 +5,10 @@
 //
 // It mirrors core/energy.ts (`metabolicCost` + the per-agent metabolise/reap
 // arithmetic) bit-for-bit: f64 maths with f32 storage, identical operation order,
-// so a run with the WASM core matches the TypeScript core exactly. The host writes
-// the agent columns into linear memory at the given byte offsets (all 4-byte
-// strided), calls `run`, then reads `energy`/`age` back and reaps the marked dead.
+// so a run with the WASM core matches the TypeScript core exactly. It operates in
+// place on the world's shared columns (see core/worldLayout.ts): the 4-byte columns
+// (energy f32, age u32, traits f32) are addressed at `off + (s << 2)`, and the
+// 1-byte columns (alive, and the death-scratch it writes) at `off + s`.
 
 export function run(
   n: i32,
@@ -26,11 +27,11 @@ export function run(
 ): i32 {
   let deaths: i32 = 0;
   for (let s: i32 = 0; s < n; s++) {
-    const o: i32 = s << 2;
-    if (load<i32>(aliveOff + o) == 0) {
-      store<i32>(deathOff + o, 0);
+    if (load<u8>(aliveOff + s) == 0) {
+      store<u8>(deathOff + s, 0);
       continue;
     }
+    const o: i32 = s << 2;
     const size: f64 = <f64>load<f32>(sizeOff + o);
     const speed: f64 = <f64>load<f32>(speedOff + o);
     const eff: f64 = <f64>load<f32>(effOff + o);
@@ -45,7 +46,7 @@ export function run(
     const age: u32 = load<u32>(ageOff + o) + 1;
     store<u32>(ageOff + o, age);
     const dead: bool = <f64>ef <= 0.0 || age > maxAge;
-    store<i32>(deathOff + o, dead ? 1 : 0);
+    store<u8>(deathOff + s, dead ? 1 : 0);
     if (dead) deaths++;
   }
   return deaths;

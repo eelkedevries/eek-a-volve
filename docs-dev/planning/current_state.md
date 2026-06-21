@@ -87,12 +87,13 @@ This file records what *is* (current reality). The binding design canon is `docs
   self-contained PixiJS scene in a worker via a transferred OffscreenCanvas, with
   a capability check, a ready-handshake, and automatic fallback to the main-thread
   `Renderer`; effects/overlays/director are simplified in that mode.
-  **WASM core** (v0.4.3, experimental, first increment) — `wasmCore` runs the
-  per-tick metabolism/reap pass in an AssemblyScript-compiled wasm kernel
-  (`src/wasm/`, built by `npm run asbuild`), bit-for-bit identical to the TS pass
-  (proven by a full-run equivalence test); capability-gated with automatic TS
-  fallback. Heavy passes still run in TS, so it is a verified foundation, not yet
-  a perf win.
+  **WASM core** (v0.4.3–0.4.4, experimental) — `wasmCore` runs the per-tick
+  metabolism/reap pass in an AssemblyScript-compiled wasm kernel (`src/wasm/`, built
+  by `npm run asbuild`), bit-for-bit identical to the TS pass (proven by a full-run
+  equivalence test); capability-gated with automatic TS fallback. From v0.4.4 the
+  agent SoA lives in shared `WebAssembly.Memory` (`core/worldLayout.ts`) so the
+  kernel runs in place (zero-copy). Heavy passes still run in TS; remaining port is
+  planned in prompts 062–067 (each equivalence-gated).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or
