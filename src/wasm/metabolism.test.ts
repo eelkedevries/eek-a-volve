@@ -204,6 +204,28 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     }
   });
 
+  it('stays identical with neural brains on (behaviour falls back to TS, shared RNG)', () => {
+    const p = params({ seed: 12, initialPopulation: 80, foodAbundance: 350, neuralBrains: true });
+    const ts = createSimulation(p);
+    const wasm = createSimulation(
+      p,
+      undefined,
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE, 24),
+    );
+    for (let i = 0; i < 250; i++) {
+      ts.step();
+      wasm.step();
+    }
+    expect(wasm.world.population).toBe(ts.world.population);
+    for (let s = 0; s < ts.world.agentCapacity; s++) {
+      expect(wasm.world.alive[s]).toBe(ts.world.alive[s]);
+      if (ts.world.alive[s]) {
+        expect(wasm.world.x[s]).toBe(ts.world.x[s]);
+        expect(wasm.world.energy[s]).toBe(ts.world.energy[s]);
+      }
+    }
+  });
+
   it('reproduces a full run identically with the WASM core vs the TS core', () => {
     const p = params({
       seed: 11,
