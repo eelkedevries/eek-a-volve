@@ -267,7 +267,9 @@ async function run(
   // --- Toolbar (one-piece UI at the bottom: tabs + body + play/speed/stats) ---
   const toolbar = createToolbar({
     client,
-    min: params.minTimeMultiplier,
+    // A slower floor than the default 0.25× so the lowest setting is genuinely
+    // slow (~3 ticks/s); respects an even lower value from a share link.
+    min: Math.min(params.minTimeMultiplier, 0.05),
     max: params.maxTimeMultiplier,
     storyLog,
     onOpenDetail: openDetail,

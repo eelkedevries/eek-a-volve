@@ -226,19 +226,25 @@ export function createToolbar(config: ToolbarConfig): Toolbar {
   const speedLabel = document.createElement('span');
   speedLabel.className = 'ev-speed-label';
   speedLabel.textContent = 'Speed';
+  // A logarithmic speed control: equal slider travel changes the multiplier by
+  // equal ratios, so the slow end (down to config.min) gets real, usable range
+  // instead of being crammed into the far-left sliver of a linear slider.
+  const ratio = config.max / config.min;
+  const toMultiplier = (t: number): number => config.min * Math.pow(ratio, t);
+  const toSlider = (m: number): number => Math.log(m / config.min) / Math.log(ratio);
   const speed = document.createElement('input');
   speed.type = 'range';
   speed.className = 'ev-range';
-  speed.min = String(config.min);
-  speed.max = String(config.max);
-  speed.step = '0.05';
-  speed.value = '1';
+  speed.min = '0';
+  speed.max = '1';
+  speed.step = '0.001';
+  speed.value = String(toSlider(1)); // the run starts at 1.00×
   speed.setAttribute('aria-label', 'Speed');
   const speedValue = document.createElement('span');
   speedValue.className = 'ev-speed-value';
   speedValue.textContent = '1.00×';
   speed.addEventListener('input', () => {
-    const multiplier = Number(speed.value);
+    const multiplier = toMultiplier(Number(speed.value));
     config.client.setMultiplier(multiplier);
     speedValue.textContent = `${multiplier.toFixed(2)}×`;
   });
