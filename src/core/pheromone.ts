@@ -26,12 +26,27 @@ export class PheromoneField {
   gradX = 0;
   gradY = 0;
 
-  constructor(width: number, height: number, cellSize: number) {
+  /**
+   * @param shared When given (WASM core on), the field and scratch are views over
+   * the shared memory so the WASM behaviour/diffusion passes work in place;
+   * otherwise they are freshly allocated. Behaviour is identical either way.
+   */
+  constructor(
+    width: number,
+    height: number,
+    cellSize: number,
+    shared?: { field: Float32Array; scratch: Float32Array },
+  ) {
     this.cellSize = cellSize;
     this.cols = Math.max(1, Math.ceil(width / cellSize));
     this.rows = Math.max(1, Math.ceil(height / cellSize));
-    this.field = new Float32Array(this.cols * this.rows);
-    this.scratch = new Float32Array(this.cols * this.rows);
+    if (shared !== undefined) {
+      this.field = shared.field;
+      this.scratch = shared.scratch;
+    } else {
+      this.field = new Float32Array(this.cols * this.rows);
+      this.scratch = new Float32Array(this.cols * this.rows);
+    }
   }
 
   /** Reset the field to empty. */

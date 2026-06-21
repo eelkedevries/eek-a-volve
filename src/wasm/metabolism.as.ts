@@ -279,6 +279,68 @@ let G_CAP: i32 = 0;
 let G_COLS: i32 = 0;
 let G_ROWS: i32 = 0;
 let G_CELL: f64 = 0;
+// Pheromone state (set per behaviourStep call when pheromones are on).
+let G_PHFIELD: i32 = 0;
+let G_PHCOLS: i32 = 0;
+let G_PHROWS: i32 = 0;
+let G_USEPHEROMONES: i32 = 0;
+let G_PHCELL: f64 = 0;
+let G_PHDEPOSIT: f64 = 0;
+let G_phGradX: f64 = 0;
+let G_phGradY: f64 = 0;
+
+/** Pheromone cell index for a world position (clamped to the field bounds). */
+@inline function phCellOf(x: f64, y: f64): i32 {
+  let cx = <i32>Math.floor(x / G_PHCELL);
+  let cy = <i32>Math.floor(y / G_PHCELL);
+  cx = cx < 0 ? 0 : cx > G_PHCOLS - 1 ? G_PHCOLS - 1 : cx;
+  cy = cy < 0 ? 0 : cy > G_PHROWS - 1 ? G_PHROWS - 1 : cy;
+  return cy * G_PHCOLS + cx;
+}
+
+/** Central-difference gradient of the pheromone field at (x, y), into G_phGradX/Y;
+ *  returns |gradX| + |gradY|, mirroring PheromoneField.sampleGradient. */
+function phGradient(x: f64, y: f64): f64 {
+  let cx = <i32>Math.floor(x / G_PHCELL);
+  let cy = <i32>Math.floor(y / G_PHCELL);
+  cx = cx < 0 ? 0 : cx > G_PHCOLS - 1 ? G_PHCOLS - 1 : cx;
+  cy = cy < 0 ? 0 : cy > G_PHROWS - 1 ? G_PHROWS - 1 : cy;
+  const i = cy * G_PHCOLS + cx;
+  const here = <f64>load<f32>(G_PHFIELD + (i << 2));
+  const left = cx > 0 ? <f64>load<f32>(G_PHFIELD + ((i - 1) << 2)) : here;
+  const right = cx < G_PHCOLS - 1 ? <f64>load<f32>(G_PHFIELD + ((i + 1) << 2)) : here;
+  const up = cy > 0 ? <f64>load<f32>(G_PHFIELD + ((i - G_PHCOLS) << 2)) : here;
+  const down = cy < G_PHROWS - 1 ? <f64>load<f32>(G_PHFIELD + ((i + G_PHCOLS) << 2)) : here;
+  G_phGradX = right - left;
+  G_phGradY = down - up;
+  return abs(G_phGradX) + abs(G_phGradY);
+}
+
+/** Pheromone-field decay + diffusion, bit-identical to PheromoneField.step. */
+export function pheromoneStep(
+  fieldOff: i32,
+  scratchOff: i32,
+  cols: i32,
+  rows: i32,
+  decay: f64,
+  diffusion: f64,
+): void {
+  for (let cy = 0; cy < rows; cy++) {
+    const row = cy * cols;
+    for (let cx = 0; cx < cols; cx++) {
+      const i = row + cx;
+      const self = <f64>load<f32>(fieldOff + (i << 2));
+      const left = cx > 0 ? <f64>load<f32>(fieldOff + ((i - 1) << 2)) : self;
+      const right = cx < cols - 1 ? <f64>load<f32>(fieldOff + ((i + 1) << 2)) : self;
+      const up = cy > 0 ? <f64>load<f32>(fieldOff + ((i - cols) << 2)) : self;
+      const down = cy < rows - 1 ? <f64>load<f32>(fieldOff + ((i + cols) << 2)) : self;
+      const mean = (left + right + up + down) * 0.25;
+      store<f32>(scratchOff + (i << 2), <f32>((self + (mean - self) * diffusion) * decay));
+    }
+  }
+  const n = cols * rows;
+  for (let i = 0; i < n; i++) store<f32>(fieldOff + (i << 2), load<f32>(scratchOff + (i << 2)));
+}
 
 @inline function tcol(t: i32): i32 {
   return G_TRAITS0 + t * G_CAP * 4;
@@ -363,6 +425,7 @@ function loadConfig(configOff: i32, cap: i32, cols: i32, rows: i32, cellSize: f6
   G_OUTPUTS = load<i32>(configOff + (34 << 2));
   G_SELFNORM = load<i32>(configOff + (35 << 2));
   G_FREEFOOD = load<i32>(configOff + (36 << 2));
+  G_PHFIELD = load<i32>(configOff + (37 << 2));
   G_CAP = cap;
   G_COLS = cols;
   G_ROWS = rows;
@@ -382,8 +445,18 @@ export function behaviourStep(
   mutationRate: f64,
   mutationMagnitude: f64,
   twoPi: f64,
+  usePheromones: i32,
+  phCols: i32,
+  phRows: i32,
+  phCell: f64,
+  phDeposit: f64,
 ): void {
   loadConfig(configOff, cap, cols, rows, cellSize);
+  G_USEPHEROMONES = usePheromones;
+  G_PHCOLS = phCols;
+  G_PHROWS = phRows;
+  G_PHCELL = phCell;
+  G_PHDEPOSIT = phDeposit;
 
   // Snapshot the agents alive at the start of the tick so newborns wait.
   let n = 0;
@@ -529,6 +602,11 @@ export function behaviourStep(
       dx = <f64>load<f32>(G_FOODX + (bestFood << 2)) - px;
       dy = <f64>load<f32>(G_FOODY + (bestFood << 2)) - py;
       store<u8>(G_ACTION + s, A_SEEKING);
+    } else if (G_USEPHEROMONES != 0 && phGradient(px, py) > 1e-6) {
+      // No food sensed: climb the local pheromone trail.
+      dx = G_phGradX;
+      dy = G_phGradY;
+      store<u8>(G_ACTION + s, A_IDLE);
     } else {
       const angle = rngNext() * twoPi;
       dx = jsCos(angle);
@@ -566,6 +644,10 @@ export function behaviourStep(
         store<f32>(G_ENERGY + (s << 2), <f32>(gained > cap2 ? cap2 : gained));
         wasmKillFood(bestFood);
         store<u8>(G_ACTION + s, A_EATING);
+        if (G_USEPHEROMONES != 0) {
+          const ci = phCellOf(nx, ny);
+          store<f32>(G_PHFIELD + (ci << 2), <f32>(<f64>load<f32>(G_PHFIELD + (ci << 2)) + G_PHDEPOSIT));
+        }
       }
     }
 

@@ -37,7 +37,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
   it('matches the TypeScript metabolise/reap pass bit-for-bit, in place', () => {
     const p = params({ sexualReproduction: true });
     const a = new World(64, 64);
-    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
+    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE, 24);
     const b = new World(64, 64, core.sharedBuffer); // columns live in shared memory
     seedWorld(a, 50, new Rng(7));
     seedWorld(b, 50, new Rng(7));
@@ -55,7 +55,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
   });
 
   it('runs the WASM regen path for default, seasonal, and biome params', () => {
-    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
+    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE, 24);
     const w = new World(64, 64, core.sharedBuffer);
     core.setRng(new Rng(1));
     expect(core.regenerateFood(w, params(), 0)).toBe(true);
@@ -73,7 +73,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
       const wasm = createSimulation(
         p,
         undefined,
-        createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE),
+        createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE, 24),
       );
       for (let i = 0; i < 250; i++) {
         ts.step();
@@ -93,7 +93,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     const wasm = createSimulation(
       p,
       undefined,
-      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE),
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE, 24),
     );
     for (let i = 0; i < 250; i++) {
       ts.step();
@@ -109,7 +109,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
   it('matches the TS breed/breedSexual bit-for-bit (mutation, clamping, freaks, RNG)', () => {
     const p = params({ mutationRate: 0.5, mutationMagnitude: 0.2 });
     for (const sexual of [false, true]) {
-      const core = createWasmCore(wasmBytes, 16, 16, 200, 200, GRID_CELL_SIZE);
+      const core = createWasmCore(wasmBytes, 16, 16, 200, 200, GRID_CELL_SIZE, 24);
       const tsW = new World(16, 16);
       const wW = new World(16, 16, core.sharedBuffer);
       for (let t = 0; t < TRAIT_COUNT; t++) {
@@ -138,10 +138,10 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     }
   });
 
-  it('gates the WASM behaviour pass on no-brains, no-pheromones', () => {
-    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
+  it('gates the WASM behaviour pass on no-brains (pheromones now supported)', () => {
+    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE, 24);
     expect(core.canRunBehaviour(params({ sexualReproduction: true }))).toBe(true);
-    expect(core.canRunBehaviour(params({ pheromones: true }))).toBe(false);
+    expect(core.canRunBehaviour(params({ pheromones: true }))).toBe(true);
     expect(core.canRunBehaviour(params({ neuralBrains: true }))).toBe(false);
   });
 
@@ -159,7 +159,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     const wasm = createSimulation(
       p,
       undefined,
-      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE),
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE, 24),
     );
     for (let i = 0; i < 400; i++) {
       ts.step();
@@ -173,6 +173,34 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
         expect(wasm.world.energy[s]).toBe(ts.world.energy[s]);
         expect(wasm.world.id[s]).toBe(ts.world.id[s]); // immigrant ids match
       }
+    }
+  });
+
+  it('reproduces a pheromone run identically (WASM behaviour deposits + gradient)', () => {
+    const p = params({
+      seed: 8,
+      initialPopulation: 90,
+      foodAbundance: 350,
+      pheromones: true,
+      predation: true,
+    });
+    const ts = createSimulation(p);
+    const wasm = createSimulation(
+      p,
+      undefined,
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE, 24),
+    );
+    for (let i = 0; i < 300; i++) {
+      ts.step();
+      wasm.step();
+    }
+    expect(wasm.world.population).toBe(ts.world.population);
+    // Pheromone field must match too (deposits on eat + decay/diffusion).
+    for (let i = 0; i < ts.pheromone.field.length; i++) {
+      expect(wasm.pheromone.field[i]).toBe(ts.pheromone.field[i]);
+    }
+    for (let s = 0; s < ts.world.agentCapacity; s++) {
+      if (ts.world.alive[s]) expect(wasm.world.x[s]).toBe(ts.world.x[s]);
     }
   });
 
@@ -195,6 +223,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
         p.worldWidth,
         p.worldHeight,
         GRID_CELL_SIZE,
+        24,
       ),
     );
 

@@ -47,6 +47,7 @@ async function loadWasmCore(params: SimulationParameters): Promise<WasmCore | nu
       params.worldWidth,
       params.worldHeight,
       GRID_CELL_SIZE,
+      params.pheromoneCellSize,
     );
   } catch {
     return null;

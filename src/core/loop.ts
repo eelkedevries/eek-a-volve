@@ -87,7 +87,12 @@ export class Simulation {
     this.wasm?.setRng(this.rng);
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(params.maxPopulation, foodCapacity, wasmCore?.sharedBuffer);
-    this.pheromone = new PheromoneField(params.worldWidth, params.worldHeight, params.pheromoneCellSize);
+    this.pheromone = new PheromoneField(
+      params.worldWidth,
+      params.worldHeight,
+      params.pheromoneCellSize,
+      this.wasm?.pheromoneArrays,
+    );
     this.agentGrid = new SpatialGrid(
       params.worldWidth,
       params.worldHeight,
@@ -171,7 +176,10 @@ export class Simulation {
     if (this.wasm !== null) this.wasm.decayCarrion(world);
     else decayCarrion(world);
     // 6b. Pheromone field decay and diffusion (deterministic; only when enabled).
-    if (params.pheromones) this.pheromone.step(params.pheromoneDecay, params.pheromoneDiffusion);
+    if (params.pheromones) {
+      if (this.wasm !== null && this.wasm.canRunBehaviour(params)) this.wasm.pheromoneStep(params);
+      else this.pheromone.step(params.pheromoneDecay, params.pheromoneDiffusion);
+    }
     // 7. Immigration (optional).
     births += immigrate(world, params, rng);
     // 8. Mass die-off (a death spike that was not itself a logged catastrophe).

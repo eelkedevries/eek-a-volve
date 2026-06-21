@@ -94,12 +94,16 @@ export interface WasmCore {
   breed(child: number, parent: number, params: SimulationParameters): boolean;
   /** Sexual inheritance into `child` from parents `a`, `b`; returns whether a freak occurred. */
   breedSexual(child: number, a: number, b: number, params: SimulationParameters): boolean;
-  /** Whether the WASM behaviour pass can run (it omits brains and pheromones). */
+  /** Whether the WASM behaviour pass can run (it omits brains for now). */
   canRunBehaviour(params: SimulationParameters): boolean;
   /** Run the behaviour pass in place; returns births. Fills `newborns`/`freakBirths`. */
   behaviourStep(world: World, params: SimulationParameters): number;
   /** Run the predation pass in place (over the freshly-built agent grid); returns deaths. */
   predationStep(world: World): number;
+  /** Pheromone-field decay/diffusion in place (when pheromones are on). */
+  pheromoneStep(params: SimulationParameters): void;
+  /** Shared pheromone field + scratch; build `new PheromoneField(w, h, cell, these)`. */
+  readonly pheromoneArrays: { field: Float32Array; scratch: Float32Array };
   readonly newborns: Int32Array;
   readonly freakBirths: Int32Array;
   newbornCount: number;
@@ -119,6 +123,20 @@ type BehaviourFn = (
   mutationRate: number,
   mutationMagnitude: number,
   twoPi: number,
+  usePheromones: number,
+  phCols: number,
+  phRows: number,
+  phCell: number,
+  phDeposit: number,
+) => void;
+
+type PheromoneFn = (
+  fieldOff: number,
+  scratchOff: number,
+  cols: number,
+  rows: number,
+  decay: number,
+  diffusion: number,
 ) => void;
 
 type PredationFn = (
@@ -155,12 +173,15 @@ export function createWasmCore(
   worldWidth: number,
   worldHeight: number,
   cellSize: number,
+  pheromoneCellSize: number,
 ): WasmCore {
   const L: WorldLayout = computeWorldLayout(agentCapacity, foodCapacity);
   const cols = Math.max(1, Math.ceil(worldWidth / cellSize));
   const rows = Math.max(1, Math.ceil(worldHeight / cellSize));
   const gridCells = cols * rows;
-  const G = computeGridLayout(L.byteLength, gridCells, agentCapacity, foodCapacity);
+  const phCols = Math.max(1, Math.ceil(worldWidth / pheromoneCellSize));
+  const phRows = Math.max(1, Math.ceil(worldHeight / pheromoneCellSize));
+  const G = computeGridLayout(L.byteLength, gridCells, agentCapacity, foodCapacity, phCols * phRows);
   const memory = new WebAssembly.Memory({ initial: Math.ceil(G.byteLength / PAGE) });
   // The RNG is bound per simulation; the imported `rngNext` advances the active stream.
   let activeRng: Rng | null = null;
@@ -180,6 +201,11 @@ export function createWasmCore(
       jsFertility: (x: number, y: number) => fertilityAt(x, y, fertW, fertH, fertSeed),
     },
   });
+  const pheromoneStepFn = instance.exports.pheromoneStep as PheromoneFn;
+  const pheromoneArrays = {
+    field: new Float32Array(memory.buffer, G.pheromoneField, phCols * phRows),
+    scratch: new Float32Array(memory.buffer, G.pheromoneScratch, phCols * phRows),
+  };
   const run = instance.exports.run as MetaboliseFn;
   const decay = instance.exports.decay as DecayFn;
   const regen = instance.exports.regenFood as RegenFn;
@@ -217,7 +243,7 @@ export function createWasmCore(
     L.foodAlive, L.foodType, L.foodEnergy, G.agentHead, G.agentNext, G.agentItemX,
     G.agentItemY, G.foodHead, G.foodNext, G.foodItemX, G.foodItemY, L.freeAgents,
     L.counts, G.ranges, G.live, G.mated, G.newborns, G.freakBirths, G.outputs,
-    G.selfNorm, L.freeFood,
+    G.selfNorm, L.freeFood, G.pheromoneField,
   ];
   config.set(cfg);
   const newbornsView = new Int32Array(buf, G.newborns, agentCapacity);
@@ -336,13 +362,14 @@ export function createWasmCore(
       );
     },
 
+    pheromoneArrays,
     newborns: newbornsView,
     freakBirths: freakBirthsView,
     newbornCount: 0,
     freakBirthCount: 0,
 
     canRunBehaviour(params: SimulationParameters): boolean {
-      return !params.pheromones && !params.neuralBrains;
+      return !params.neuralBrains;
     },
 
     behaviourStep(world: World, params: SimulationParameters): number {
@@ -360,6 +387,11 @@ export function createWasmCore(
         params.mutationRate,
         params.mutationMagnitude,
         TWO_PI,
+        params.pheromones ? 1 : 0,
+        phCols,
+        phRows,
+        pheromoneCellSize,
+        params.pheromoneDeposit,
       );
       world.readCounts(countsView);
       this.newbornCount = outputsView[1];
@@ -372,6 +404,17 @@ export function createWasmCore(
       const deaths = predationFn(G.config, agentCapacity, cols, rows, cellSize);
       world.readCounts(countsView);
       return deaths;
+    },
+
+    pheromoneStep(params: SimulationParameters): void {
+      pheromoneStepFn(
+        G.pheromoneField,
+        G.pheromoneScratch,
+        phCols,
+        phRows,
+        params.pheromoneDecay,
+        params.pheromoneDiffusion,
+      );
     },
   };
 }

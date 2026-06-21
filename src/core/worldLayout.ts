@@ -139,6 +139,9 @@ export interface GridLayout {
   foodNext: number;
   foodItemX: number;
   foodItemY: number;
+  /** Pheromone field and its diffusion scratch (Float32, `pheromoneCells` each). */
+  pheromoneField: number;
+  pheromoneScratch: number;
   /** Trait ranges as f64 pairs [min0, max0, …] for the mutation kernel. */
   ranges: number;
   /** SPECIES_TRAIT_COUNT f64 scratch for the self-genome (mate compatibility). */
@@ -167,6 +170,7 @@ export function computeGridLayout(
   gridCells: number,
   agentCapacity: number,
   foodCapacity: number,
+  pheromoneCells: number,
 ): GridLayout {
   let o = (base + 3) & ~3;
   const block = (count: number): number => {
@@ -182,6 +186,8 @@ export function computeGridLayout(
   const foodNext = block(foodCapacity);
   const foodItemX = block(foodCapacity);
   const foodItemY = block(foodCapacity);
+  const pheromoneField = block(pheromoneCells);
+  const pheromoneScratch = block(pheromoneCells);
   // f64 regions (8-byte aligned): trait ranges, then the self-genome scratch.
   o = (o + 7) & ~7;
   const ranges = o;
@@ -206,6 +212,8 @@ export function computeGridLayout(
     foodNext,
     foodItemX,
     foodItemY,
+    pheromoneField,
+    pheromoneScratch,
     ranges,
     selfNorm,
     live,
