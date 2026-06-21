@@ -15,6 +15,8 @@ export interface EventList {
 export function createEventList(
   style: 'compact' | 'full',
   onOpen: (event: StoryEvent) => void,
+  /** When set, only the latest N events are shown (the Log tab shows 2). */
+  limit?: number,
 ): EventList {
   const element = document.createElement('div');
   element.className = `ev-eventlist ev-eventlist-${style}`;
@@ -23,7 +25,8 @@ export function createEventList(
     element,
     render: (events): void => {
       element.replaceChildren();
-      for (let i = events.length - 1; i >= 0; i--) {
+      const stop = limit != null ? Math.max(0, events.length - limit) : 0;
+      for (let i = events.length - 1; i >= stop; i--) {
         const event = events[i];
         const line = document.createElement('button');
         line.type = 'button';
@@ -31,23 +34,15 @@ export function createEventList(
         line.style.borderLeftColor = EVENT_COLOUR[event.kind];
         line.addEventListener('click', () => onOpen(event));
 
-        if (style === 'compact') {
-          const text = document.createElement('span');
-          text.className = 'ev-eventline-text';
-          text.textContent = event.text;
-          const meta = document.createElement('span');
-          meta.className = 'ev-eventline-meta';
-          meta.textContent = `${event.clock} · tap for details`;
-          line.append(text, meta);
-        } else {
-          const clock = document.createElement('span');
-          clock.className = 'ev-eventline-clock';
-          clock.textContent = event.clock;
-          const text = document.createElement('span');
-          text.className = 'ev-eventline-text';
-          text.textContent = event.text;
-          line.append(clock, text);
-        }
+        // Both styles are a timestamp beside the message; CSS sizes them (the
+        // compact Log line is single-line with ellipsis; the window line wraps).
+        const clock = document.createElement('span');
+        clock.className = 'ev-eventline-clock';
+        clock.textContent = event.clock;
+        const text = document.createElement('span');
+        text.className = 'ev-eventline-text';
+        text.textContent = event.text;
+        line.append(clock, text);
         element.appendChild(line);
       }
     },

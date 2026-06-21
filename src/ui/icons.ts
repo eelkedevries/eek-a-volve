@@ -56,6 +56,8 @@ const ICONS = {
   director: { body: '<rect x="3.5" y="9" width="17" height="10.5" rx="1.5"/><path d="m3.8 9 2.6-3.4 3.7 2.9M10.1 8.5 12.7 5l3.7 2.9"/>', stroke: 1.8 },
   sound: { body: '<path d="M5 9v6h4l5 4V5L9 9z"/><path d="M16.5 9.5a3.5 3.5 0 010 5"/>', stroke: 1.8 },
   calm: { body: '<path d="M5 19c0-7 5-12 14-13-1 8-5 13-14 13z"/><path d="M9 15c2-3 5-5 8-6"/>', stroke: 1.8 },
+  palette: { body: '<circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="9.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="14.5" r="1.2" fill="currentColor" stroke="none"/>', stroke: 1.8 },
+  quality: { body: '<rect x="4" y="14" width="3.4" height="5" rx="1"/><rect x="10.3" y="10" width="3.4" height="9" rx="1"/><rect x="16.6" y="6" width="3.4" height="13" rx="1"/>', stroke: 1.8 },
   reset: { body: '<path d="M20 11A8 8 0 105.7 6.3M20 4v4h-4"/>', stroke: 1.8 },
   closeAll: { body: '<rect x="4" y="4" width="16" height="16" rx="2.5"/><path d="m9 9 6 6M15 9l-6 6"/>', stroke: 1.8 },
 } satisfies Record<string, IconDef>;

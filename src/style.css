@@ -48,10 +48,8 @@
 
   /* Geometry */
   --edge: 14px;
-  --bar-h: 58px;
-  --panel-w: 322px;
-  --panel-h: 300px;
-  --tw-bottom: calc(var(--bar-h) + var(--edge) + 10px);
+  /* The toolbar's height, published from JS once measured (fallback below). */
+  --toolbar-h: 180px;
 
   /* Radii */
   --r-window: 16px;
@@ -104,10 +102,11 @@ button {
   outline-offset: 2px;
 }
 
-/* Full-bleed canvas stage (the PixiJS renderer mounts here). */
+/* The canvas stage = the "world": fills the screen above the toolbar (the
+   PixiJS renderer mounts here and refits to this box). */
 .ev-stage {
   position: fixed;
-  inset: 0;
+  inset: 0 0 calc(var(--edge) + var(--toolbar-h)) 0;
   z-index: 0;
   background: radial-gradient(125% 120% at 50% 32%, #163b44 0%, #0e2a31 36%, #0a1d23 70%, #07151a 100%);
 }
@@ -521,123 +520,31 @@ button {
   pointer-events: none;
 }
 
-/* --- Control bar (always visible) -------------------------------------- */
+/* --- Toolbar (one attached unit pinned to the bottom) ------------------ */
 
-.ev-controlbar {
+.ev-toolbar {
   pointer-events: auto;
   position: fixed;
   left: var(--edge);
   right: var(--edge);
   bottom: var(--edge);
-  height: var(--bar-h);
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 0 12px;
-  border-radius: 18px;
-  background: rgba(11, 28, 33, 0.86);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  border: 1px solid var(--line-2);
-  box-shadow: var(--shadow-bar);
-}
-.ev-play-btn {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-btn);
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(100deg, #5cff8f, #7dffb0);
-  color: var(--ink);
-  box-shadow: 0 4px 14px rgba(92, 255, 143, 0.35);
-}
-.ev-speed {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.ev-speed-label {
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-.ev-speed .ev-range {
-  flex: 1;
-}
-.ev-speed-value {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--lime);
-  min-width: 42px;
-  text-align: right;
-}
-
-/* --- Toolbar ("message") window ---------------------------------------- */
-
-.ev-toolbar-window {
-  pointer-events: auto;
-  position: fixed;
-  right: var(--edge);
-  bottom: var(--tw-bottom);
-  width: var(--panel-w);
-  height: var(--panel-h);
   z-index: 22;
   display: flex;
   flex-direction: column;
   background: var(--panel-toolbar);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
   border: 1px solid var(--line-2);
   border-radius: var(--r-window);
   overflow: hidden;
-  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-bar), var(--shadow-window);
 }
 
-.ev-pills {
-  display: flex;
-  gap: 4px;
-  padding: 8px 9px 0;
-  flex: none;
-}
-.ev-pill {
-  flex: 1;
-  min-width: 0;
-  padding: 3px 6px;
-  border-radius: var(--r-pill);
-  background: var(--pill);
-  border: 1px solid var(--line);
-  text-align: center;
-}
-.ev-pill-label {
-  font-size: 7.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-.ev-pill-value {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-}
-.ev-pill-gen .ev-pill-value { color: var(--accent); }
-.ev-pill-pop .ev-pill-value { color: var(--text); }
-.ev-pill-species .ev-pill-value { color: var(--cyan); }
-.ev-pill-ticks .ev-pill-value { color: var(--lime); }
-
+/* Tab strip */
 .ev-tabs {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 3px;
-  padding: 7px 9px;
+  gap: 4px;
+  padding: 7px 9px 0;
   flex: none;
 }
 .ev-tab {
@@ -671,50 +578,28 @@ button {
   box-shadow: 0 0 6px var(--lime);
 }
 
+/* Subsection body — a fixed height so the toolbar doesn't jump between tabs. */
 .ev-toolbar-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: none;
+  height: 84px;
+  padding: 6px 9px;
+  overflow: hidden;
 }
 .ev-pane {
-  padding: 6px 12px 14px;
+  height: 100%;
 }
 
-/* Windows + Settings are compacted to fit the toolbar window without scrolling
-   (the Log pane stays the scrollable one). */
-.ev-pane-compact {
+/* Log subsection: a small header + the latest two messages. */
+.ev-pane-log {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 8px 12px 11px;
-}
-.ev-pane-compact .ev-tile {
-  padding: 7px 4px;
   gap: 4px;
 }
-.ev-pane-compact .ev-divider {
-  margin: 2px 0;
-}
-.ev-pane-compact .ev-selects {
-  margin-top: 0;
-}
-.ev-pane-compact .ev-reset-btn {
-  padding: 8px;
-}
-
-.ev-caption {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 600;
-}
-
 .ev-loghead {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 1px 0 6px;
+  flex: none;
 }
 .ev-loghead-dot {
   width: 6px;
@@ -726,9 +611,16 @@ button {
 .ev-loghead-title {
   flex: 1;
 }
+.ev-caption {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
 .ev-icon-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 7px;
   border: none;
   background: rgba(255, 255, 255, 0.06);
@@ -743,26 +635,23 @@ button {
   color: var(--accent);
 }
 
-.ev-divider {
-  height: 1px;
-  background: rgba(124, 255, 170, 0.1);
-  margin: 14px 0 12px;
-}
-
-.ev-tile-grid {
+/* Windows + Settings subsections: a single row of equal buttons. */
+.ev-pane-row {
   display: grid;
-  gap: 7px;
+  gap: 6px;
+  align-content: center;
 }
-.ev-tile-grid-5 { grid-template-columns: repeat(5, 1fr); }
-.ev-tile-grid-3 { grid-template-columns: repeat(3, 1fr); }
-.ev-tile-grid-2 { grid-template-columns: 1fr 1fr; }
+.ev-pane-row-7 { grid-template-columns: repeat(7, 1fr); }
+.ev-pane-row-6 { grid-template-columns: repeat(6, 1fr); }
 
 .ev-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 11px 4px;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 2px;
+  min-width: 0;
   border-radius: var(--r-btn);
   border: 1px solid rgba(124, 255, 170, 0.1);
   background: rgba(8, 24, 28, 0.6);
@@ -771,58 +660,102 @@ button {
   transition: all 0.15s;
 }
 .ev-tile-label {
-  font-size: 10px;
+  max-width: 100%;
+  font-size: 9.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ev-tile.is-active {
   border-color: rgba(92, 255, 143, 0.45);
   background: rgba(92, 255, 143, 0.13);
   color: var(--accent);
 }
-
-.ev-selects {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 9px;
-  margin-top: 9px;
+.ev-tile-danger {
+  border-color: rgba(255, 125, 92, 0.4);
+  background: rgba(255, 125, 92, 0.12);
+  color: var(--danger-2);
 }
-.ev-select {
+.ev-tile-danger:hover {
+  background: rgba(255, 125, 92, 0.2);
+}
+
+/* Bottom row: play/pause + speed + the live stats, attached under the body. */
+.ev-toolbar-bottom {
+  flex: none;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 10px 9px;
+  border-top: 1px solid var(--line);
 }
-.ev-select span {
-  font-size: 10px;
-  color: var(--muted);
-}
-.ev-select select {
-  background: #0c2228;
-  color: var(--text);
-  border: 1px solid var(--line-3);
-  border-radius: var(--r-pill);
-  padding: 6px;
-  font-family: inherit;
-  font-size: 12px;
-}
-
-.ev-reset-btn {
-  width: 100%;
+.ev-play-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-btn);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 11px;
-  border-radius: 11px;
-  border: 1px solid rgba(255, 125, 92, 0.4);
-  background: rgba(255, 125, 92, 0.12);
-  color: var(--danger-2);
-  font-family: var(--font-body);
+  background: linear-gradient(100deg, #5cff8f, #7dffb0);
+  color: var(--ink);
+  box-shadow: 0 4px 14px rgba(92, 255, 143, 0.35);
+}
+.ev-speed {
+  flex: 1 1 auto;
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ev-speed-label {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.ev-speed .ev-range {
+  flex: 1;
+  min-width: 40px;
+}
+.ev-speed-value {
+  font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 600;
-  transition: background 0.15s;
+  color: var(--lime);
+  min-width: 46px;
+  text-align: right;
 }
-.ev-reset-btn:hover {
-  background: rgba(255, 125, 92, 0.2);
+.ev-stats {
+  flex: none;
+  display: flex;
+  gap: 5px;
 }
+.ev-stat {
+  min-width: 0;
+  padding: 4px 7px;
+  border-radius: var(--r-pill);
+  background: var(--pill);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+.ev-stat-label {
+  font-size: 7.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.ev-stat-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.ev-stat-gen .ev-stat-value { color: var(--accent); }
+.ev-stat-pop .ev-stat-value { color: var(--text); }
+.ev-stat-species .ev-stat-value { color: var(--cyan); }
+.ev-stat-ticks .ev-stat-value { color: var(--lime); }
 
 /* --- Event list + detail ----------------------------------------------- */
 
@@ -845,11 +778,20 @@ button {
 .ev-eventline:hover {
   background: rgba(124, 255, 170, 0.11);
 }
+/* Compact (Log tab): one ellipsised line per message. */
 .ev-eventlist-compact .ev-eventline {
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px 9px;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 9px;
 }
+.ev-eventlist-compact .ev-eventline-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Full (Story-log window): the message wraps. */
 .ev-eventlist-full .ev-eventline {
   align-items: baseline;
   gap: 10px;
@@ -863,11 +805,6 @@ button {
 .ev-eventlist-full .ev-eventline-text {
   font-size: 13px;
   flex: 1;
-}
-.ev-eventline-meta {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--dim-2);
 }
 .ev-eventline-clock {
   font-family: var(--font-mono);
@@ -1301,7 +1238,7 @@ button {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(var(--bar-h) + var(--edge) + 18px);
+  bottom: calc(var(--edge) + var(--toolbar-h) + 12px);
   z-index: 35;
   padding: 9px 16px;
   border-radius: 99px;
@@ -1402,48 +1339,18 @@ button {
 @media (max-width: 859px) {
   :root {
     --edge: 8px;
-    --panel-h: 230px;
   }
 
-  .ev-toolbar-window {
-    left: var(--edge);
-    right: var(--edge);
-    width: auto;
-  }
-
-  /* Floating windows stack vertically in the top half above the toolbar window. */
-  .ev-window-layer.is-mobile {
-    inset: auto;
-    left: var(--edge);
-    right: var(--edge);
-    top: 50vh;
-    bottom: calc(var(--tw-bottom) + var(--panel-h) + 10px);
-    display: flex;
-    flex-direction: column;
+  /* The toolbar is full-width already; the bottom row tightens to fit. */
+  .ev-toolbar-bottom {
     gap: 8px;
+    padding: 7px 8px 9px;
   }
-  .ev-window-layer.is-mobile .ev-window {
-    flex: 1 1 0;
-    min-height: 64px;
-    width: 100%;
-  }
-  /* Size buttons in the stack: a small window is a strip, large is taller,
-     maximise fills the stack — so the controls still do something visible. */
-  .ev-window-layer.is-mobile .ev-window[data-size='s'] {
-    flex-grow: 1;
-    max-height: 40%;
-  }
-  .ev-window-layer.is-mobile .ev-window[data-size='l'] {
-    flex-grow: 2.4;
-    max-height: 66%;
-  }
-  .ev-window-layer.is-mobile .ev-window[data-size='m'] {
-    flex-grow: 6;
-    max-height: none;
+  .ev-stat {
+    padding: 4px 5px;
   }
 
   /* Prevent iOS from zooming when a small form control is focused. */
-  .ev-select select,
   .ev-setup-card input,
   .ev-setup-card select {
     font-size: 16px;

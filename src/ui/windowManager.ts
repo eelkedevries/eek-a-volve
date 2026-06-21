@@ -67,8 +67,8 @@ export interface WindowManager {
   closeAll(): void;
   isOpen(id: WinId): boolean;
   openIds(): WinId[];
-  /** Re-tile (call on viewport resize or orientation change). */
-  relayout(mobile: boolean): void;
+  /** Re-tile against the current toolbar height (call on resize / toolbar resize). */
+  relayout(toolbarHeight: number): void;
 }
 
 /** Rectangle for an anchor quadrant at a given size class within the tiling area. */
@@ -99,7 +99,7 @@ function sizeRect(area: Rect & { gap: number }, anchor: Anchor, size: WinSize): 
  * quadrant (25%), a half (50%), or the whole area (100%), or dismissed. No drag.
  * Window body elements are created once by their content components and
  * reparented in and out, so their live `update` methods keep working across
- * open/close. On mobile the frames stack vertically via CSS instead of tiling.
+ * open/close. Two small windows tile side by side at every width.
  */
 export function createWindowManager(config: WindowManagerConfig): WindowManager {
   const element = document.createElement('div');
@@ -108,7 +108,7 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
   const order: WinId[] = [];
   const sizes = new Map<WinId, WinSize>();
   const frames = new Map<WinId, Frame>();
-  let mobile = false;
+  let toolbarHeight = 0;
 
   function buildFrame(id: WinId): Frame {
     const meta = WINMETA[id];
@@ -136,8 +136,8 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
       return button;
     };
     const small = sizeButton('s', 'sizeSmall', 'Small (25%)');
-    const large = sizeButton('l', 'sizeLarge', 'Large (50%)');
-    const max = sizeButton('m', 'sizeMax', 'Maximise (100%)');
+    const medium = sizeButton('l', 'sizeLarge', 'Medium (50%)');
+    const large = sizeButton('m', 'sizeMax', 'Large (100%)');
 
     const close = document.createElement('button');
     close.className = 'ev-winbtn ev-winbtn-close';
@@ -146,14 +146,14 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
     close.appendChild(icon('close', 14));
     close.addEventListener('click', () => closeWindow(id));
 
-    head.append(typeIcon, title, small, large, max, close);
+    head.append(typeIcon, title, small, medium, large, close);
 
     const body = document.createElement('div');
     body.className = 'ev-window-body ev-scroll';
     body.appendChild(config.bodies[id]);
 
     el.append(head, body);
-    return { id, el, body, sizeButtons: { s: small, l: large, m: max } };
+    return { id, el, body, sizeButtons: { s: small, l: medium, m: large } };
   }
 
   function setSize(id: WinId, size: WinSize): void {
@@ -202,20 +202,7 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
   }
 
   function layout(): void {
-    if (mobile) {
-      // Portrait: frames stack vertically via CSS flex; clear desktop positioning.
-      for (const id of order) {
-        const frame = frames.get(id);
-        if (frame === undefined) continue;
-        const el = frame.el;
-        el.style.position = '';
-        el.style.left = el.style.top = el.style.width = el.style.height = '';
-        el.style.zIndex = '';
-        markActive(frame);
-      }
-      return;
-    }
-    const area = windowArea(false);
+    const area = windowArea(toolbarHeight);
     order.forEach((id, i) => {
       const frame = frames.get(id);
       if (frame === undefined) return;
@@ -227,7 +214,7 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
       el.style.top = `${rect.top}px`;
       el.style.width = `${rect.width}px`;
       el.style.height = `${rect.height}px`;
-      // Newest highest, but always below the toolbar window (z-index 22).
+      // Newest highest, but always below the toolbar (z-index 22).
       el.style.zIndex = String(16 + (order.length - i));
       markActive(frame);
     });
@@ -235,8 +222,6 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
 
   function markActive(frame: Frame): void {
     const size = sizes.get(frame.id) ?? 's';
-    // Drives the mobile stack sizing (CSS targets [data-size]); harmless on desktop.
-    frame.el.dataset.size = size;
     for (const key of ['s', 'l', 'm'] as WinSize[]) {
       frame.sizeButtons[key].classList.toggle('is-active', key === size);
     }
@@ -256,9 +241,8 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
     },
     isOpen: (id): boolean => order.includes(id),
     openIds: (): WinId[] => [...order],
-    relayout: (isMobile): void => {
-      mobile = isMobile;
-      element.classList.toggle('is-mobile', mobile);
+    relayout: (height): void => {
+      toolbarHeight = height;
       layout();
       for (const id of order) config.onResize?.(id);
     },

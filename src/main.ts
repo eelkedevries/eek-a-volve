@@ -1,7 +1,6 @@
 import './style.css';
 import { createSetupScreen } from './ui/setupScreen.ts';
-import { createControlBar } from './ui/controls.ts';
-import { createToolbarWindow } from './ui/toolbarWindow.ts';
+import { createToolbar } from './ui/toolbar.ts';
 import { createWindowManager, type WinId } from './ui/windowManager.ts';
 import { createStoryLog, type StoryEvent } from './ui/storyLog.ts';
 import { createEventList, createEventDetail } from './ui/eventViews.ts';
@@ -12,7 +11,6 @@ import { createFamilyPanel } from './ui/family.ts';
 import { createMinimap } from './ui/minimap.ts';
 import { createLegend } from './ui/legend.ts';
 import { icon } from './ui/icons.ts';
-import { MOBILE_BREAKPOINT } from './ui/layout.ts';
 import { Milestones } from './humour/milestones.ts';
 import { SimulationClient } from './worker/client.ts';
 import { Renderer, PALETTES } from './render/renderer.ts';
@@ -183,8 +181,11 @@ async function run(
     else openWindow(id);
   }
 
-  // --- Toolbar ("message") window ---
-  const toolbar = createToolbarWindow({
+  // --- Toolbar (one-piece UI at the bottom: tabs + body + play/speed/stats) ---
+  const toolbar = createToolbar({
+    client,
+    min: params.minTimeMultiplier,
+    max: params.maxTimeMultiplier,
     storyLog,
     onOpenDetail: openDetail,
     onMaximiseLog: () => openWindow('eventlog'),
@@ -205,13 +206,6 @@ async function run(
     onQuality: (level) => surface.setQuality(level),
   });
 
-  // --- Control bar ---
-  const controlBar = createControlBar({
-    client,
-    min: params.minTimeMultiplier,
-    max: params.maxTimeMultiplier,
-  });
-
   // --- First-run hint ("tap a critter to meet it") ---
   const hint = document.createElement('div');
   hint.className = 'ev-hint';
@@ -226,7 +220,7 @@ async function run(
   // --- HUD layer (pointer-events: none; interactive children re-enable) ---
   const hud = document.createElement('div');
   hud.className = 'ev-hud';
-  hud.append(hint, wm.element, toolbar.element, controlBar);
+  hud.append(hint, wm.element, toolbar.element);
 
   // --- Show-UI button (visible only while the HUD is hidden) ---
   const showUIBtn = document.createElement('button');
@@ -242,11 +236,14 @@ async function run(
     uiHidden = true;
     hud.style.display = 'none';
     showUIBtn.style.display = '';
+    // Toolbar height now measures 0, so the world (stage) reclaims the screen.
+    window.dispatchEvent(new Event('resize'));
   }
   function showUI(): void {
     uiHidden = false;
     hud.style.display = '';
     showUIBtn.style.display = 'none';
+    window.dispatchEvent(new Event('resize'));
     if (inspectId !== -1) openWindow('inspector');
   }
 
@@ -285,11 +282,19 @@ async function run(
 
   mount.append(hud, showUIBtn, modal);
 
-  // The HUD floats over a full-bleed canvas; nudge PixiJS (which only resizes on
-  // window events) to refit, and tile the windows for the current orientation.
-  const relayout = (): void => wm.relayout(window.innerWidth < MOBILE_BREAKPOINT);
+  // The windows tile the "world" — the area above the toolbar — so re-tile from
+  // the toolbar's measured height whenever it (or the viewport) changes, and
+  // publish that height to CSS so the hint sits just above the toolbar.
+  const relayout = (): void => {
+    const h = toolbar.element.offsetHeight;
+    document.documentElement.style.setProperty('--toolbar-h', `${h}px`);
+    wm.relayout(h);
+  };
   relayout();
   window.addEventListener('resize', relayout);
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(relayout).observe(toolbar.element);
+  }
   requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 
   // --- Worker handlers ---

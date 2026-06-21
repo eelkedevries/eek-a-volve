@@ -1,31 +1,19 @@
 /**
- * Shared HUD geometry (design handoff: "Layout model" + "Spacing"). The window
- * manager and the toolbar ("message") window both derive their fixed positions
- * from these constants, so the floating-window tiling area always lines up
- * exactly above the control bar and beside the toolbar window.
+ * Shared HUD geometry. The floating-window manager tiles the **world** (the area
+ * above the toolbar) using the toolbar's measured height, so the windows always
+ * line up just above the one-piece toolbar pinned to the bottom.
  */
 
-/** Control bar height (px). */
-export const BAR_H = 58;
 /** Safe-area edge inset: 14px desktop, 8px mobile. */
 export const EDGE_DESKTOP = 14;
 export const EDGE_MOBILE = 8;
-/** Toolbar ("message") window size — desktop is fixed; mobile spans the width. */
-export const PANEL_DESK_W = 322;
-export const PANEL_DESK_H = 300;
-export const PANEL_MOBILE_H = 230;
-/** Gutter between tiled windows. */
+/** Gutter between tiled windows, and the gap between the world and the toolbar. */
 export const GAP = 8;
-/** Below this viewport width the HUD switches to its portrait stack. */
+/** Below this viewport width the edge inset tightens (still tile, never stack). */
 export const MOBILE_BREAKPOINT = 860;
 
-export function edge(mobile: boolean): number {
-  return mobile ? EDGE_MOBILE : EDGE_DESKTOP;
-}
-
-/** Distance from the viewport bottom to the toolbar window's lower edge. */
-export function toolbarWindowBottom(mobile: boolean): number {
-  return BAR_H + edge(mobile) + 10;
+export function edge(): number {
+  return window.innerWidth < MOBILE_BREAKPOINT ? EDGE_MOBILE : EDGE_DESKTOP;
 }
 
 export interface Rect {
@@ -35,14 +23,14 @@ export interface Rect {
   height: number;
 }
 
-/** The rectangle the floating windows tile within (above the control bar). */
-export function windowArea(mobile: boolean): Rect & { gap: number } {
-  const e = edge(mobile);
+/** The world rectangle the floating windows tile within (above the toolbar). */
+export function windowArea(toolbarHeight: number): Rect & { gap: number } {
+  const e = edge();
   return {
     left: e,
     top: e,
     width: window.innerWidth - 2 * e,
-    height: window.innerHeight - 3 * e - (BAR_H + 10),
+    height: Math.max(0, window.innerHeight - 2 * e - toolbarHeight - 10),
     gap: GAP,
   };
 }

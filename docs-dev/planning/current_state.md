@@ -42,27 +42,30 @@ This file records what *is* (current reality). The binding design canon is `docs
   **auto-director** with screen-space nameplates, and selectable species
   **palettes** (incl. colour-blind-safe). Food is drawn by type (plant/carrion).
 - **UI (`src/ui/`)** — the chrome is a set of `position: fixed` layers over the
-  full-bleed PixiJS canvas (no page scroll), rebuilt from a design hand-off
-  ("UI / visuals refresh"). It has three regions: a 58px **control bar**
-  (play/pause + speed only); a **toolbar ("message") window** with live stat
-  **pills** (Gen/Pop/Species/Ticks) and a **Log / Windows / Settings** tab strip
-  over the one always-present scroll body; and a **floating-window manager**
-  (`windowManager.ts`) that tiles up to four uniform, resizable windows
-  (Small 25% / Large 50% / Maximise 100% / Close) into a 2×2 grid by open order,
-  stacking vertically on mobile. Window bodies: **Inspector** (adopt/follow),
-  **Legend**, **Records** (hall of fame), **Charts**, **Family** (lineage),
-  **Map** (recentres the camera), **Story-log**, and **Event-detail**. The story
-  log (`storyLog.ts`) is the shared event store behind the Log tab, the Story-log
-  window, and Event-detail. Icons are a shared inline-SVG set (`icons.ts`) — no
-  emoji in chrome. Settings expose director, sound, "Calm" (reduced motion),
-  palette, and quality; **Hide UI** clears the chrome behind a single restore
-  button; **Reset** goes through a confirm modal back to setup. The **setup
-  screen** has Community/Swarm preset cards, three core sliders, four behaviour
-  chips, and a tabbed "advanced soup chemistry" panel, all bound to the real
-  `params.ts`; it can **copy a share link** (`#w=…`) and **resume** from a saved
-  population file. (The refresh dropped the old overlay-cycle, colour-mode,
-  population-export, and AI-narrator controls from the running HUD; palette and
-  quality bind to the real renderer options.)
+  PixiJS canvas (no page scroll). The **toolbar** (`toolbar.ts`) is one attached
+  unit pinned to the bottom: a **Log / Windows / Settings** tab strip over the
+  active subsection, and an attached **bottom row** with play/pause, the speed
+  adjuster, and the live **stats** (Gen/Pop/Species/Ticks). **Log** shows the
+  latest two messages (maximise opens the full Story-log window); **Windows** is
+  one row of seven buttons (Legend, Records, Charts, Family, Map, Close all, Hide
+  UI); **Settings** is one row of six (Director, Sound, Calm, Palette, Quality,
+  Reset). The **world** is the area above the toolbar (the live sim); the canvas
+  stage is inset to it. A **floating-window manager** (`windowManager.ts`) tiles
+  up to four uniform, resizable windows over the world by open order — **Small
+  (25%)** = a quarter (two sit side by side), **Medium (50%)** = full-width half,
+  **Large (100%)** = the whole world, **Close**. Window bodies: Inspector
+  (adopt/follow), Legend, Records, Charts, Family, Map (recentres the camera),
+  Story-log, Event-detail. The story log (`storyLog.ts`) is the shared event
+  store behind the Log tab, the Story-log window, and Event-detail. Icons are a
+  shared inline-SVG set (`icons.ts`) — no emoji in chrome. **Hide UI** clears the
+  chrome behind a single restore button; **Reset** goes through a confirm modal
+  back to setup. The **setup screen** has Community/Swarm preset cards, three
+  core sliders, four behaviour chips, and a tabbed "advanced soup chemistry"
+  panel, all bound to the real `params.ts`; it can **copy a share link** (`#w=…`)
+  and **resume** from a saved population file. Shared UI naming lives in
+  `docs-dev/reference/ui_vocabulary.md`. (The refresh dropped the old
+  overlay-cycle, colour-mode, population-export, and AI-narrator controls from
+  the running HUD; palette and quality bind to the real renderer options.)
 - **Humour + narrator (`src/humour/`, `src/narrator/`)** — mock-Latin binomials,
   silly individual names, milestone/extinction/obituary lines, and the optional
   OpenRouter narrator with a templated fallback (key stored in-browser; never
