@@ -19,7 +19,7 @@ import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.
 import { MAX_POPULATION, spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
 
 /** Spatial-grid cell size; a few times the typical sense radius keeps queries cheap. */
-const GRID_CELL_SIZE = 32;
+export const GRID_CELL_SIZE = 32;
 
 /** Re-cluster species every this many ticks (labels only; not every tick). */
 const SPECIATION_INTERVAL = 60;
@@ -88,8 +88,20 @@ export class Simulation {
     const foodCapacity = params.foodAbundance + CARRION_RESERVE;
     this.world = new World(MAX_POPULATION, foodCapacity, wasmCore?.sharedBuffer);
     this.pheromone = new PheromoneField(params.worldWidth, params.worldHeight, params.pheromoneCellSize);
-    this.agentGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, MAX_POPULATION);
-    this.foodGrid = new SpatialGrid(params.worldWidth, params.worldHeight, GRID_CELL_SIZE, foodCapacity);
+    this.agentGrid = new SpatialGrid(
+      params.worldWidth,
+      params.worldHeight,
+      GRID_CELL_SIZE,
+      MAX_POPULATION,
+      this.wasm?.agentGridArrays,
+    );
+    this.foodGrid = new SpatialGrid(
+      params.worldWidth,
+      params.worldHeight,
+      GRID_CELL_SIZE,
+      foodCapacity,
+      this.wasm?.foodGridArrays,
+    );
     this.behaviour = new Behaviour(MAX_POPULATION);
     this.predation = new Predation();
     this.speciation = new Speciation();

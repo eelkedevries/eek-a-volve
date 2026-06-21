@@ -126,3 +126,51 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
     byteLength,
   };
 }
+
+/** Byte offsets of the two spatial grids' backing arrays in the shared memory,
+ *  laid out after the world SoA (`base` = its byteLength). */
+export interface GridLayout {
+  agentHead: number;
+  agentNext: number;
+  agentItemX: number;
+  agentItemY: number;
+  foodHead: number;
+  foodNext: number;
+  foodItemX: number;
+  foodItemY: number;
+  byteLength: number;
+}
+
+/** Lay out the agent and food grids (all Int32/Float32, 4-byte) from `base`. */
+export function computeGridLayout(
+  base: number,
+  gridCells: number,
+  agentCapacity: number,
+  foodCapacity: number,
+): GridLayout {
+  let o = (base + 3) & ~3;
+  const block = (count: number): number => {
+    const at = o;
+    o += count * 4;
+    return at;
+  };
+  const agentHead = block(gridCells);
+  const agentNext = block(agentCapacity);
+  const agentItemX = block(agentCapacity);
+  const agentItemY = block(agentCapacity);
+  const foodHead = block(gridCells);
+  const foodNext = block(foodCapacity);
+  const foodItemX = block(foodCapacity);
+  const foodItemY = block(foodCapacity);
+  return {
+    agentHead,
+    agentNext,
+    agentItemX,
+    agentItemY,
+    foodHead,
+    foodNext,
+    foodItemX,
+    foodItemY,
+    byteLength: (o + 3) & ~3,
+  };
+}

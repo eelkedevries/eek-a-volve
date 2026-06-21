@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createWasmCore } from './metabolismCore.ts';
 import { metaboliseAndReap } from '../core/energy.ts';
-import { createSimulation } from '../core/loop.ts';
+import { createSimulation, GRID_CELL_SIZE } from '../core/loop.ts';
 import { DEFAULT_PARAMETERS, type SimulationParameters } from '../core/params.ts';
 import { World } from '../core/world.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
@@ -36,7 +36,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
   it('matches the TypeScript metabolise/reap pass bit-for-bit, in place', () => {
     const p = params({ sexualReproduction: true });
     const a = new World(64, 64);
-    const core = createWasmCore(wasmBytes, 64, 64);
+    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
     const b = new World(64, 64, core.sharedBuffer); // columns live in shared memory
     seedWorld(a, 50, new Rng(7));
     seedWorld(b, 50, new Rng(7));
@@ -54,7 +54,7 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
   });
 
   it('takes the WASM regen path for default params and falls back for biome/season', () => {
-    const core = createWasmCore(wasmBytes, 64, 64);
+    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
     const w = new World(64, 64, core.sharedBuffer);
     core.setRng(new Rng(1));
     expect(core.regenerateFood(w, params())).toBe(true);
@@ -74,7 +74,14 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     const wasm = createSimulation(
       p,
       undefined,
-      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE),
+      createWasmCore(
+        wasmBytes,
+        MAX_POPULATION,
+        p.foodAbundance + CARRION_RESERVE,
+        p.worldWidth,
+        p.worldHeight,
+        GRID_CELL_SIZE,
+      ),
     );
 
     for (let i = 0; i < 300; i++) {

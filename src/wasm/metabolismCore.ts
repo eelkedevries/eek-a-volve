@@ -4,7 +4,12 @@ import type { SimulationParameters } from '../core/params.ts';
 import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from '../core/genome.ts';
 import { DISPLAY_COST, MAX_AGE } from '../core/energy.ts';
 import { dropCarrion, PLANT_ENERGY } from '../core/food.ts';
-import { computeWorldLayout, COUNTS_LENGTH, type WorldLayout } from '../core/worldLayout.ts';
+import {
+  computeWorldLayout,
+  computeGridLayout,
+  COUNTS_LENGTH,
+  type WorldLayout,
+} from '../core/worldLayout.ts';
 
 /**
  * Optional WebAssembly core (spec v0.4.4+, default off). The world SoA lives in a
@@ -59,10 +64,21 @@ type RegenFn = (
   countsOff: number,
 ) => void;
 
+/** Shared backing arrays for a spatial grid (views over the WASM core's memory). */
+export interface GridArrays {
+  head: Int32Array;
+  next: Int32Array;
+  itemX: Float32Array;
+  itemY: Float32Array;
+}
+
 /** A constructed WASM core: the shared buffer the world is built over, plus passes. */
 export interface WasmCore {
   /** Backing buffer for the world SoA; pass to `new World(cap, foodCap, sharedBuffer)`. */
   readonly sharedBuffer: ArrayBuffer;
+  /** Shared grid arrays; build `new SpatialGrid(w, h, cell, cap, theseArrays)` over them. */
+  readonly agentGridArrays: GridArrays;
+  readonly foodGridArrays: GridArrays;
   /** Bind the simulation RNG so WASM passes draw from the same stream. */
   setRng(rng: Rng): void;
   /** Metabolism + reap for every live agent, in place; returns the death count. */
@@ -83,9 +99,16 @@ export function createWasmCore(
   bytes: BufferSource,
   agentCapacity: number,
   foodCapacity: number,
+  worldWidth: number,
+  worldHeight: number,
+  cellSize: number,
 ): WasmCore {
   const L: WorldLayout = computeWorldLayout(agentCapacity, foodCapacity);
-  const memory = new WebAssembly.Memory({ initial: Math.ceil(L.byteLength / PAGE) });
+  const cols = Math.max(1, Math.ceil(worldWidth / cellSize));
+  const rows = Math.max(1, Math.ceil(worldHeight / cellSize));
+  const gridCells = cols * rows;
+  const G = computeGridLayout(L.byteLength, gridCells, agentCapacity, foodCapacity);
+  const memory = new WebAssembly.Memory({ initial: Math.ceil(G.byteLength / PAGE) });
   // The RNG is bound per simulation; the imported `rngNext` advances the active stream.
   let activeRng: Rng | null = null;
   const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
@@ -97,9 +120,24 @@ export function createWasmCore(
   const deathView = new Uint8Array(memory.buffer, L.death, agentCapacity);
   const foodDeathView = new Uint8Array(memory.buffer, L.foodDeath, foodCapacity);
   const countsView = new Int32Array(memory.buffer, L.counts, COUNTS_LENGTH);
+  const buf = memory.buffer;
+  const agentGridArrays: GridArrays = {
+    head: new Int32Array(buf, G.agentHead, gridCells),
+    next: new Int32Array(buf, G.agentNext, agentCapacity),
+    itemX: new Float32Array(buf, G.agentItemX, agentCapacity),
+    itemY: new Float32Array(buf, G.agentItemY, agentCapacity),
+  };
+  const foodGridArrays: GridArrays = {
+    head: new Int32Array(buf, G.foodHead, gridCells),
+    next: new Int32Array(buf, G.foodNext, foodCapacity),
+    itemX: new Float32Array(buf, G.foodItemX, foodCapacity),
+    itemY: new Float32Array(buf, G.foodItemY, foodCapacity),
+  };
 
   return {
     sharedBuffer: memory.buffer as ArrayBuffer,
+    agentGridArrays,
+    foodGridArrays,
 
     setRng(rng: Rng): void {
       activeRng = rng;

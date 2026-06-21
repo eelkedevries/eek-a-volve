@@ -6,6 +6,7 @@ import { inspectCreature } from '../core/inspect.ts';
 import { resolveFamily } from '../core/lineage.ts';
 import { extractPopulation } from '../core/population.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
+import { GRID_CELL_SIZE } from '../core/loop.ts';
 import { CARRION_RESERVE } from '../core/food.ts';
 import { createWasmCore, type WasmCore } from '../wasm/metabolismCore.ts';
 import metabolismWasmUrl from '../wasm/metabolism.wasm?url';
@@ -40,7 +41,14 @@ async function loadWasmCore(params: SimulationParameters): Promise<WasmCore | nu
   if (!params.wasmCore || typeof WebAssembly === 'undefined') return null;
   try {
     const bytes = await fetch(metabolismWasmUrl).then((r) => r.arrayBuffer());
-    return createWasmCore(bytes, MAX_POPULATION, params.foodAbundance + CARRION_RESERVE);
+    return createWasmCore(
+      bytes,
+      MAX_POPULATION,
+      params.foodAbundance + CARRION_RESERVE,
+      params.worldWidth,
+      params.worldHeight,
+      GRID_CELL_SIZE,
+    );
   } catch {
     return null;
   }

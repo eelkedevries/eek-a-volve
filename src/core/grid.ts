@@ -18,14 +18,32 @@ export class SpatialGrid {
   private readonly itemX: Float32Array;
   private readonly itemY: Float32Array;
 
-  constructor(width: number, height: number, cellSize: number, capacity: number) {
+  /**
+   * @param shared When given (WASM core on), the backing arrays are views over the
+   * shared memory so a WASM behaviour pass can query the grid in place; otherwise
+   * they are freshly allocated. Build and query are identical either way.
+   */
+  constructor(
+    width: number,
+    height: number,
+    cellSize: number,
+    capacity: number,
+    shared?: { head: Int32Array; next: Int32Array; itemX: Float32Array; itemY: Float32Array },
+  ) {
     this.cellSize = cellSize;
     this.cols = Math.max(1, Math.ceil(width / cellSize));
     this.rows = Math.max(1, Math.ceil(height / cellSize));
-    this.head = new Int32Array(this.cols * this.rows);
-    this.next = new Int32Array(capacity);
-    this.itemX = new Float32Array(capacity);
-    this.itemY = new Float32Array(capacity);
+    if (shared !== undefined) {
+      this.head = shared.head;
+      this.next = shared.next;
+      this.itemX = shared.itemX;
+      this.itemY = shared.itemY;
+    } else {
+      this.head = new Int32Array(this.cols * this.rows);
+      this.next = new Int32Array(capacity);
+      this.itemX = new Float32Array(capacity);
+      this.itemY = new Float32Array(capacity);
+    }
     this.clear();
   }
 
