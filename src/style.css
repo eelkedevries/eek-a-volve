@@ -680,6 +680,28 @@ button {
   padding: 6px 12px 14px;
 }
 
+/* Windows + Settings are compacted to fit the toolbar window without scrolling
+   (the Log pane stays the scrollable one). */
+.ev-pane-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 12px 11px;
+}
+.ev-pane-compact .ev-tile {
+  padding: 7px 4px;
+  gap: 4px;
+}
+.ev-pane-compact .ev-divider {
+  margin: 2px 0;
+}
+.ev-pane-compact .ev-selects {
+  margin-top: 0;
+}
+.ev-pane-compact .ev-reset-btn {
+  padding: 8px;
+}
+
 .ev-caption {
   font-size: 10px;
   letter-spacing: 0.14em;
@@ -1402,8 +1424,22 @@ button {
   }
   .ev-window-layer.is-mobile .ev-window {
     flex: 1 1 0;
-    min-height: 0;
+    min-height: 64px;
     width: 100%;
+  }
+  /* Size buttons in the stack: a small window is a strip, large is taller,
+     maximise fills the stack — so the controls still do something visible. */
+  .ev-window-layer.is-mobile .ev-window[data-size='s'] {
+    flex-grow: 1;
+    max-height: 40%;
+  }
+  .ev-window-layer.is-mobile .ev-window[data-size='l'] {
+    flex-grow: 2.4;
+    max-height: 66%;
+  }
+  .ev-window-layer.is-mobile .ev-window[data-size='m'] {
+    flex-grow: 6;
+    max-height: none;
   }
 
   /* Prevent iOS from zooming when a small form control is focused. */

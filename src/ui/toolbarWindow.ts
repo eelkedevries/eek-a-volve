@@ -153,7 +153,7 @@ export function createToolbarWindow(config: ToolbarWindowConfig): ToolbarWindow 
 
   // Windows pane: a 5-up tile grid + Close all / Hide UI.
   const windowsPane = document.createElement('div');
-  windowsPane.className = 'ev-pane';
+  windowsPane.className = 'ev-pane ev-pane-compact';
   windowsPane.appendChild(caption('Open a window'));
   const tileGrid = document.createElement('div');
   tileGrid.className = 'ev-tile-grid ev-tile-grid-5';
@@ -179,7 +179,7 @@ export function createToolbarWindow(config: ToolbarWindowConfig): ToolbarWindow 
 
   // Settings pane: playback toggles + palette/quality + danger zone.
   const settingsPane = document.createElement('div');
-  settingsPane.className = 'ev-pane';
+  settingsPane.className = 'ev-pane ev-pane-compact';
   settingsPane.appendChild(caption('Playback & view'));
   const toggleRow = document.createElement('div');
   toggleRow.className = 'ev-tile-grid ev-tile-grid-3';

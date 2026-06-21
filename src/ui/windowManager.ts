@@ -235,6 +235,8 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
 
   function markActive(frame: Frame): void {
     const size = sizes.get(frame.id) ?? 's';
+    // Drives the mobile stack sizing (CSS targets [data-size]); harmless on desktop.
+    frame.el.dataset.size = size;
     for (const key of ['s', 'l', 'm'] as WinSize[]) {
       frame.sizeButtons[key].classList.toggle('is-active', key === size);
     }
