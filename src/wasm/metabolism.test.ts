@@ -145,6 +145,37 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     expect(core.canRunBehaviour(params({ neuralBrains: true }))).toBe(false);
   });
 
+  it('stays identical with catastrophes and immigration on (TS passes, shared RNG)', () => {
+    const p = params({
+      seed: 5,
+      initialPopulation: 80,
+      foodAbundance: 320,
+      sexualReproduction: true,
+      predation: true,
+      catastrophes: true,
+      immigration: true,
+    });
+    const ts = createSimulation(p);
+    const wasm = createSimulation(
+      p,
+      undefined,
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE),
+    );
+    for (let i = 0; i < 400; i++) {
+      ts.step();
+      wasm.step();
+    }
+    expect(wasm.world.population).toBe(ts.world.population);
+    for (let s = 0; s < ts.world.agentCapacity; s++) {
+      expect(wasm.world.alive[s]).toBe(ts.world.alive[s]);
+      if (ts.world.alive[s]) {
+        expect(wasm.world.x[s]).toBe(ts.world.x[s]);
+        expect(wasm.world.energy[s]).toBe(ts.world.energy[s]);
+        expect(wasm.world.id[s]).toBe(ts.world.id[s]); // immigrant ids match
+      }
+    }
+  });
+
   it('reproduces a full run identically with the WASM core vs the TS core', () => {
     const p = params({
       seed: 11,
