@@ -8,6 +8,7 @@ import {
   computeWorldLayout,
   computeGridLayout,
   COUNTS_LENGTH,
+  CONFIG_LENGTH,
   type WorldLayout,
 } from '../core/worldLayout.ts';
 
@@ -91,7 +92,30 @@ export interface WasmCore {
   breed(child: number, parent: number, params: SimulationParameters): boolean;
   /** Sexual inheritance into `child` from parents `a`, `b`; returns whether a freak occurred. */
   breedSexual(child: number, a: number, b: number, params: SimulationParameters): boolean;
+  /** Whether the WASM behaviour pass can run (it omits brains and pheromones). */
+  canRunBehaviour(params: SimulationParameters): boolean;
+  /** Run the behaviour pass in place; returns births. Fills `newborns`/`freakBirths`. */
+  behaviourStep(world: World, params: SimulationParameters): number;
+  readonly newborns: Int32Array;
+  readonly freakBirths: Int32Array;
+  newbornCount: number;
+  freakBirthCount: number;
 }
+
+type BehaviourFn = (
+  configOff: number,
+  cap: number,
+  cols: number,
+  rows: number,
+  cellSize: number,
+  worldWidth: number,
+  worldHeight: number,
+  reproductionThreshold: number,
+  sexual: number,
+  mutationRate: number,
+  mutationMagnitude: number,
+  twoPi: number,
+) => void;
 
 type BreedFn = (
   child: number,
@@ -134,12 +158,15 @@ export function createWasmCore(
       rngNext: () => (activeRng as Rng).next(),
       rngInt: (n: number) => (activeRng as Rng).int(n),
       rngGaussian: () => (activeRng as Rng).gaussian(),
+      jsCos: (x: number) => Math.cos(x),
+      jsSin: (x: number) => Math.sin(x),
     },
   });
   const run = instance.exports.run as MetaboliseFn;
   const decay = instance.exports.decay as DecayFn;
   const regen = instance.exports.regenFood as RegenFn;
   const breedFn = instance.exports.breed as BreedFn;
+  const behaviourFn = instance.exports.behaviourStep as BehaviourFn;
   const deathView = new Uint8Array(memory.buffer, L.death, agentCapacity);
   const foodDeathView = new Uint8Array(memory.buffer, L.foodDeath, foodCapacity);
   const countsView = new Int32Array(memory.buffer, L.counts, COUNTS_LENGTH);
@@ -162,6 +189,22 @@ export function createWasmCore(
     itemX: new Float32Array(buf, G.foodItemX, foodCapacity),
     itemY: new Float32Array(buf, G.foodItemY, foodCapacity),
   };
+
+  // The behaviour kernel reads all column/grid offsets from this config table.
+  const config = new Int32Array(buf, G.config, CONFIG_LENGTH);
+  const cfg = [
+    L.x, L.y, L.vx, L.vy, L.energy, L.age, L.alive, L.action, L.id, L.parentId,
+    L.generation, L.offspringCount, L.speciesId, L.traits[0], L.foodX, L.foodY,
+    L.foodAlive, L.foodType, L.foodEnergy, G.agentHead, G.agentNext, G.agentItemX,
+    G.agentItemY, G.foodHead, G.foodNext, G.foodItemX, G.foodItemY, L.freeAgents,
+    L.counts, G.ranges, G.live, G.mated, G.newborns, G.freakBirths, G.outputs,
+    G.selfNorm, L.freeFood,
+  ];
+  config.set(cfg);
+  const newbornsView = new Int32Array(buf, G.newborns, agentCapacity);
+  const freakBirthsView = new Int32Array(buf, G.freakBirths, agentCapacity);
+  const outputsView = new Int32Array(buf, G.outputs, 4);
+  const TWO_PI = Math.PI * 2;
 
   return {
     sharedBuffer: memory.buffer as ArrayBuffer,
@@ -264,6 +307,37 @@ export function createWasmCore(
           G.ranges,
         ) === 1
       );
+    },
+
+    newborns: newbornsView,
+    freakBirths: freakBirthsView,
+    newbornCount: 0,
+    freakBirthCount: 0,
+
+    canRunBehaviour(params: SimulationParameters): boolean {
+      return !params.pheromones && !params.neuralBrains;
+    },
+
+    behaviourStep(world: World, params: SimulationParameters): number {
+      world.writeCounts(countsView);
+      behaviourFn(
+        G.config,
+        agentCapacity,
+        cols,
+        rows,
+        cellSize,
+        params.worldWidth,
+        params.worldHeight,
+        params.reproductionThreshold,
+        params.sexualReproduction ? 1 : 0,
+        params.mutationRate,
+        params.mutationMagnitude,
+        TWO_PI,
+      );
+      world.readCounts(countsView);
+      this.newbornCount = outputsView[1];
+      this.freakBirthCount = outputsView[2];
+      return outputsView[0];
     },
   };
 }

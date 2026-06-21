@@ -55,6 +55,7 @@ export const COUNT_FOOD = 2;
 export const COUNT_PLANT = 3;
 export const COUNT_CARRION = 4;
 export const COUNT_POPULATION = 5;
+export const COUNT_NEXT_ID = 6;
 export const COUNTS_LENGTH = 8;
 
 /** Compute the world SoA byte layout for the given capacities. */
@@ -140,8 +141,25 @@ export interface GridLayout {
   foodItemY: number;
   /** Trait ranges as f64 pairs [min0, max0, …] for the mutation kernel. */
   ranges: number;
+  /** SPECIES_TRAIT_COUNT f64 scratch for the self-genome (mate compatibility). */
+  selfNorm: number;
+  // Behaviour scratch/output (Int32 unless noted).
+  live: number;
+  newborns: number;
+  freakBirths: number;
+  /** [births, newbornCount, freakBirthCount]. */
+  outputs: number;
+  /** Int32 table of column/grid offsets the behaviour kernel reads (see metabolismCore). */
+  config: number;
+  /** Per-agent "mated this tick" flags (Uint8). */
+  mated: number;
   byteLength: number;
 }
+
+/** Number of Int32 entries in the behaviour kernel's config table. */
+export const CONFIG_LENGTH = 40;
+/** f64 scratch length for the self-genome (= SPECIES_TRAIT_COUNT). */
+const SELF_NORM_LENGTH = 6;
 
 /** Lay out the agent and food grids (Int32/Float32) plus the f64 trait ranges from `base`. */
 export function computeGridLayout(
@@ -164,10 +182,21 @@ export function computeGridLayout(
   const foodNext = block(foodCapacity);
   const foodItemX = block(foodCapacity);
   const foodItemY = block(foodCapacity);
-  // f64 trait ranges (8-byte aligned).
+  // f64 regions (8-byte aligned): trait ranges, then the self-genome scratch.
   o = (o + 7) & ~7;
   const ranges = o;
   o += TRAIT_COUNT * 2 * 8;
+  const selfNorm = o;
+  o += SELF_NORM_LENGTH * 8;
+  // Int32 behaviour scratch/output and the config table.
+  const live = block(agentCapacity);
+  const newborns = block(agentCapacity);
+  const freakBirths = block(agentCapacity);
+  const outputs = block(4);
+  const config = block(CONFIG_LENGTH);
+  // Uint8 per-agent mated flags.
+  const mated = o;
+  o += agentCapacity;
   return {
     agentHead,
     agentNext,
@@ -178,6 +207,13 @@ export function computeGridLayout(
     foodItemX,
     foodItemY,
     ranges,
+    selfNorm,
+    live,
+    newborns,
+    freakBirths,
+    outputs,
+    config,
+    mated,
     byteLength: (o + 7) & ~7,
   };
 }

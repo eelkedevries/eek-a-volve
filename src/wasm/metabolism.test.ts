@@ -95,6 +95,13 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     }
   });
 
+  it('gates the WASM behaviour pass on no-brains, no-pheromones', () => {
+    const core = createWasmCore(wasmBytes, 64, 64, 200, 200, GRID_CELL_SIZE);
+    expect(core.canRunBehaviour(params({ sexualReproduction: true }))).toBe(true);
+    expect(core.canRunBehaviour(params({ pheromones: true }))).toBe(false);
+    expect(core.canRunBehaviour(params({ neuralBrains: true }))).toBe(false);
+  });
+
   it('reproduces a full run identically with the WASM core vs the TS core', () => {
     const p = params({
       seed: 11,
@@ -129,7 +136,11 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
       if (ts.world.alive[s]) {
         expect(wasm.world.energy[s]).toBe(ts.world.energy[s]);
         expect(wasm.world.x[s]).toBe(ts.world.x[s]);
+        expect(wasm.world.y[s]).toBe(ts.world.y[s]);
         expect(wasm.world.age[s]).toBe(ts.world.age[s]);
+        expect(wasm.world.id[s]).toBe(ts.world.id[s]); // spawnAgent id assignment
+        expect(wasm.world.generation[s]).toBe(ts.world.generation[s]); // reproduction
+        expect(wasm.world.speciesId[s]).toBe(ts.world.speciesId[s]);
       }
     }
 

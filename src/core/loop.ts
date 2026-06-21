@@ -117,15 +117,33 @@ export class Simulation {
     // 1. Rebuild spatial indices from current positions.
     agentGrid.rebuildFromAgents(world);
     this.rebuildFoodGrid();
-    // 2. Behaviour: movement, eating, reproduction (and freak mutations).
-    let births = behaviour.step(world, params, foodGrid, agentGrid, rng, this.pheromone);
-    for (let i = 0; i < behaviour.freakBirthCount; i++) {
-      const slot = behaviour.freakBirths[i];
+    // 2. Behaviour: movement, eating, reproduction (and freak mutations). Run in the
+    // WASM core when it can (no brains, no pheromones), else the TypeScript pass.
+    let births: number;
+    let freakBirths: Int32Array;
+    let freakBirthCount: number;
+    let newborns: Int32Array;
+    let newbornCount: number;
+    if (this.wasm !== null && this.wasm.canRunBehaviour(params)) {
+      births = this.wasm.behaviourStep(world, params);
+      freakBirths = this.wasm.freakBirths;
+      freakBirthCount = this.wasm.freakBirthCount;
+      newborns = this.wasm.newborns;
+      newbornCount = this.wasm.newbornCount;
+    } else {
+      births = behaviour.step(world, params, foodGrid, agentGrid, rng, this.pheromone);
+      freakBirths = behaviour.freakBirths;
+      freakBirthCount = behaviour.freakBirthCount;
+      newborns = behaviour.newborns;
+      newbornCount = behaviour.newbornCount;
+    }
+    for (let i = 0; i < freakBirthCount; i++) {
+      const slot = freakBirths[i];
       eventLog.freak(world.id[slot], slot, world.x[slot], world.y[slot]);
     }
     // Record this tick's parentage for the inspector's ancestry line (metadata only).
-    for (let i = 0; i < behaviour.newbornCount; i++) {
-      const slot = behaviour.newborns[i];
+    for (let i = 0; i < newbornCount; i++) {
+      const slot = newborns[i];
       this.lineage.record(world.id[slot], world.parentId[slot]);
     }
     // 3. Predation: carnivores eat smaller neighbours (positions have moved).

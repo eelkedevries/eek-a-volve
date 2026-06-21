@@ -7,6 +7,7 @@ import {
   COUNT_PLANT,
   COUNT_CARRION,
   COUNT_POPULATION,
+  COUNT_NEXT_ID,
 } from './worldLayout.ts';
 
 /**
@@ -149,6 +150,7 @@ export class World {
     counts[COUNT_PLANT] = this.plantCount;
     counts[COUNT_CARRION] = this.carrionCount;
     counts[COUNT_POPULATION] = this.population;
+    counts[COUNT_NEXT_ID] = this.nextId;
   }
 
   /** Read the scalar counts back from the shared counts region (after a pass). */
@@ -159,6 +161,7 @@ export class World {
     this.plantCount = counts[COUNT_PLANT];
     this.carrionCount = counts[COUNT_CARRION];
     this.population = counts[COUNT_POPULATION];
+    this.nextId = counts[COUNT_NEXT_ID];
   }
 
   /** Allocate the per-creature brain-weight store (optional capability). Called once. */
