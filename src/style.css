@@ -930,6 +930,10 @@ button {
   background: rgba(92, 255, 143, 0.2);
   color: var(--accent);
 }
+.ev-winbtn.is-disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 .ev-winbtn-close:hover {
   background: rgba(255, 125, 92, 0.2);
   color: var(--danger-2);

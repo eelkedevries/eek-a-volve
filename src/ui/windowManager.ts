@@ -203,11 +203,15 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
 
   function layout(): void {
     const area = windowArea(toolbarHeight);
+    // Windows must never cover each other: as soon as two or more are open they
+    // all tile as 25% quadrants. A lone window may grow to Medium/Large.
+    const tileAll = order.length >= 2;
     order.forEach((id, i) => {
       const frame = frames.get(id);
       if (frame === undefined) return;
       const anchor = ANCHORS[Math.min(i, ANCHORS.length - 1)];
-      const rect = sizeRect(area, anchor, sizes.get(id) ?? 's');
+      const size: WinSize = tileAll ? 's' : sizes.get(id) ?? 's';
+      const rect = sizeRect(area, anchor, size);
       const el = frame.el;
       el.style.position = 'fixed';
       el.style.left = `${rect.left}px`;
@@ -216,14 +220,21 @@ export function createWindowManager(config: WindowManagerConfig): WindowManager 
       el.style.height = `${rect.height}px`;
       // Newest highest, but always below the toolbar (z-index 22).
       el.style.zIndex = String(16 + (order.length - i));
-      markActive(frame);
+      markActive(frame, tileAll);
     });
   }
 
-  function markActive(frame: Frame): void {
-    const size = sizes.get(frame.id) ?? 's';
+  function markActive(frame: Frame, tileAll: boolean): void {
+    // The effective size is Small whenever the windows are forced to tile.
+    const size = tileAll ? 's' : sizes.get(frame.id) ?? 's';
     for (const key of ['s', 'l', 'm'] as WinSize[]) {
-      frame.sizeButtons[key].classList.toggle('is-active', key === size);
+      const button = frame.sizeButtons[key];
+      button.classList.toggle('is-active', key === size);
+      // Medium/Large can't apply without covering a neighbour, so disable them.
+      if (key !== 's') {
+        button.disabled = tileAll;
+        button.classList.toggle('is-disabled', tileAll);
+      }
     }
   }
 
