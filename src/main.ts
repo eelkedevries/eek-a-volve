@@ -77,12 +77,15 @@ async function run(
   let directorRenderer: Renderer | null = null;
   let offscreen: OffscreenRenderClient | null = null;
   if (params.offscreenRender && isOffscreenSupported()) {
+    const oc = new OffscreenRenderClient();
     try {
-      const oc = new OffscreenRenderClient();
       await oc.init(host, params.worldWidth, params.worldHeight, params.viewMode, 0, 'species');
       surface = oc;
       offscreen = oc;
     } catch {
+      // Init failed after the canvas was transferred to the worker; dispose it so
+      // the orphaned canvas is removed before the main renderer adds its own.
+      oc.dispose();
       surface = directorRenderer = await makeMainRenderer();
     }
   } else {

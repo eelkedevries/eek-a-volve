@@ -230,6 +230,6 @@ export class OffscreenRenderClient implements RenderSurface {
     window.removeEventListener('resize', this.onResize);
     this.worker?.terminate();
     this.worker = null;
-    this.canvas.remove();
+    this.canvas?.remove();
   }
 }

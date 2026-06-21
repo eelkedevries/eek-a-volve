@@ -8,7 +8,16 @@
  * default and fallback). Rich effects, overlays, emotes, and the auto-director are
  * main-path features and are simplified or absent here.
  */
-import { Application, Container, ParticleContainer, Particle, Graphics, type Texture } from 'pixi.js';
+import {
+  Application,
+  Container,
+  ParticleContainer,
+  Particle,
+  Graphics,
+  DOMAdapter,
+  WebWorkerAdapter,
+  type Texture,
+} from 'pixi.js';
 import {
   HEADER_LENGTH,
   AGENT_STRIDE,
@@ -120,6 +129,10 @@ async function init(msg: {
   palette = PALETTES[msg.palette] ?? PALETTES[0];
   colourMode = msg.colourMode;
 
+  // PixiJS defaults to a DOM-based adapter (document.createElement); inside a
+  // Web Worker there is no document, so switch to the worker adapter (which uses
+  // OffscreenCanvas) before initialising the renderer.
+  DOMAdapter.set(WebWorkerAdapter);
   app = new Application();
   await app.init({
     canvas: msg.canvas,
@@ -130,6 +143,10 @@ async function init(msg: {
     background: 0x101418,
     antialias: true,
   });
+  // A dedicated worker has no requestAnimationFrame, so PixiJS's ticker cannot
+  // drive rendering. Stop it and render explicitly (push-driven) on each frame
+  // and camera change instead — see frame()/redraw().
+  app.ticker.stop();
 
   const circle = new Graphics().circle(0, 0, 8).fill(0xffffff);
   texture = app.renderer.generateTexture(circle);
@@ -145,6 +162,7 @@ async function init(msg: {
   app.stage.addChild(world);
 
   camera.fit(worldW, worldH, viewW, viewH);
+  redraw();
   post();
   (self as unknown as Worker).postMessage({ type: 'ready' });
 }
@@ -223,7 +241,17 @@ function frame(view: Float32Array, count: number): void {
       p.scaleY = 0;
     }
   }
+  app.render();
   post();
+}
+
+/** Re-apply the camera and paint, without new agent data (pan/zoom/resize). The
+ *  worker is push-driven, so camera moves must trigger their own render — the
+ *  ticker is stopped and frames only arrive while the simulation is running. */
+function redraw(): void {
+  if (app === null) return;
+  camera.applyTo(world);
+  app.render();
 }
 
 /** Dense index of the live agent with stable id `id`, or -1. */
@@ -279,6 +307,7 @@ self.onmessage = (e: MessageEvent): void => {
       viewW = Math.max(1, m.width);
       viewH = Math.max(1, m.height);
       app?.renderer.resize(viewW, viewH);
+      redraw();
       post();
       break;
     case 'pointerdown':
@@ -295,6 +324,7 @@ self.onmessage = (e: MessageEvent): void => {
         if (dragged) {
           camera.panBy(m.x - lastPx, m.y - lastPy);
           followId = -1;
+          redraw();
         }
         lastPx = m.x;
         lastPy = m.y;
@@ -307,6 +337,7 @@ self.onmessage = (e: MessageEvent): void => {
       break;
     case 'wheel':
       camera.zoomAt(m.x, m.y, m.deltaY < 0 ? 1.1 : 1 / 1.1);
+      redraw();
       post();
       break;
     case 'set':
@@ -334,6 +365,7 @@ function applySet(key: string, value: unknown): void {
     case 'centre': {
       const c = value as { x: number; y: number };
       camera.centreOn(c.x, c.y, viewW, viewH);
+      redraw();
       post();
       break;
     }
