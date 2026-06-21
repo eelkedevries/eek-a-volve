@@ -1,7 +1,7 @@
 import type { World } from '../core/world.ts';
 import type { Rng } from '../core/rng.ts';
 import type { SimulationParameters } from '../core/params.ts';
-import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from '../core/genome.ts';
+import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY, TRAIT_COUNT, TRAIT_RANGES } from '../core/genome.ts';
 import { DISPLAY_COST, MAX_AGE } from '../core/energy.ts';
 import { dropCarrion, PLANT_ENERGY } from '../core/food.ts';
 import {
@@ -87,7 +87,24 @@ export interface WasmCore {
   decayCarrion(world: World): void;
   /** Plant regeneration; returns false for the seasonal/biome cases (caller uses TS). */
   regenerateFood(world: World, params: SimulationParameters): boolean;
+  /** Asexual inheritance into `child` from `parent`; returns whether a freak occurred. */
+  breed(child: number, parent: number, params: SimulationParameters): boolean;
+  /** Sexual inheritance into `child` from parents `a`, `b`; returns whether a freak occurred. */
+  breedSexual(child: number, a: number, b: number, params: SimulationParameters): boolean;
 }
+
+type BreedFn = (
+  child: number,
+  parentA: number,
+  parentB: number,
+  sexual: number,
+  mutationRate: number,
+  mutationMagnitude: number,
+  traitsOff: number,
+  cap: number,
+  traitCount: number,
+  rangesOff: number,
+) => number;
 
 /**
  * Build a WASM core for the given capacities from compiled wasm bytes. Allocates one
@@ -112,14 +129,26 @@ export function createWasmCore(
   // The RNG is bound per simulation; the imported `rngNext` advances the active stream.
   let activeRng: Rng | null = null;
   const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), {
-    env: { memory, rngNext: () => (activeRng as Rng).next() },
+    env: {
+      memory,
+      rngNext: () => (activeRng as Rng).next(),
+      rngInt: (n: number) => (activeRng as Rng).int(n),
+      rngGaussian: () => (activeRng as Rng).gaussian(),
+    },
   });
   const run = instance.exports.run as MetaboliseFn;
   const decay = instance.exports.decay as DecayFn;
   const regen = instance.exports.regenFood as RegenFn;
+  const breedFn = instance.exports.breed as BreedFn;
   const deathView = new Uint8Array(memory.buffer, L.death, agentCapacity);
   const foodDeathView = new Uint8Array(memory.buffer, L.foodDeath, foodCapacity);
   const countsView = new Int32Array(memory.buffer, L.counts, COUNTS_LENGTH);
+  // Fill the trait-ranges region (f64 [min, max] pairs) from the single source of truth.
+  const rangesView = new Float64Array(memory.buffer, G.ranges, TRAIT_COUNT * 2);
+  for (let t = 0; t < TRAIT_COUNT; t++) {
+    rangesView[t * 2] = TRAIT_RANGES[t].min;
+    rangesView[t * 2 + 1] = TRAIT_RANGES[t].max;
+  }
   const buf = memory.buffer;
   const agentGridArrays: GridArrays = {
     head: new Int32Array(buf, G.agentHead, gridCells),
@@ -201,6 +230,40 @@ export function createWasmCore(
       );
       world.readCounts(countsView);
       return true;
+    },
+
+    breed(child: number, parent: number, params: SimulationParameters): boolean {
+      return (
+        breedFn(
+          child,
+          parent,
+          parent,
+          0,
+          params.mutationRate,
+          params.mutationMagnitude,
+          L.traits[0],
+          agentCapacity,
+          TRAIT_COUNT,
+          G.ranges,
+        ) === 1
+      );
+    },
+
+    breedSexual(child: number, a: number, b: number, params: SimulationParameters): boolean {
+      return (
+        breedFn(
+          child,
+          a,
+          b,
+          1,
+          params.mutationRate,
+          params.mutationMagnitude,
+          L.traits[0],
+          agentCapacity,
+          TRAIT_COUNT,
+          G.ranges,
+        ) === 1
+      );
     },
   };
 }

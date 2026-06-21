@@ -138,10 +138,12 @@ export interface GridLayout {
   foodNext: number;
   foodItemX: number;
   foodItemY: number;
+  /** Trait ranges as f64 pairs [min0, max0, …] for the mutation kernel. */
+  ranges: number;
   byteLength: number;
 }
 
-/** Lay out the agent and food grids (all Int32/Float32, 4-byte) from `base`. */
+/** Lay out the agent and food grids (Int32/Float32) plus the f64 trait ranges from `base`. */
 export function computeGridLayout(
   base: number,
   gridCells: number,
@@ -162,6 +164,10 @@ export function computeGridLayout(
   const foodNext = block(foodCapacity);
   const foodItemX = block(foodCapacity);
   const foodItemY = block(foodCapacity);
+  // f64 trait ranges (8-byte aligned).
+  o = (o + 7) & ~7;
+  const ranges = o;
+  o += TRAIT_COUNT * 2 * 8;
   return {
     agentHead,
     agentNext,
@@ -171,6 +177,7 @@ export function computeGridLayout(
     foodNext,
     foodItemX,
     foodItemY,
-    byteLength: (o + 3) & ~3,
+    ranges,
+    byteLength: (o + 7) & ~7,
   };
 }

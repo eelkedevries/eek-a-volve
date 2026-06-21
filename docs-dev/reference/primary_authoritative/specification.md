@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.4.7
+Version: 0.4.8
 Last updated: 2026-06-21
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.

@@ -3,12 +3,13 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createWasmCore } from './metabolismCore.ts';
 import { metaboliseAndReap } from '../core/energy.ts';
+import { breed, breedSexual } from '../core/mutation.ts';
 import { createSimulation, GRID_CELL_SIZE } from '../core/loop.ts';
 import { DEFAULT_PARAMETERS, type SimulationParameters } from '../core/params.ts';
 import { World } from '../core/world.ts';
 import { MAX_POPULATION } from '../core/bounds.ts';
 import { CARRION_RESERVE } from '../core/food.ts';
-import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from '../core/genome.ts';
+import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY, TRAIT_COUNT, TRAIT_RANGES } from '../core/genome.ts';
 import { Rng } from '../core/rng.ts';
 
 const wasmBytes = readFileSync(new URL('./metabolism.wasm', import.meta.url));
@@ -60,6 +61,38 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     expect(core.regenerateFood(w, params())).toBe(true);
     expect(core.regenerateFood(w, params({ seasonAmplitude: 0.5 }))).toBe(false);
     expect(core.regenerateFood(w, params({ biomeStrength: 0.5 }))).toBe(false);
+  });
+
+  it('matches the TS breed/breedSexual bit-for-bit (mutation, clamping, freaks, RNG)', () => {
+    const p = params({ mutationRate: 0.5, mutationMagnitude: 0.2 });
+    for (const sexual of [false, true]) {
+      const core = createWasmCore(wasmBytes, 16, 16, 200, 200, GRID_CELL_SIZE);
+      const tsW = new World(16, 16);
+      const wW = new World(16, 16, core.sharedBuffer);
+      for (let t = 0; t < TRAIT_COUNT; t++) {
+        const r = TRAIT_RANGES[t];
+        const a = r.min + 0.3 * (r.max - r.min);
+        const b = r.min + 0.7 * (r.max - r.min);
+        tsW.traits[t][0] = a;
+        wW.traits[t][0] = a;
+        tsW.traits[t][1] = b;
+        wW.traits[t][1] = b;
+      }
+      const tsRng = new Rng(9);
+      const wRng = new Rng(9);
+      core.setRng(wRng);
+      for (let i = 0; i < 80; i++) {
+        if (sexual) {
+          breedSexual(tsW, 2, 0, 1, p, tsRng);
+          core.breedSexual(2, 0, 1, p);
+        } else {
+          breed(tsW, 2, 0, p, tsRng);
+          core.breed(2, 0, p);
+        }
+        for (let t = 0; t < TRAIT_COUNT; t++) expect(wW.traits[t][2]).toBe(tsW.traits[t][2]);
+      }
+      expect(wRng.next()).toBe(tsRng.next()); // RNG stayed in lockstep
+    }
   });
 
   it('reproduces a full run identically with the WASM core vs the TS core', () => {

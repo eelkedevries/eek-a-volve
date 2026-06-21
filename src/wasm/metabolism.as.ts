@@ -14,6 +14,10 @@
 // TypeScript passes around it (see metabolismCore.ts), keeping runs bit-identical.
 @external("env", "rngNext")
 declare function rngNext(): f64;
+@external("env", "rngInt")
+declare function rngInt(n: i32): i32;
+@external("env", "rngGaussian")
+declare function rngGaussian(): f64;
 
 export function run(
   n: i32,
@@ -133,4 +137,54 @@ export function regenFood(
   store<i32>(countsOff + (1 << 2), freeFoodCount);
   store<i32>(countsOff + (2 << 2), foodCount);
   store<i32>(countsOff + (3 << 2), plantCount);
+}
+
+/**
+ * Inherit a child genome from one parent (`sexual` = 0) or two (`sexual` = 1, uniform
+ * crossover), bit-identical to core/mutation.ts `breed`/`breedSexual`: per-trait
+ * Gaussian mutation (probability `mutationRate`, magnitude × range width), clamp to
+ * range, then a rare freak re-sample. Trait columns are contiguous at `traitsOff`
+ * with stride `cap`; `rangesOff` holds f64 [min, max] pairs. Brain weights are not
+ * inherited here, so the WASM core requires `neuralBrains` off. Returns 1 on a freak.
+ */
+export function breed(
+  child: i32,
+  parentA: i32,
+  parentB: i32,
+  sexual: i32,
+  mutationRate: f64,
+  mutationMagnitude: f64,
+  traitsOff: i32,
+  cap: i32,
+  traitCount: i32,
+  rangesOff: i32,
+): i32 {
+  for (let t: i32 = 0; t < traitCount; t++) {
+    const colOff: i32 = traitsOff + t * cap * 4;
+    let value: f64;
+    if (sexual != 0) {
+      value =
+        rngNext() < 0.5
+          ? <f64>load<f32>(colOff + (parentA << 2))
+          : <f64>load<f32>(colOff + (parentB << 2));
+    } else {
+      value = <f64>load<f32>(colOff + (parentA << 2));
+    }
+    if (rngNext() < mutationRate) {
+      const min: f64 = load<f64>(rangesOff + ((t << 1) << 3));
+      const max: f64 = load<f64>(rangesOff + (((t << 1) + 1) << 3));
+      value += rngGaussian() * mutationMagnitude * (max - min);
+      value = value < min ? min : value > max ? max : value;
+    }
+    store<f32>(colOff + (child << 2), <f32>value);
+  }
+  if (rngNext() < 0.001) {
+    const t: i32 = rngInt(traitCount);
+    const min: f64 = load<f64>(rangesOff + ((t << 1) << 3));
+    const max: f64 = load<f64>(rangesOff + (((t << 1) + 1) << 3));
+    const colOff: i32 = traitsOff + t * cap * 4;
+    store<f32>(colOff + (child << 2), <f32>(min + rngNext() * (max - min)));
+    return 1;
+  }
+  return 0;
 }
