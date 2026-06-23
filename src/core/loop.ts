@@ -2,6 +2,7 @@ import { World } from './world.ts';
 import { SpatialGrid } from './grid.ts';
 import { Behaviour } from './behaviour.ts';
 import { Predation } from './predation.ts';
+import { Disease, seedInfections } from './disease.ts';
 import { Speciation } from './speciation.ts';
 import { Events, type CatastropheEvent } from './events.ts';
 import { EventLog } from './eventlog.ts';
@@ -51,6 +52,7 @@ export class Simulation {
   private readonly foodGrid: SpatialGrid;
   private readonly behaviour: Behaviour;
   private readonly predation: Predation;
+  private readonly disease: Disease;
   private readonly speciation: Speciation;
   private readonly events = new Events();
   /** Bounded log of notable moments, drained by the worker for the UI and narrator. */
@@ -109,6 +111,7 @@ export class Simulation {
     );
     this.behaviour = new Behaviour(params.maxPopulation);
     this.predation = new Predation();
+    this.disease = new Disease(params.maxPopulation);
     this.speciation = new Speciation();
     if (params.neuralBrains) this.world.enableBrains(BRAIN_WEIGHT_COUNT);
     if (population !== undefined && population.length > 0) this.seedFromPopulation(population);
@@ -161,12 +164,20 @@ export class Simulation {
           : this.predation.step(world, params, agentGrid, rng);
     }
     // 4. Metabolism, ageing, death (optionally via the WebAssembly core). The
-    // optional cognition cost lives only in the TS metabolism pass, so when it is
-    // active the WASM core falls back to TS here (the kernel is not re-derived).
+    // optional cognition cost and the disease resistance cost live only in the TS
+    // metabolism pass, so when either is active the WASM core falls back to TS here
+    // (the kernel is not re-derived).
     deaths +=
-      this.wasm !== null && params.cognitionCost === 0
+      this.wasm !== null && params.cognitionCost === 0 && !params.disease
         ? this.wasm.metabolise(world, params)
         : metaboliseAndReap(world, params);
+    // 4b. Disease (optional, behind the toggle): infect susceptible grid
+    // neighbours, advance infection timers to recovery or disease death (routed
+    // through the normal death path so its deaths add into this tick's total).
+    if (params.disease) {
+      agentGrid.rebuildFromAgents(world);
+      deaths += this.disease.step(world, params, agentGrid, rng);
+    }
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
     const catastrophe = this.events.last !== null && this.events.last.tick === this.tick;
@@ -223,6 +234,8 @@ export class Simulation {
       if (slot !== -1) world.age[slot] = rng.int(FOUNDER_AGE_SPREAD);
     }
     seedFood(world, params, rng);
+    // Seed the initial infection when disease is on (draws no RNG when off).
+    seedInfections(world, params, rng);
     this.prevSpeciesCount = this.speciation.cluster(world);
   }
 
@@ -254,6 +267,8 @@ export class Simulation {
       }
     }
     seedFood(world, params, rng);
+    // Seed the initial infection when disease is on (draws no RNG when off).
+    seedInfections(world, params, rng);
     this.prevSpeciesCount = this.speciation.cluster(world);
   }
 

@@ -37,11 +37,14 @@ function params(over: Partial<SimulationParameters> = {}): SimulationParameters 
 }
 
 describe('genome growth', () => {
-  it('has eight traits with the two sexual ones after the six ecological', () => {
-    expect(TRAIT_COUNT).toBe(8);
+  it('has nine traits with the sexual and immune ones after the six ecological', () => {
+    expect(TRAIT_COUNT).toBe(9);
     expect(SPECIES_TRAIT_COUNT).toBe(6);
     expect(DISPLAY).toBe(6);
     expect(MATE_PREFERENCE).toBe(7);
+    // resistance (8) sits after the species-defining set, so it is excluded from
+    // the genetic-distance gate (which loops t < SPECIES_TRAIT_COUNT).
+    expect(SPECIES_TRAIT_COUNT).toBeLessThan(TRAIT_COUNT);
   });
 
   it('keeps snapshot offsets derived from the trait count', () => {

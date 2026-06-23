@@ -221,6 +221,10 @@ const T_DIET: i32 = 4;
 const T_DISPLAY: i32 = 6;
 const T_MATEPREF: i32 = 7;
 const SPECIES_TRAITS: i32 = 6;
+// Total genome trait count (genome.ts TRAIT_COUNT). Breeding must iterate all of
+// them (and draw RNG for each) to stay bit-identical to the TS `breed`/`breedSexual`,
+// even for the non-ecological trailing traits (resistance, v0.6.0).
+const TRAIT_COUNT_K: i32 = 9;
 // Action codes (state.ts).
 const A_IDLE: i32 = 0;
 const A_SEEKING: i32 = 1;
@@ -666,7 +670,7 @@ export function behaviourStep(
       ) {
         const child = wasmSpawnAgent();
         if (child != -1) {
-          if (breed(child, s, mate, 1, mutationRate, mutationMagnitude, G_TRAITS0, G_CAP, 8, G_RANGES) == 1) {
+          if (breed(child, s, mate, 1, mutationRate, mutationMagnitude, G_TRAITS0, G_CAP, TRAIT_COUNT_K, G_RANGES) == 1) {
             store<i32>(G_FREAK + (freakCount << 2), child);
             freakCount++;
           }
@@ -701,7 +705,7 @@ export function behaviourStep(
     ) {
       const child = wasmSpawnAgent();
       if (child != -1) {
-        if (breed(child, s, s, 0, mutationRate, mutationMagnitude, G_TRAITS0, G_CAP, 8, G_RANGES) == 1) {
+        if (breed(child, s, s, 0, mutationRate, mutationMagnitude, G_TRAITS0, G_CAP, TRAIT_COUNT_K, G_RANGES) == 1) {
           store<i32>(G_FREAK + (freakCount << 2), child);
           freakCount++;
         }

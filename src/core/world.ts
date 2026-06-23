@@ -46,6 +46,12 @@ export class World {
   /** What the agent is doing this tick (see `state.ts`). */
   readonly action: Uint8Array;
 
+  /** Infection compartment: 0 = susceptible, 1 = infected, 2 = recovered/immune
+   *  (the optional disease coupling, v0.6.0; always 0 when disease is off). */
+  readonly infectionState: Uint8Array;
+  /** Ticks remaining in the current infection (meaningful only while infected). */
+  readonly infectionTimer: Uint16Array;
+
   /** Per-creature neural-net weights (optional capability); null when brains are off. */
   brainWeights: Float32Array | null = null;
 
@@ -97,6 +103,8 @@ export class World {
       this.generation = new Uint32Array(sharedBuffer, L.generation, agentCapacity);
       this.offspringCount = new Uint32Array(sharedBuffer, L.offspringCount, agentCapacity);
       this.action = new Uint8Array(sharedBuffer, L.action, agentCapacity);
+      this.infectionState = new Uint8Array(sharedBuffer, L.infectionState, agentCapacity);
+      this.infectionTimer = new Uint16Array(sharedBuffer, L.infectionTimer, agentCapacity);
       this.foodX = new Float32Array(sharedBuffer, L.foodX, foodCapacity);
       this.foodY = new Float32Array(sharedBuffer, L.foodY, foodCapacity);
       this.foodEnergy = new Float32Array(sharedBuffer, L.foodEnergy, foodCapacity);
@@ -118,6 +126,8 @@ export class World {
       this.generation = new Uint32Array(agentCapacity);
       this.offspringCount = new Uint32Array(agentCapacity);
       this.action = new Uint8Array(agentCapacity);
+      this.infectionState = new Uint8Array(agentCapacity);
+      this.infectionTimer = new Uint16Array(agentCapacity);
       this.foodX = new Float32Array(foodCapacity);
       this.foodY = new Float32Array(foodCapacity);
       this.foodEnergy = new Float32Array(foodCapacity);
@@ -180,6 +190,10 @@ export class World {
     this.generation[slot] = 0;
     this.offspringCount[slot] = 0;
     this.action[slot] = 0;
+    // A reused slot starts susceptible with no infection timer, so disease state
+    // never carries over from the slot's previous occupant.
+    this.infectionState[slot] = 0;
+    this.infectionTimer[slot] = 0;
     this.population++;
     return slot;
   }

@@ -369,7 +369,10 @@ export function createWasmCore(
     freakBirthCount: 0,
 
     canRunBehaviour(params: SimulationParameters): boolean {
-      return !params.neuralBrains && params.groupingSafety === 0;
+      // Disease runs TS-only (the kernel has no infection logic), so when it is on
+      // the whole hot loop falls back to TS, keeping the new columns advanced and
+      // the default (disease-off) WASM path bit-identical (WASM-fallback rule).
+      return !params.neuralBrains && params.groupingSafety === 0 && !params.disease;
     },
 
     behaviourStep(world: World, params: SimulationParameters): number {

@@ -1,10 +1,21 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
-import { SIZE, SPEED, SENSE_RADIUS, METABOLIC_EFFICIENCY, DISPLAY, TRAIT_RANGES } from './genome.ts';
+import {
+  SIZE,
+  SPEED,
+  SENSE_RADIUS,
+  METABOLIC_EFFICIENCY,
+  DISPLAY,
+  RESISTANCE,
+  TRAIT_RANGES,
+} from './genome.ts';
 import { dropCarrion } from './food.ts';
 
 /** Extra metabolic drain a full ornament (`display` = 1) adds, in sexual mode. */
 export const DISPLAY_COST = 0.06;
+
+/** Extra metabolic drain a full immune defence (`resistance` = 1) adds, under disease. */
+export const RESISTANCE_COST = 0.08;
 
 /** Sense radius at which a full `cognitionCost` applies (the trait's maximum). */
 const SENSE_MAX = TRAIT_RANGES[SENSE_RADIUS].max;
@@ -45,6 +56,13 @@ export function metabolicCost(
   // unchanged; the trait merely drifts there).
   if (params.sexualReproduction) {
     cost *= 1 + DISPLAY_COST * world.traits[DISPLAY][slot];
+  }
+  // Immune defence is costly: carrying `resistance` drains more energy, but only
+  // under disease (so the default run — and the 012 stability test — is unchanged;
+  // the trait merely drifts there). This makes resistance pay only under pathogen
+  // pressure — a Red Queen seed.
+  if (params.disease) {
+    cost *= 1 + RESISTANCE_COST * world.traits[RESISTANCE][slot];
   }
   return cost;
 }

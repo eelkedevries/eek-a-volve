@@ -30,15 +30,19 @@ export interface WorldLayout {
   foodX: number;
   foodY: number;
   foodEnergy: number;
-  // Food 2-byte column.
+  // Food 2-byte column, then the per-agent 2-byte infection timer (appended so the
+  // offsets above stay stable; disease runs TS-only, v0.6.0).
   foodDecay: number;
-  // 1-byte columns and death-scratches.
+  infectionTimer: number;
+  // 1-byte columns and death-scratches, then the per-agent infection state
+  // (appended; 0 = susceptible, 1 = infected, 2 = recovered/immune).
   alive: number;
   action: number;
   death: number;
   foodAlive: number;
   foodType: number;
   foodDeath: number;
+  infectionState: number;
   // Free-list stacks (Int32) and a small scalar-counts region (Int32), shared so
   // WASM allocation passes can pop/push and update counts in place.
   freeAgents: number;
@@ -83,15 +87,19 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
   const foodX = block(foodCapacity, 4);
   const foodY = block(foodCapacity, 4);
   const foodEnergy = block(foodCapacity, 4);
-  // 2-byte column (offset stays 2-aligned: the 4-byte block ends 4-aligned).
+  // 2-byte columns (offset stays 2-aligned: the 4-byte block ends 4-aligned). The
+  // per-agent infectionTimer is appended here so the food/1-byte offsets below are
+  // unchanged when disease is off.
   const foodDecay = block(foodCapacity, 2);
-  // 1-byte columns and death-scratches.
+  const infectionTimer = block(agentCapacity, 2);
+  // 1-byte columns and death-scratches, then the per-agent infectionState.
   const alive = block(agentCapacity, 1);
   const action = block(agentCapacity, 1);
   const death = block(agentCapacity, 1);
   const foodAlive = block(foodCapacity, 1);
   const foodType = block(foodCapacity, 1);
   const foodDeath = block(foodCapacity, 1);
+  const infectionState = block(agentCapacity, 1);
   // Re-align to 4 bytes for the Int32 free-lists and counts.
   o = (o + 3) & ~3;
   const freeAgents = block(agentCapacity, 4);
@@ -115,12 +123,14 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
     foodY,
     foodEnergy,
     foodDecay,
+    infectionTimer,
     alive,
     action,
     death,
     foodAlive,
     foodType,
     foodDeath,
+    infectionState,
     freeAgents,
     freeFood,
     counts,

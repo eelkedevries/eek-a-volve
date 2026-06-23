@@ -15,6 +15,7 @@ export const TRAITS = [
   'colourHue',
   'display',
   'matePreference',
+  'resistance',
 ] as const;
 
 export type TraitName = (typeof TRAITS)[number];
@@ -32,11 +33,18 @@ export const COLOUR_HUE = 5;
 export const DISPLAY = 6;
 /** Preferred ornament level in a mate (v0.3.6). */
 export const MATE_PREFERENCE = 7;
+/**
+ * Host disease resistance — lowers the chance of being infected and carries a
+ * small metabolic cost, so it only pays under disease pressure (a Red Queen seed,
+ * v0.6.0). A non-ecological pathogen-facing trait, excluded from the species gate.
+ */
+export const RESISTANCE = 8;
 
 /**
  * Number of leading "ecological" traits that define a species and compatibility.
- * The sexual traits (`display`, `matePreference`) sit after these and are
- * deliberately excluded from the genetic-distance gate and speciation clustering.
+ * The sexual traits (`display`, `matePreference`) and the immune `resistance`
+ * trait sit after these and are deliberately excluded from the genetic-distance
+ * gate and speciation clustering.
  */
 export const SPECIES_TRAIT_COUNT = COLOUR_HUE + 1;
 
@@ -55,6 +63,7 @@ export const TRAIT_RANGES: readonly TraitRange[] = [
   { min: 0.0, max: 360.0 }, // colourHue (degrees)
   { min: 0.0, max: 1.0 }, // display: 0 plain … 1 showy
   { min: 0.0, max: 1.0 }, // matePreference: 0 prefers plain … 1 prefers showy
+  { min: 0.0, max: 1.0 }, // resistance: 0 susceptible … 1 strongly resistant
 ];
 
 /** One individual's traits, ordered as `TRAITS`. */

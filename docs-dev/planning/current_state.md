@@ -87,9 +87,10 @@ This file records what *is* (current reality). The binding design canon is `docs
   cost. (Earlier this was asexual-only; sexual shipped default-off in prompt 028.)
   In sexual mode, **sexual selection** is active: a `display` ornament (costly,
   via metabolism) and a `matePreference` drive mate choice within the
-  compatibility gate. The genome is now 8 traits (the 6 ecological ones define
-  species/compatibility; `display`/`matePreference` are excluded from that gate
-  and inert in asexual mode).
+  compatibility gate. The genome is now 9 traits (the 6 ecological ones define
+  species/compatibility; `display`/`matePreference` and the disease `resistance`
+  trait are excluded from that gate; the sexual two are inert in asexual mode and
+  `resistance` is inert when disease is off).
 - **After start, only the time multiplier and pause change** (spec lock); all
   other parameters are configured pre-start. Observation tools (adopt, follow,
   inspect, camera, director) do not alter the simulation.
@@ -124,7 +125,17 @@ This file records what *is* (current reality). The binding design canon is `docs
   energy payoff rather than free (prompt 072). Then **grouping safety**
   (`groupingSafety`, default 0): a prey amid many conspecifics is caught less
   often, saturating for large groups, so dense grouping dilutes predation risk
-  (prompt 073).
+  (prompt 073). Then **disease** (`disease`, default off; spec v0.6.0): a minimal
+  density-dependent compartmental (SIR/SIS) infection — infected hosts infect
+  susceptible grid neighbours via the seeded generator, an `infectionTimer` carries
+  them to recovery (immunity SIR / re-susceptibility SIS) or to disease death
+  routed through the normal death path, with rate params (`transmissionRate`,
+  `recoveryRate`, `diseaseMortality`, `immunityMode`), two appended per-agent
+  columns (`infectionState`/`infectionTimer`), and an optional costly host
+  `resistance` trait (the genome is now 9 traits; the 6 ecological ones still
+  define species, with `display`/`matePreference`/`resistance` excluded from that
+  gate). Disease runs TS-only — the WASM hot loop falls back to TypeScript whenever
+  disease is on (prompt 074).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

@@ -90,6 +90,23 @@ export interface SimulationParameters {
    */
   groupingSafety: number;
 
+  /**
+   * Optional coupling: a density/contact-dependent compartmental infection
+   * (default off, the byte-for-byte default). When on, infected creatures infect
+   * susceptible grid neighbours, run a timer to recovery or disease death, and a
+   * costly host `resistance` trait can evolve. See
+   * docs-dev/planning/science_integration_plan.md (074).
+   */
+  disease: boolean;
+  /** Per-susceptible-neighbour probability of transmission per tick (inert when disease is off). */
+  transmissionRate: number;
+  /** Recovery rate per tick; the infection lasts ~1/recoveryRate ticks (inert when disease is off). */
+  recoveryRate: number;
+  /** Probability that a host dies (rather than recovers) when its infection ends (inert when disease is off). */
+  diseaseMortality: number;
+  /** Recovery confers lasting immunity (SIR) or returns the host to susceptible (SIS). */
+  immunityMode: 'sir' | 'sis';
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -132,6 +149,11 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   wasmCore: false,
   cognitionCost: 0,
   groupingSafety: 0,
+  disease: false,
+  transmissionRate: 0.05,
+  recoveryRate: 0.02,
+  diseaseMortality: 0.2,
+  immunityMode: 'sir',
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
