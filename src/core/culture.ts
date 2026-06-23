@@ -22,10 +22,56 @@ export const KNOWLEDGE_MAX = 1;
 /**
  * Fraction of the gap to the best neighbour's knowledge that a successful copy
  * closes. A learner moves a fraction of the way *towards* its model rather than
- * adopting it outright, so knowledge diffuses gradually through a group. Scaled
- * by the copier's `socialLearning` propensity trait.
+ * adopting it outright, so knowledge diffuses gradually through a group.
  */
 export const COPY_FRACTION = 0.5;
+
+/**
+ * Innovation increment added on a successful copy (the cumulative ratchet, v0.7.1).
+ * A learner can end up slightly *above* its model — the source of ratcheting —
+ * but the increment is small and bounded (knowledge is clamped to KNOWLEDGE_MAX),
+ * so "cumulative" means knowledge climbs to and holds a higher level under high
+ * fidelity, not that it grows without limit. Folded into the existing copy branch,
+ * so it draws no extra RNG.
+ */
+export const INNOVATION_INCREMENT = 0.04;
+
+/**
+ * Transmission-fidelity threshold for cumulative culture (v0.7.1). Above it, the
+ * per-tick decay applied to knowledge is small, so innovations persist and ratchet
+ * upward; below it, decay dominates and gains are lost. Accumulation is therefore
+ * markedly **non-linear** in fidelity — trait longevity rises sharply
+ * (≈exponentially) with fidelity around this threshold (the Lewis & Laland
+ * result). A designed non-linearity, not an open-ended emergent property.
+ */
+export const FIDELITY_THRESHOLD = 0.5;
+
+/**
+ * Logistic steepness of the longevity transition around {@link FIDELITY_THRESHOLD}.
+ * Larger ⇒ a sharper switch from "decays away" to "accumulates" as fidelity
+ * crosses the threshold, giving the steep (≈exponential) rise in retained
+ * knowledge with fidelity.
+ */
+export const RATCHET_STEEPNESS = 18;
+
+/**
+ * Extra per-tick decay imposed *below* the fidelity threshold (the ratchet is
+ * conditional). Sub-threshold, knowledge loses this much per tick on top of the
+ * base `knowledgeDecay`, so copied/innovated gains cannot accumulate; above the
+ * threshold this extra term vanishes and only the small base decay remains.
+ */
+export const SUBTHRESHOLD_DECAY = 0.2;
+
+/**
+ * Longevity weight in [0, 1] of knowledge at a given fidelity: ~0 well below the
+ * threshold (gains decay away), ~1 well above it (gains persist and ratchet). A
+ * logistic in `fidelity - FIDELITY_THRESHOLD`, so the retained level rises steeply
+ * (≈exponentially) with fidelity around the threshold — accumulation is non-linear
+ * in fidelity, not proportional (the cumulative-ratchet [design-abstraction]).
+ */
+export function longevityFactor(fidelity: number): number {
+  return 1 / (1 + Math.exp(-RATCHET_STEEPNESS * (fidelity - FIDELITY_THRESHOLD)));
+}
 
 /** Clamp a knowledge value to its valid range [0, KNOWLEDGE_MAX]. */
 export function clampKnowledge(k: number): number {
@@ -49,10 +95,14 @@ export function cultureForagingFactor(knowledge: number, gain: number): number {
  * [design-abstraction], never emergent). A scaffolded second, non-genetic
  * inheritance channel: when `params.culture` is on, each live creature copies a
  * fraction of its best reachable neighbour's `knowledge` with probability
- * `transmissionFidelity`, and knowledge optionally decays each tick. Knowledge
- * raises foraging yield (applied in the behaviour/feeding path), is acquired only
- * after birth, and is lost on death — so mean knowledge can fall; it is a designed
- * channel, not a one-way upgrade.
+ * `transmissionFidelity`, gains a small innovation increment on a successful copy,
+ * and loses knowledge to a fidelity-dependent decay each tick. Above a fidelity
+ * threshold the decay is small so innovations persist and **ratchet** upward;
+ * below it decay dominates and gains are lost — accumulation is markedly
+ * non-linear in fidelity (the cumulative-ratchet [design-abstraction], v0.7.1).
+ * Knowledge stays bounded, raises foraging yield (applied in the behaviour/feeding
+ * path), is acquired only after birth, and is lost on death — so mean knowledge
+ * can fall; it is a designed channel, not a one-way upgrade.
  *
  * Runs as its own pass over current positions (reusing the agent grid like the
  * disease/predation passes). A reused object with a bound visitor and a
@@ -93,6 +143,15 @@ export class Culture {
     this.decay = params.knowledgeDecay;
     const { alive, knowledge, x, y, agentCapacity } = world;
 
+    // Fidelity-dependent longevity (the cumulative ratchet, v0.7.1): above the
+    // fidelity threshold the extra sub-threshold decay vanishes (gains persist and
+    // ratchet); below it, it dominates (gains decay away). The retained level
+    // therefore rises steeply (≈exponentially) with fidelity around the threshold.
+    // Computed once per tick (the same for every agent), so the pass stays cheap.
+    const longevity = longevityFactor(this.fidelity);
+    const effectiveDecay = this.decay + (1 - longevity) * SUBTHRESHOLD_DECAY;
+    const decayKeep = effectiveDecay > 0 ? 1 - effectiveDecay : 1;
+
     // Snapshot start-of-tick knowledge so every learner copies the same values,
     // making the pass order-independent (and therefore deterministic).
     const snapshot = this.snapshot;
@@ -106,14 +165,24 @@ export class Culture {
 
       let k = snapshot[s];
       const own = k;
-      // Copy: with probability `transmissionFidelity`, move a fraction of the gap
-      // to the best neighbour's knowledge towards it. One seeded draw per copy
-      // decision (the only RNG this pass draws), taken solely when culture is on.
-      if (this.bestKnowledge > own && rng.next() < this.fidelity) {
-        k = own + (this.bestKnowledge - own) * COPY_FRACTION;
+      // Social learning: with probability `transmissionFidelity` the creature
+      // engages in cultural transmission this tick (one seeded draw per decision —
+      // the only RNG this pass draws, taken solely when culture is on). It moves a
+      // fraction of the way toward its best model (a more-knowledgeable neighbour,
+      // if any) and adds a small innovation increment, so a learner can end up
+      // slightly *above* its model — the source of ratcheting. The innovation is
+      // folded into the same branch, so it adds no extra draw. With no better
+      // neighbour the increment alone applies, so a practice can also arise and
+      // build from scratch (bounded by the clamp); whether it *persists* is set by
+      // the fidelity-dependent decay below.
+      if (rng.next() < this.fidelity) {
+        const learned = this.bestKnowledge > own ? own + (this.bestKnowledge - own) * COPY_FRACTION : own;
+        k = learned + INNOVATION_INCREMENT;
       }
-      // Optional per-tick decay, so knowledge fades without renewed copying.
-      if (this.decay > 0) k *= 1 - this.decay;
+      // Fidelity-dependent per-tick decay, so gains accumulate only above the
+      // threshold and are lost below it. Always applied (it is part of the ratchet),
+      // bounding knowledge along with the clamp.
+      k *= decayKeep;
       knowledge[s] = clampKnowledge(k);
     }
   }

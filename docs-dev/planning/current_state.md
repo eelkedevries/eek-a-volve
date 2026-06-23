@@ -188,6 +188,17 @@ This file records what *is* (current reality). The binding design canon is `docs
   `transmissionFidelity` directly, so the genome stays at 9 traits and the default
   path is byte-for-byte unchanged. This is the foundation for the ratchet (081),
   cultural loss below critical N (082), and gene–culture coevolution (083).
+- **Cumulative ratchet** (spec v0.7.1, prompt 081): culture is cumulative only
+  **above a fidelity threshold**. On a successful copy the learner gains a small
+  bounded innovation increment (folded into the existing copy branch, so no extra
+  RNG draw), and per-tick decay is fidelity-dependent — above `FIDELITY_THRESHOLD`
+  (a `core/` constant) a logistic `longevityFactor` suppresses the extra decay so
+  gains persist and **ratchet** upward to a higher held level; below it the extra
+  `SUBTHRESHOLD_DECAY` dominates and gains decay toward zero. Retained knowledge
+  rises steeply (≈exponentially) with fidelity around the threshold (Lewis &
+  Laland); knowledge stays clamped to [0, 1]. The ratchet is *conditional* (no
+  sub-threshold accumulation) and a `[design-abstraction]`, never emergent. Inert
+  when culture is off.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

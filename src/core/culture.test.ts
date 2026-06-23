@@ -133,9 +133,11 @@ describe('culture — copying tracks transmission fidelity', () => {
 });
 
 describe('culture — knowledge is not a one-way upgrade (it can fall)', () => {
-  it('decays toward zero when there is nothing to copy from', () => {
-    // A lone knowledgeable creature with no reachable models: decay erodes its
-    // knowledge over time — knowledge is non-genetic and can be lost, not a ratchet.
+  it('decays away under low (below-threshold) fidelity — knowledge can be lost', () => {
+    // A knowledgeable creature under low transmission fidelity: below the fidelity
+    // threshold decay dominates, so its knowledge erodes — knowledge is non-genetic
+    // and can be lost, not a one-way ratchet. (Above the threshold it would instead
+    // accumulate; see culture_ratchet.test.ts.)
     const w = new World(16, 16);
     const s = w.spawnAgent();
     w.x[s] = 50;
@@ -144,13 +146,13 @@ describe('culture — knowledge is not a one-way upgrade (it can fall)', () => {
     const grid = new SpatialGrid(300, 300, GRID_CELL_SIZE, w.agentCapacity);
     const culture = new Culture(w.agentCapacity);
     const rng = new Rng(2);
-    const p = params({ culture: true, transmissionFidelity: 0.9, knowledgeDecay: 0.05 });
+    const p = params({ culture: true, transmissionFidelity: 0.05, knowledgeDecay: 0.02 });
     const before = w.knowledge[s];
-    for (let t = 0; t < 50; t++) {
+    for (let t = 0; t < 80; t++) {
       grid.rebuildFromAgents(w);
       culture.step(w, p, grid, rng);
     }
-    expect(w.knowledge[s]).toBeLessThan(before); // it fell
+    expect(w.knowledge[s]).toBeLessThan(before * 0.5); // it fell markedly
     expect(w.knowledge[s]).toBeGreaterThanOrEqual(0);
   });
 
