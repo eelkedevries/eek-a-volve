@@ -22,6 +22,7 @@ import { PHEROMONE_GRADIENT_EPSILON } from './pheromone.ts';
 import { IDLE, SEEKING, EATING, FLEEING, COURTING } from './state.ts';
 import { isMature } from './lifestage.ts';
 import { SPECIES_DISTANCE_THRESHOLD } from './speciation.ts';
+import { INFECTED } from './disease.ts';
 
 const TWO_PI = Math.PI * 2;
 
@@ -88,6 +89,11 @@ export class Behaviour {
   private bestMateDist2 = Infinity;
   private bestMateWeighted = Infinity;
   private selfPref = 0;
+  // Parasite-mediated mate choice (Hamilton–Zuk, 078): active only when disease
+  // and sexual mode are both on with a non-zero bias; otherwise these are inert
+  // so the default scoring (and RNG stream) is byte-for-byte unchanged.
+  private parasiteChoice = false;
+  private parasiteBias = 0;
 
   constructor(agentCapacity: number) {
     this.live = new Int32Array(agentCapacity);
@@ -136,7 +142,12 @@ export class Behaviour {
       }
       if (d2 < SPECIES_DISTANCE_THRESHOLD * SPECIES_DISTANCE_THRESHOLD) {
         const mismatch = Math.abs(w.traits[DISPLAY][id] - this.selfPref);
-        const weighted = dist2 * (1 + MATE_PREFERENCE_WEIGHT * mismatch);
+        // Parasite load (Hamilton–Zuk): an infected candidate is penalised by the
+        // signed bias (positive ⇒ less attractive). No RNG; inert at bias 0 or
+        // with disease off (parasiteChoice false), so the default run is unchanged.
+        const parasite =
+          this.parasiteChoice && w.infectionState[id] === INFECTED ? this.parasiteBias : 0;
+        const weighted = dist2 * (1 + MATE_PREFERENCE_WEIGHT * mismatch + parasite);
         if (weighted < this.bestMateWeighted) {
           this.bestMateWeighted = weighted;
           this.bestMateDist2 = dist2;
@@ -157,6 +168,11 @@ export class Behaviour {
   ): number {
     this.world = world;
     this.threshold = params.reproductionThreshold;
+    // Parasite-mediated mate choice is active only in sexual mode with disease on
+    // and a non-zero bias; otherwise the term is inert (default run unchanged).
+    this.parasiteChoice =
+      params.disease && params.sexualReproduction && params.parasiteMatingBias !== 0;
+    this.parasiteBias = params.parasiteMatingBias;
     const usePheromones = params.pheromones && pheromone !== undefined;
     const { alive, x, y, vx, vy, energy, age, traits, agentCapacity } = world;
     const senseCol = traits[SENSE_RADIUS];

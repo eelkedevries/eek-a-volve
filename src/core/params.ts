@@ -117,6 +117,16 @@ export interface SimulationParameters {
   immunityMode: 'sir' | 'sis';
 
   /**
+   * Optional coupling (Hamilton–Zuk): how strongly mate choice in sexual mode
+   * with disease on avoids infected candidates (0 = off, the byte-for-byte
+   * default). A signed coefficient — positive makes infected candidates less
+   * attractive (choosers avoid the sick); negative is available to model the
+   * competing position. Inert unless `disease` and `sexualReproduction` are both
+   * on. See docs-dev/planning/science_integration_plan.md (078).
+   */
+  parasiteMatingBias: number;
+
+  /**
    * Optional extension of the disease coupling: let the pathogen's `virulence`
    * evolve (default off; requires `disease`). When on, higher virulence raises
    * both transmission and host harm — shaped so an intermediate virulence
@@ -181,6 +191,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   recoveryRate: 0.02,
   diseaseMortality: 0.2,
   immunityMode: 'sir',
+  parasiteMatingBias: 0,
   virulenceEvolves: false,
   virulenceTransmissionGain: 3,
   virulenceHarmGain: 2.5,

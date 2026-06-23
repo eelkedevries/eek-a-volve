@@ -153,7 +153,13 @@ This file records what *is* (current reality). The binding design canon is `docs
   the byte-for-byte default; sublinear values make large bodies relatively cheaper
   (a higher mean `size` evolves). The WASM metabolism kernel has no exponent, so a
   non-unit exponent forces the TS metabolism pass (the existing fallback already
-  gated on `cognitionCost`/`disease`).
+  gated on `cognitionCost`/`disease`). Then **parasite-mediated mate choice**
+  (Hamilton–Zuk; `parasiteMatingBias`, default 0; spec v0.6.4, prompt 078): in
+  sexual mode with disease on, a *signed* bias extends the preference-weighted
+  mate score so infected candidates are penalised (positive) or favoured
+  (negative — the contested competing position); it reads the 074 `infectionState`
+  column, adds no RNG draw, and is inert by default. It inherits disease's TS-only
+  fallback (the WASM hot loop is already off whenever disease is on).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or
