@@ -226,6 +226,13 @@ button {
   animation: ev-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
+/* Keep children at their natural height so the card overflows and scrolls
+   (above) rather than compressing them — otherwise the advanced panel, which
+   clips with overflow: hidden, hides its lower rows when the card is tall. */
+.ev-setup-card > * {
+  flex-shrink: 0;
+}
+
 .ev-setup-title {
   font-family: var(--font-display);
   font-weight: 700;
