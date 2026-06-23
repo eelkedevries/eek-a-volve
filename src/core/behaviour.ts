@@ -23,7 +23,7 @@ import { IDLE, SEEKING, EATING, FLEEING, COURTING } from './state.ts';
 import { isMature } from './lifestage.ts';
 import { SPECIES_DISTANCE_THRESHOLD } from './speciation.ts';
 import { INFECTED } from './disease.ts';
-import { cultureForagingFactor } from './culture.ts';
+import { cultureForagingFactor, geneCultureFactor } from './culture.ts';
 
 const TWO_PI = Math.PI * 2;
 
@@ -134,6 +134,11 @@ export class Behaviour {
   // bookkeeping is the separate culture pass).
   private culture = false;
   private knowledgeGain = 0;
+  // Gene–culture coevolution (083): active only when `culture` is on and the
+  // coupling is > 0. Re-weights the designated resource's (the plant staple) yield
+  // by the eater's `size` band and `knowledge`, raising selection on `size` where
+  // the practice is present. No RNG; inert (factor 1) when off ⇒ default unchanged.
+  private geneCultureCoupling = 0;
 
   constructor(agentCapacity: number) {
     this.live = new Int32Array(agentCapacity);
@@ -227,6 +232,8 @@ export class Behaviour {
     // otherwise, so the factor is exactly 1 and the default run is unchanged).
     this.culture = params.culture;
     this.knowledgeGain = params.knowledgeForagingGain;
+    // Gene–culture coupling (083): inert unless culture is on and the coupling > 0.
+    this.geneCultureCoupling = params.geneCultureCoupling;
     const usePheromones = params.pheromones && pheromone !== undefined;
     const { alive, x, y, vx, vy, energy, age, traits, agentCapacity } = world;
     const senseCol = traits[SENSE_RADIUS];
@@ -368,6 +375,21 @@ export class Behaviour {
           // food, capped by `feed`. Knowledge is 0 when culture is off ⇒ factor 1.
           if (this.culture) {
             amount *= cultureForagingFactor(world.knowledge[s], this.knowledgeGain);
+            // Gene–culture coevolution (083): the designated resource (the plant
+            // staple) is unlocked by a high-knowledge practice only for the
+            // above-band `size` genotype, raising selection on `size` where culture
+            // is present. Deterministic, no RNG; factor 1 unless the coupling is on
+            // and the unlock conditions hold (so it relaxes — reversibly — as
+            // knowledge falls). Re-weights the yield within the energy budget
+            // (`feed` caps).
+            if (this.geneCultureCoupling > 0) {
+              amount *= geneCultureFactor(
+                world.foodType[food] === PLANT,
+                sizeCol[s],
+                world.knowledge[s],
+                this.geneCultureCoupling,
+              );
+            }
           }
           feed(world, s, amount);
           consumeFood(world, food);

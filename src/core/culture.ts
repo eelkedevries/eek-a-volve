@@ -84,6 +84,51 @@ export function longevityFactor(fidelity: number): number {
   return 1 / (1 + Math.exp(-RATCHET_STEEPNESS * (fidelity - FIDELITY_THRESHOLD)));
 }
 
+/**
+ * Knowledge level a creature must reach before the gene–culture practice unlocks
+ * the designated resource for it (the "dairying" know-how; v0.7.3). Below this the
+ * unlock is absent and selection on the target trait relaxes (reversibility).
+ */
+export const GENE_CULTURE_KNOWLEDGE_LEVEL = 0.5;
+
+/**
+ * Target `size` band for the gene–culture unlock (v0.7.3): the designated resource
+ * (the plant staple) is exploitable *well* only by creatures with `size` at or
+ * above this — the "persistence" genotype, here a larger body able to process the
+ * culturally-prepared resource. Above-band creatures take much more energy from it
+ * where the practice is present; below-band creatures take little. `size` ranges
+ * 0.5..2.0 (genome.ts), so this sits above the mid-range.
+ */
+export const GENE_CULTURE_SIZE_BAND = 1.25;
+
+/**
+ * Gene–culture foraging multiplier for the designated resource (plants), the
+ * lactase-persistence analogue (v0.7.3). Deterministic; adds no RNG. Completely
+ * inert (factor 1) unless `culture` is on, `geneCultureCoupling > 0`, the food is
+ * the designated resource, and the eater's `knowledge` is above the unlock level —
+ * in which case an above-band eater (`size >= GENE_CULTURE_SIZE_BAND`) gains a
+ * bonus scaling with the coupling, while a below-band eater gets little (the
+ * resource is "locked" to the persistence genotype). The unlock relaxes as soon as
+ * knowledge falls below the level, so the feedback is reversible. `isGated` is
+ * whether this food item is the designated resource (a plant).
+ */
+export function geneCultureFactor(
+  isGated: boolean,
+  size: number,
+  knowledge: number,
+  coupling: number,
+): number {
+  if (coupling <= 0 || !isGated || knowledge < GENE_CULTURE_KNOWLEDGE_LEVEL) return 1;
+  if (size >= GENE_CULTURE_SIZE_BAND) {
+    // The persistence genotype exploits the culturally-unlocked resource.
+    return 1 + coupling;
+  }
+  // Locked to others: the resource gives little without the genotype. Reduced
+  // (never below zero) rather than removed, so the staple stays survivable while
+  // the differential drives selection toward the above-band genotype.
+  return 1 / (1 + coupling);
+}
+
 /** Clamp a knowledge value to its valid range [0, KNOWLEDGE_MAX]. */
 export function clampKnowledge(k: number): number {
   return k < 0 ? 0 : k > KNOWLEDGE_MAX ? KNOWLEDGE_MAX : k;

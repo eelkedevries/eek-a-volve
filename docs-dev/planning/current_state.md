@@ -212,6 +212,19 @@ This file records what *is* (current reality). The binding design canon is `docs
   unaffected; `storyLog` falls through its `default` for now, no UI added). A
   `[debated]` coupling in interpretation, `[design-abstraction]` in mechanism. Adds
   no RNG draw; inert when culture is off.
+- **Gene–culture coevolution (lactase analogue)** (`geneCultureCoupling`, default
+  0; spec v0.7.3, prompt 083): a two-way feedback between the culture channel and an
+  existing **ecological** trait (`size`). When `culture` is on and the coupling > 0,
+  a high-`knowledge` practice unlocks the **plant staple** *only* for the
+  above-band genotype (`size ≥ GENE_CULTURE_SIZE_BAND`) — such creatures take
+  `×(1 + coupling)` energy from plants, others `×1/(1 + coupling)` (reduced but
+  survivable) — raising realised selection on `size` where the practice is present,
+  whose spread reinforces the practice. Applied in the behaviour/feeding path
+  (`geneCultureFactor` in `culture.ts`), **deterministic, no RNG**. **Reversible**:
+  the unlock relaxes when knowledge falls below `GENE_CULTURE_KNOWLEDGE_LEVEL`, so a
+  lost practice lets the trait drift back (tested keeper-vs-loser). `[established]`
+  for lactase (s ≈ 0.09–0.19); the knowledge channel remains `[design-abstraction]`.
+  Inert (byte-for-byte) when the coupling is 0 or culture is off.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

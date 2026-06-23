@@ -185,6 +185,20 @@ export interface SimulationParameters {
    */
   criticalCultureN: number;
 
+  /**
+   * Gene–culture coevolution coupling (the lactase-persistence analogue,
+   * [established] for that case; 0 = off, the byte-for-byte default; v0.7.3).
+   * Above 0, a high-`knowledge` cultural practice unlocks a designated resource
+   * (the plant staple) *only* for creatures whose `size` is above a band (the
+   * "persistence" genotype): such creatures take much more energy from it where the
+   * practice is present, and others little. This raises realised selection on
+   * `size` exactly where culture is present, and the trait's spread reinforces the
+   * practice — closing the loop. Reversible: the unlock relaxes when knowledge
+   * falls below the level, so it is not a one-way ratchet. Requires `culture`; adds
+   * no generator draw and is inert when 0 or `culture` is off.
+   */
+  geneCultureCoupling: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -248,6 +262,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   knowledgeForagingGain: 0.5,
   knowledgeDecay: 0.01,
   criticalCultureN: 4,
+  geneCultureCoupling: 0,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };
