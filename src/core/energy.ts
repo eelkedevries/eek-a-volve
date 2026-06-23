@@ -45,7 +45,12 @@ export function metabolicCost(
   const size = world.traits[SIZE][slot];
   const speed = world.traits[SPEED][slot];
   const efficiency = world.traits[METABOLIC_EFFICIENCY][slot];
-  let cost = (params.baseMetabolicCost * (size + speed)) / efficiency;
+  // Allometric scaling: `size` enters the base drain raised to the (debated)
+  // `metabolicExponent`. The default exponent 1 takes exactly the current
+  // arithmetic (`size`, not `Math.pow(size, 1)`), so the default run is
+  // byte-for-byte identical; sublinear exponents (<1) make large bodies cheaper.
+  const sizeTerm = params.metabolicExponent === 1 ? size : Math.pow(size, params.metabolicExponent);
+  let cost = (params.baseMetabolicCost * (sizeTerm + speed)) / efficiency;
   // Cognition is expensive: a larger sense radius (perceptual/cognitive
   // investment) drains more energy, so it is bounded by its foraging payoff
   // rather than free. Off by default — cognitionCost 0 makes the factor exactly

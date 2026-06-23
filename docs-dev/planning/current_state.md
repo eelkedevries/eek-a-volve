@@ -146,7 +146,14 @@ This file records what *is* (current reality). The binding design canon is `docs
   creature tint, a setup-screen Disease chip + advanced tab expose the toggle and
   rate/virulence parameters, the legend explains the sick and plague visuals, and
   plague die-offs / infected obituaries route through the existing event pipeline
-  ("succumbed to the pox") — no core rule or outcome changed.
+  ("succumbed to the pox") — no core rule or outcome changed. Then a tunable
+  **metabolic exponent** (`metabolicExponent`, default 1; spec v0.6.3, prompt
+  077): the `size` term of the per-tick metabolic drain is raised to a *debated*
+  allometric exponent (≈0.67 surface-rule / 0.75 Kleiber / 1.0 isometric), with 1
+  the byte-for-byte default; sublinear values make large bodies relatively cheaper
+  (a higher mean `size` evolves). The WASM metabolism kernel has no exponent, so a
+  non-unit exponent forces the TS metabolism pass (the existing fallback already
+  gated on `cognitionCost`/`disease`).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

@@ -83,6 +83,15 @@ export interface SimulationParameters {
   cognitionCost: number;
 
   /**
+   * The allometric exponent applied to `size` in the per-tick metabolic drain (a
+   * debated modelling choice: ≈0.67 surface-rule, 0.75 Kleiber, 1.0 isometric).
+   * A tunable coefficient whose default, 1, reproduces today's linear-in-size
+   * cost byte-for-byte; sublinear values (<1) make large bodies relatively
+   * cheaper. See docs-dev/planning/science_integration_plan.md (077).
+   */
+  metabolicExponent: number;
+
+  /**
    * Optional coupling: how strongly a dense local conspecific group dilutes a
    * creature's per-capita predation risk (0 = off, the default). Above 0, a prey
    * amid many conspecifics is caught less often, saturating for large groups. See
@@ -165,6 +174,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   offscreenRender: false,
   wasmCore: false,
   cognitionCost: 0,
+  metabolicExponent: 1,
   groupingSafety: 0,
   disease: false,
   transmissionRate: 0.05,

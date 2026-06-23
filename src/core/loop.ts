@@ -164,11 +164,14 @@ export class Simulation {
           : this.predation.step(world, params, agentGrid, rng);
     }
     // 4. Metabolism, ageing, death (optionally via the WebAssembly core). The
-    // optional cognition cost and the disease resistance cost live only in the TS
-    // metabolism pass, so when either is active the WASM core falls back to TS here
-    // (the kernel is not re-derived).
+    // optional cognition cost, the disease resistance cost, and a non-unit
+    // metabolic exponent live only in the TS metabolism pass, so when any is
+    // active the WASM core falls back to TS here (the kernel is not re-derived).
     deaths +=
-      this.wasm !== null && params.cognitionCost === 0 && !params.disease
+      this.wasm !== null &&
+      params.cognitionCost === 0 &&
+      !params.disease &&
+      params.metabolicExponent === 1
         ? this.wasm.metabolise(world, params)
         : metaboliseAndReap(world, params);
     // 4b. Disease (optional, behind the toggle): infect susceptible grid
