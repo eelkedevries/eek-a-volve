@@ -100,6 +100,19 @@ export interface SimulationParameters {
   groupingSafety: number;
 
   /**
+   * Optional coupling (social-brain hypothesis): the default-off social return to
+   * cognition. When on, a creature in a larger local conspecific group gains a
+   * small, bounded foraging bonus that scales with its `senseRadius`, so a big
+   * sense radius repays only in company — and only enough to matter where 072's
+   * `cognitionCost` drain is also on. A genuine trade-off (it can be a net loss,
+   * so mean `senseRadius` can fall), never a one-way upgrade. See
+   * docs-dev/planning/science_integration_plan.md (079).
+   */
+  socialBrain: boolean;
+  /** Strength of the social foraging return (the bounded bonus at full sense radius in a large group); inert when `socialBrain` is off. */
+  socialBrainGain: number;
+
+  /**
    * Optional coupling: a density/contact-dependent compartmental infection
    * (default off, the byte-for-byte default). When on, infected creatures infect
    * susceptible grid neighbours, run a timer to recovery or disease death, and a
@@ -186,6 +199,8 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   cognitionCost: 0,
   metabolicExponent: 1,
   groupingSafety: 0,
+  socialBrain: false,
+  socialBrainGain: 0.5,
   disease: false,
   transmissionRate: 0.05,
   recoveryRate: 0.02,

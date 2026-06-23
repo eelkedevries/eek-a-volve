@@ -40,6 +40,30 @@ export const SEXUAL_COST_FRACTION = 0.3;
 export const FOOD_TYPE_PENALTY = 4;
 /** How strongly a mismatch between a candidate's display and the chooser's preference penalises it. */
 export const MATE_PREFERENCE_WEIGHT = 8;
+/** Radius within which conspecifics count toward a forager's social-brain group (079). */
+export const SOCIAL_GROUP_RADIUS = 30;
+
+/** Maximum `senseRadius` — the cognitive investment the social return scales with. */
+const SENSE_MAX = TRAIT_RANGES[SENSE_RADIUS].max;
+
+/**
+ * The social-brain foraging multiplier (079): a creature eating amid a larger
+ * local conspecific group, and investing more in `senseRadius`, gains a small,
+ * bounded bonus to the energy it takes from food. Saturating in group size
+ * (`1 - 1/groupSize` → 1) so it cannot run away, and zero for a solitary forager
+ * (group size 1) — the return exists only in company. Bounded above by
+ * `1 + gain`. A deterministic function of the local count and `senseRadius`; it
+ * adds no RNG.
+ */
+export function socialForagingFactor(
+  groupSize: number,
+  senseRadius: number,
+  gain: number,
+): number {
+  const senseFrac = senseRadius / SENSE_MAX;
+  const crowd = groupSize > 1 ? 1 - 1 / groupSize : 0;
+  return 1 + gain * senseFrac * crowd;
+}
 
 /**
  * The hand-coded, trait-parameterised behaviour policy (specification: Domain
@@ -94,6 +118,14 @@ export class Behaviour {
   // so the default scoring (and RNG stream) is byte-for-byte unchanged.
   private parasiteChoice = false;
   private parasiteBias = 0;
+
+  // Social-brain foraging return (079): active only when `socialBrain` is on.
+  // Inert otherwise, so feeding takes exactly the current `feed(...)` call and the
+  // default run is byte-for-byte unchanged. The group counter is reused per eat.
+  private socialBrain = false;
+  private socialGain = 0;
+  private socialSpecies = 0;
+  private socialCount = 0;
 
   constructor(agentCapacity: number) {
     this.live = new Int32Array(agentCapacity);
@@ -157,6 +189,13 @@ export class Behaviour {
     }
   };
 
+  /** Counts live conspecifics near a forager for the social-brain return (079). */
+  private readonly onGroupMember = (id: number, _dist2: number): void => {
+    if (this.world.alive[id] === 1 && this.world.speciesId[id] === this.socialSpecies) {
+      this.socialCount++;
+    }
+  };
+
   /** Advance behaviour by one tick. Returns the number of births. */
   step(
     world: World,
@@ -173,6 +212,9 @@ export class Behaviour {
     this.parasiteChoice =
       params.disease && params.sexualReproduction && params.parasiteMatingBias !== 0;
     this.parasiteBias = params.parasiteMatingBias;
+    // Social-brain foraging return: active only when the toggle is on.
+    this.socialBrain = params.socialBrain;
+    this.socialGain = params.socialBrainGain;
     const usePheromones = params.pheromones && pheromone !== undefined;
     const { alive, x, y, vx, vy, energy, age, traits, agentCapacity } = world;
     const senseCol = traits[SENSE_RADIUS];
@@ -298,7 +340,19 @@ export class Behaviour {
         const fdx = world.foodX[food] - nx;
         const fdy = world.foodY[food] - ny;
         if (fdx * fdx + fdy * fdy <= EAT_RADIUS * EAT_RADIUS) {
-          feed(world, s, world.foodEnergy[food]);
+          let amount = world.foodEnergy[food];
+          // Social-brain return (079): in a larger local conspecific group the
+          // energy taken from food is multiplied by a small, bounded, saturating
+          // factor scaled by `senseRadius`, so a big sense radius repays only in
+          // company. Counted over the start-of-tick agent grid (which indexes this
+          // creature and its neighbours), allocation-free, no RNG. Off ⇒ unchanged.
+          if (this.socialBrain) {
+            this.socialSpecies = world.speciesId[s];
+            this.socialCount = 0;
+            agentGrid.query(this.px, this.py, SOCIAL_GROUP_RADIUS, this.onGroupMember);
+            amount *= socialForagingFactor(this.socialCount, senseCol[s], this.socialGain);
+          }
+          feed(world, s, amount);
           consumeFood(world, food);
           world.action[s] = EATING;
           if (usePheromones) pheromone!.deposit(nx, ny, params.pheromoneDeposit);

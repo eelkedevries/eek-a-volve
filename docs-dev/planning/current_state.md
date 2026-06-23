@@ -159,7 +159,16 @@ This file records what *is* (current reality). The binding design canon is `docs
   mate score so infected candidates are penalised (positive) or favoured
   (negative — the contested competing position); it reads the 074 `infectionState`
   column, adds no RNG draw, and is inert by default. It inherits disease's TS-only
-  fallback (the WASM hot loop is already off whenever disease is on).
+  fallback (the WASM hot loop is already off whenever disease is on). Then the
+  **social brain** (`socialBrain`, default off, with a `socialBrainGain`; spec
+  v0.6.5, prompt 079): a *debated* social return to cognition — a creature eating
+  in a larger local conspecific group (counted via the same `SpatialGrid.query`
+  pattern as 073) gains a small, bounded, saturating foraging bonus scaled by
+  `senseRadius`, zero for a solitary forager. Deliberately paired with 072's
+  `cognitionCost` so cognition is a genuine, **reversible** trade-off — where the
+  payoff is absent or outweighed, mean `senseRadius` falls (non-monotonic, not a
+  ratchet). No RNG draw, inert by default; `canRunBehaviour` now also forces the TS
+  behaviour pass whenever `socialBrain` is on.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or
