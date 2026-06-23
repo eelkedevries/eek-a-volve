@@ -135,7 +135,12 @@ This file records what *is* (current reality). The binding design canon is `docs
   `resistance` trait (the genome is now 9 traits; the 6 ecological ones still
   define species, with `display`/`matePreference`/`resistance` excluded from that
   gate). Disease runs TS-only — the WASM hot loop falls back to TypeScript whenever
-  disease is on (prompt 074).
+  disease is on (prompt 074). Then **evolving virulence** (`virulenceEvolves`,
+  default off; spec v0.6.1): the pathogen carries a per-host `virulence` (an
+  appended Float32 column, not a genome trait) that raises both transmission and
+  host harm (a shorter infectious period and higher mortality), shaped so onward
+  transmission peaks at an *intermediate* virulence; it mutates by a seeded clamped
+  Gaussian step on transmission, drawn only when the toggle is on (prompt 075).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

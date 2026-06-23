@@ -107,6 +107,23 @@ export interface SimulationParameters {
   /** Recovery confers lasting immunity (SIR) or returns the host to susceptible (SIS). */
   immunityMode: 'sir' | 'sis';
 
+  /**
+   * Optional extension of the disease coupling: let the pathogen's `virulence`
+   * evolve (default off; requires `disease`). When on, higher virulence raises
+   * both transmission and host harm — shaped so an intermediate virulence
+   * maximises onward spread — and mutates by a seeded clamped Gaussian step on
+   * each transmission. With it off the disease pass behaves exactly as without
+   * virulence (no extra generator draws). See
+   * docs-dev/planning/science_integration_plan.md (075).
+   */
+  virulenceEvolves: boolean;
+  /** How strongly virulence raises per-event transmission (the transmission–virulence slope; inert when off). */
+  virulenceTransmissionGain: number;
+  /** How strongly virulence shortens the infectious period (the host-harm–virulence slope; inert when off). */
+  virulenceHarmGain: number;
+  /** Standard deviation of the seeded Gaussian step mutating virulence on transmission (inert when off). */
+  virulenceMutation: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -154,6 +171,10 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   recoveryRate: 0.02,
   diseaseMortality: 0.2,
   immunityMode: 'sir',
+  virulenceEvolves: false,
+  virulenceTransmissionGain: 3,
+  virulenceHarmGain: 2.5,
+  virulenceMutation: 0.05,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

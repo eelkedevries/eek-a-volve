@@ -26,6 +26,8 @@ export interface WorldLayout {
   generation: number;
   offspringCount: number;
   traits: number[];
+  /** Per-agent strain virulence of the current infection (Float32; disease, v0.6.1). */
+  virulence: number;
   // Food 4-byte columns.
   foodX: number;
   foodY: number;
@@ -84,6 +86,8 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
   const offspringCount = block(agentCapacity, 4);
   const traits: number[] = [];
   for (let t = 0; t < TRAIT_COUNT; t++) traits.push(block(agentCapacity, 4));
+  // Per-agent strain virulence, appended to the 4-byte group (disease, v0.6.1).
+  const virulence = block(agentCapacity, 4);
   const foodX = block(foodCapacity, 4);
   const foodY = block(foodCapacity, 4);
   const foodEnergy = block(foodCapacity, 4);
@@ -119,6 +123,7 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
     generation,
     offspringCount,
     traits,
+    virulence,
     foodX,
     foodY,
     foodEnergy,

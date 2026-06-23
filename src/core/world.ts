@@ -51,6 +51,10 @@ export class World {
   readonly infectionState: Uint8Array;
   /** Ticks remaining in the current infection (meaningful only while infected). */
   readonly infectionTimer: Uint16Array;
+  /** Strain virulence of the current infection — a pathogen attribute carried on
+   *  the host, meaningful only while infected (the optional virulence-evolution
+   *  extension, v0.6.1). Not a genome trait; absent from the species gate. */
+  readonly virulence: Float32Array;
 
   /** Per-creature neural-net weights (optional capability); null when brains are off. */
   brainWeights: Float32Array | null = null;
@@ -105,6 +109,7 @@ export class World {
       this.action = new Uint8Array(sharedBuffer, L.action, agentCapacity);
       this.infectionState = new Uint8Array(sharedBuffer, L.infectionState, agentCapacity);
       this.infectionTimer = new Uint16Array(sharedBuffer, L.infectionTimer, agentCapacity);
+      this.virulence = new Float32Array(sharedBuffer, L.virulence, agentCapacity);
       this.foodX = new Float32Array(sharedBuffer, L.foodX, foodCapacity);
       this.foodY = new Float32Array(sharedBuffer, L.foodY, foodCapacity);
       this.foodEnergy = new Float32Array(sharedBuffer, L.foodEnergy, foodCapacity);
@@ -128,6 +133,7 @@ export class World {
       this.action = new Uint8Array(agentCapacity);
       this.infectionState = new Uint8Array(agentCapacity);
       this.infectionTimer = new Uint16Array(agentCapacity);
+      this.virulence = new Float32Array(agentCapacity);
       this.foodX = new Float32Array(foodCapacity);
       this.foodY = new Float32Array(foodCapacity);
       this.foodEnergy = new Float32Array(foodCapacity);
@@ -190,10 +196,11 @@ export class World {
     this.generation[slot] = 0;
     this.offspringCount[slot] = 0;
     this.action[slot] = 0;
-    // A reused slot starts susceptible with no infection timer, so disease state
-    // never carries over from the slot's previous occupant.
+    // A reused slot starts susceptible with no infection timer or strain virulence,
+    // so disease state never carries over from the slot's previous occupant.
     this.infectionState[slot] = 0;
     this.infectionTimer[slot] = 0;
+    this.virulence[slot] = 0;
     this.population++;
     return slot;
   }
