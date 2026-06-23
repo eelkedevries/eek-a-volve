@@ -121,7 +121,10 @@ This file records what *is* (current reality). The binding design canon is `docs
   shape and are sequenced in [`science_integration_plan.md`](science_integration_plan.md).
   First landed: an optional **cognition cost** (`cognitionCost`, default 0) that makes
   per-tick metabolic drain scale with `senseRadius`, so perception is bounded by its
-  energy payoff rather than free (prompt 072).
+  energy payoff rather than free (prompt 072). Then **grouping safety**
+  (`groupingSafety`, default 0): a prey amid many conspecifics is caught less
+  often, saturating for large groups, so dense grouping dilutes predation risk
+  (prompt 073).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

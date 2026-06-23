@@ -369,7 +369,7 @@ export function createWasmCore(
     freakBirthCount: 0,
 
     canRunBehaviour(params: SimulationParameters): boolean {
-      return !params.neuralBrains;
+      return !params.neuralBrains && params.groupingSafety === 0;
     },
 
     behaviourStep(world: World, params: SimulationParameters): number {

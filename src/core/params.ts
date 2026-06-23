@@ -82,6 +82,14 @@ export interface SimulationParameters {
    */
   cognitionCost: number;
 
+  /**
+   * Optional coupling: how strongly a dense local conspecific group dilutes a
+   * creature's per-capita predation risk (0 = off, the default). Above 0, a prey
+   * amid many conspecifics is caught less often, saturating for large groups. See
+   * docs-dev/planning/science_integration_plan.md (073).
+   */
+  groupingSafety: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -123,6 +131,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   offscreenRender: false,
   wasmCore: false,
   cognitionCost: 0,
+  groupingSafety: 0,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

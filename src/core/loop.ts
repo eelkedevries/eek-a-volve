@@ -158,7 +158,7 @@ export class Simulation {
       deaths +=
         this.wasm !== null && this.wasm.canRunBehaviour(params)
           ? this.wasm.predationStep(world)
-          : this.predation.step(world, params, agentGrid);
+          : this.predation.step(world, params, agentGrid, rng);
     }
     // 4. Metabolism, ageing, death (optionally via the WebAssembly core). The
     // optional cognition cost lives only in the TS metabolism pass, so when it is
