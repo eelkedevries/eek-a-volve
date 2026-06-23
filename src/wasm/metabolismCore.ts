@@ -369,15 +369,17 @@ export function createWasmCore(
     freakBirthCount: 0,
 
     canRunBehaviour(params: SimulationParameters): boolean {
-      // Disease and the social-brain return run TS-only (the kernel has neither
-      // infection nor social-foraging logic), so when either is on the whole hot
-      // loop falls back to TS, keeping the new columns/feeding advanced and the
-      // default WASM path bit-identical (WASM-fallback rule).
+      // Disease, the social-brain return, and culture (social learning) run TS-only
+      // (the kernel has no infection, social-foraging, or knowledge logic), so when
+      // any is on the whole hot loop falls back to TS, keeping the new
+      // columns/feeding advanced and the default WASM path bit-identical
+      // (WASM-fallback rule).
       return (
         !params.neuralBrains &&
         params.groupingSafety === 0 &&
         !params.disease &&
-        !params.socialBrain
+        !params.socialBrain &&
+        !params.culture
       );
     },
 

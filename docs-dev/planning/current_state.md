@@ -169,6 +169,25 @@ This file records what *is* (current reality). The binding design canon is `docs
   payoff is absent or outweighed, mean `senseRadius` falls (non-monotonic, not a
   ratchet). No RNG draw, inert by default; `canRunBehaviour` now also forces the TS
   behaviour pass whenever `socialBrain` is on.
+- **Culture / social learning** (`culture`, default off; spec v0.7.0, prompt 080):
+  a scaffolded second, **non-genetic** inheritance channel — a per-agent
+  `knowledge` scalar (an appended Float32 column, not a genome trait) that each
+  creature copies from its best reachable neighbour with probability
+  `transmissionFidelity` (the new `src/core/culture.ts` pass, reusing the
+  `SpatialGrid.query` pattern over a copy radius; one seeded draw per copy
+  decision), with an optional per-tick `knowledgeDecay`. Knowledge raises foraging
+  yield within the energy budget (`1 + knowledgeForagingGain × knowledge`, capped
+  by `feed`) in the behaviour pass. Knowledge is acquired only after birth and
+  **lost on death** (a recycled slot starts at zero), so mean knowledge can fall —
+  a designed, **reversible** channel labelled `[design-abstraction]`, never
+  emergent. Inert by default (no RNG, no columns advanced); a mean-`knowledge`
+  aggregate is appended to the snapshot header. Culture runs TS-only —
+  `canRunBehaviour` (and the metabolise gate) now also force the TS path whenever
+  `culture` is on. The optional social-learning-propensity *trait* was considered
+  but **not added** (it would perturb the default RNG stream); copy probability is
+  `transmissionFidelity` directly, so the genome stays at 9 traits and the default
+  path is byte-for-byte unchanged. This is the foundation for the ratchet (081),
+  cultural loss below critical N (082), and gene–culture coevolution (083).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

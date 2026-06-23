@@ -3,6 +3,7 @@ import { SpatialGrid } from './grid.ts';
 import { Behaviour } from './behaviour.ts';
 import { Predation } from './predation.ts';
 import { Disease, seedInfections } from './disease.ts';
+import { Culture } from './culture.ts';
 import { Speciation } from './speciation.ts';
 import { Events, type CatastropheEvent } from './events.ts';
 import { EventLog } from './eventlog.ts';
@@ -53,6 +54,7 @@ export class Simulation {
   private readonly behaviour: Behaviour;
   private readonly predation: Predation;
   private readonly disease: Disease;
+  private readonly culture: Culture;
   private readonly speciation: Speciation;
   private readonly events = new Events();
   /** Bounded log of notable moments, drained by the worker for the UI and narrator. */
@@ -112,6 +114,7 @@ export class Simulation {
     this.behaviour = new Behaviour(params.maxPopulation);
     this.predation = new Predation();
     this.disease = new Disease(params.maxPopulation);
+    this.culture = new Culture(params.maxPopulation);
     this.speciation = new Speciation();
     if (params.neuralBrains) this.world.enableBrains(BRAIN_WEIGHT_COUNT);
     if (population !== undefined && population.length > 0) this.seedFromPopulation(population);
@@ -167,11 +170,14 @@ export class Simulation {
     // optional cognition cost, the disease resistance cost, and a non-unit
     // metabolic exponent live only in the TS metabolism pass, so when any is
     // active the WASM core falls back to TS here (the kernel is not re-derived).
+    // Culture also forces the TS path so the whole knowledge subsystem stays
+    // TS-only (WASM-fallback rule), even though it does not change metabolic cost.
     deaths +=
       this.wasm !== null &&
       params.cognitionCost === 0 &&
       !params.disease &&
-      params.metabolicExponent === 1
+      params.metabolicExponent === 1 &&
+      !params.culture
         ? this.wasm.metabolise(world, params)
         : metaboliseAndReap(world, params);
     // 4b. Disease (optional, behind the toggle): infect susceptible grid
@@ -182,6 +188,14 @@ export class Simulation {
       agentGrid.rebuildFromAgents(world);
       diseaseDeaths = this.disease.step(world, params, agentGrid, rng);
       deaths += diseaseDeaths;
+    }
+    // 4c. Culture (optional, behind the toggle): copy a fraction of the best
+    // reachable neighbour's knowledge toward each agent and optionally decay it
+    // (the foraging return itself is applied in the behaviour/feeding pass). Its
+    // own pass over current positions; draws no RNG and changes nothing when off.
+    if (params.culture) {
+      agentGrid.rebuildFromAgents(world);
+      this.culture.step(world, params, agentGrid, rng);
     }
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);

@@ -50,7 +50,9 @@ describe('genome growth', () => {
   it('keeps snapshot offsets derived from the trait count', () => {
     expect(H_TRAIT_MEANS).toBe(5);
     expect(H_FOOD_COUNT).toBe(5 + TRAIT_COUNT);
-    expect(HEADER_LENGTH).toBe(6 + TRAIT_COUNT);
+    // The appended mean-knowledge field (culture, 080) takes the header to
+    // 7 + TRAIT_COUNT (food count, then mean knowledge, after the trait means).
+    expect(HEADER_LENGTH).toBe(7 + TRAIT_COUNT);
     expect(snapshotLength(10, 5)).toBe(HEADER_LENGTH + AGENT_STRIDE * 10 + FOOD_STRIDE * 5);
   });
 });

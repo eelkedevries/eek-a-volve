@@ -156,6 +156,25 @@ export interface SimulationParameters {
   /** Standard deviation of the seeded Gaussian step mutating virulence on transmission (inert when off). */
   virulenceMutation: number;
 
+  /**
+   * Optional coupling (social learning — a [design-abstraction], never emergent):
+   * a second, non-genetic inheritance channel (default off, the byte-for-byte
+   * default). When on, each creature copies a fraction of its best grid
+   * neighbour's `knowledge` with probability `transmissionFidelity`, and that
+   * knowledge raises the effective energy gained from food (a real,
+   * budget-respecting return — knowledge never creates energy from nothing).
+   * Knowledge is acquired only after birth and is lost on death (a recycled slot
+   * starts at zero), so mean knowledge can fall: it is a designed channel, not a
+   * one-way upgrade. See docs-dev/planning/science_integration_plan.md (080).
+   */
+  culture: boolean;
+  /** Per-copy adoption probability (0..1): how faithfully a learner copies its best neighbour (inert when `culture` is off). */
+  transmissionFidelity: number;
+  /** How strongly `knowledge` raises foraging yield: eating gives `1 + knowledgeForagingGain * knowledge` × food energy (inert when `culture` is off). */
+  knowledgeForagingGain: number;
+  /** Optional per-tick multiplicative loss of `knowledge` so it can fade without upkeep (inert when `culture` is off). */
+  knowledgeDecay: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -211,6 +230,13 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   virulenceTransmissionGain: 3,
   virulenceHarmGain: 2.5,
   virulenceMutation: 0.05,
+  // Social learning (culture): off by default, so the whole channel is inert and
+  // the run is byte-for-byte unchanged; the rest are sensible values used only
+  // when `culture` is on.
+  culture: false,
+  transmissionFidelity: 0.5,
+  knowledgeForagingGain: 0.5,
+  knowledgeDecay: 0.01,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

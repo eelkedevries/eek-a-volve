@@ -23,6 +23,7 @@ import { IDLE, SEEKING, EATING, FLEEING, COURTING } from './state.ts';
 import { isMature } from './lifestage.ts';
 import { SPECIES_DISTANCE_THRESHOLD } from './speciation.ts';
 import { INFECTED } from './disease.ts';
+import { cultureForagingFactor } from './culture.ts';
 
 const TWO_PI = Math.PI * 2;
 
@@ -127,6 +128,13 @@ export class Behaviour {
   private socialSpecies = 0;
   private socialCount = 0;
 
+  // Culture foraging return (080): active only when `culture` is on. Inert
+  // otherwise (knowledge is 0 when culture is off, so the factor is exactly 1),
+  // so the default run is byte-for-byte unchanged. No RNG (the copy/decay
+  // bookkeeping is the separate culture pass).
+  private culture = false;
+  private knowledgeGain = 0;
+
   constructor(agentCapacity: number) {
     this.live = new Int32Array(agentCapacity);
     this.mated = new Uint8Array(agentCapacity);
@@ -215,6 +223,10 @@ export class Behaviour {
     // Social-brain foraging return: active only when the toggle is on.
     this.socialBrain = params.socialBrain;
     this.socialGain = params.socialBrainGain;
+    // Culture foraging return: active only when the toggle is on (knowledge is 0
+    // otherwise, so the factor is exactly 1 and the default run is unchanged).
+    this.culture = params.culture;
+    this.knowledgeGain = params.knowledgeForagingGain;
     const usePheromones = params.pheromones && pheromone !== undefined;
     const { alive, x, y, vx, vy, energy, age, traits, agentCapacity } = world;
     const senseCol = traits[SENSE_RADIUS];
@@ -351,6 +363,11 @@ export class Behaviour {
             this.socialCount = 0;
             agentGrid.query(this.px, this.py, SOCIAL_GROUP_RADIUS, this.onGroupMember);
             amount *= socialForagingFactor(this.socialCount, senseCol[s], this.socialGain);
+          }
+          // Culture return (080): more knowledge yields more energy from the same
+          // food, capped by `feed`. Knowledge is 0 when culture is off ⇒ factor 1.
+          if (this.culture) {
+            amount *= cultureForagingFactor(world.knowledge[s], this.knowledgeGain);
           }
           feed(world, s, amount);
           consumeFood(world, food);

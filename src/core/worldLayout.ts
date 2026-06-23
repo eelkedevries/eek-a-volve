@@ -28,6 +28,9 @@ export interface WorldLayout {
   traits: number[];
   /** Per-agent strain virulence of the current infection (Float32; disease, v0.6.1). */
   virulence: number;
+  /** Per-agent learned `knowledge` scalar (Float32; the optional culture coupling,
+   *  v0.7.0; appended so existing offsets stay stable, and 0 when culture is off). */
+  knowledge: number;
   // Food 4-byte columns.
   foodX: number;
   foodY: number;
@@ -88,6 +91,8 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
   for (let t = 0; t < TRAIT_COUNT; t++) traits.push(block(agentCapacity, 4));
   // Per-agent strain virulence, appended to the 4-byte group (disease, v0.6.1).
   const virulence = block(agentCapacity, 4);
+  // Per-agent learned knowledge, appended to the 4-byte group (culture, v0.7.0).
+  const knowledge = block(agentCapacity, 4);
   const foodX = block(foodCapacity, 4);
   const foodY = block(foodCapacity, 4);
   const foodEnergy = block(foodCapacity, 4);
@@ -124,6 +129,7 @@ export function computeWorldLayout(agentCapacity: number, foodCapacity: number):
     offspringCount,
     traits,
     virulence,
+    knowledge,
     foodX,
     foodY,
     foodEnergy,

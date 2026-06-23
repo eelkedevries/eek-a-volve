@@ -11,7 +11,11 @@ export const H_DEATHS = 3;
 export const H_SPECIES_COUNT = 4;
 export const H_TRAIT_MEANS = 5; // [H_TRAIT_MEANS, H_TRAIT_MEANS + TRAIT_COUNT)
 export const H_FOOD_COUNT = 5 + TRAIT_COUNT;
-export const HEADER_LENGTH = 6 + TRAIT_COUNT;
+/** Mean learned `knowledge` over the live agents (the optional culture coupling,
+ *  v0.7.0; appended after the existing header fields, so older consumers are
+ *  undisturbed). 0 when culture is off. */
+export const H_MEAN_KNOWLEDGE = 6 + TRAIT_COUNT;
+export const HEADER_LENGTH = 7 + TRAIT_COUNT;
 
 // --- Per-agent record (first four kept for back-compat with the simple renderer;
 //     later fields appended so existing offsets stay stable) ---
@@ -82,10 +86,11 @@ export function foodOffset(population: number): number {
 export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
   const w = sim.world;
   const { alive, x, y, vx, vy, energy, age, traits, speciesId, action, id, agentCapacity } = w;
-  const { infectionState, virulence } = w;
+  const { infectionState, virulence, knowledge } = w;
   const sizeCol = traits[SIZE];
 
   const sums = new Float64Array(TRAIT_COUNT);
+  let knowledgeSum = 0;
   const species = new Set<number>();
   let offset = HEADER_LENGTH;
   let count = 0;
@@ -110,6 +115,7 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
       infectionState[s] === 1 ? 0.5 + 0.5 * Math.min(Math.max(virulence[s], 0), 1) : 0;
     offset += AGENT_STRIDE;
     for (let t = 0; t < TRAIT_COUNT; t++) sums[t] += traits[t][s];
+    knowledgeSum += knowledge[s];
     species.add(speciesId[s]);
     count++;
   }
@@ -132,5 +138,6 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
   out[H_SPECIES_COUNT] = species.size;
   for (let t = 0; t < TRAIT_COUNT; t++) out[H_TRAIT_MEANS + t] = count > 0 ? sums[t] / count : 0;
   out[H_FOOD_COUNT] = foodCount;
+  out[H_MEAN_KNOWLEDGE] = count > 0 ? knowledgeSum / count : 0;
   return count;
 }

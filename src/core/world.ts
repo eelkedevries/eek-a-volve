@@ -55,6 +55,11 @@ export class World {
    *  the host, meaningful only while infected (the optional virulence-evolution
    *  extension, v0.6.1). Not a genome trait; absent from the species gate. */
   readonly virulence: Float32Array;
+  /** Learned `knowledge` — a non-genetic scalar copied from neighbours under the
+   *  optional culture coupling (a [design-abstraction], v0.7.0). Acquired only
+   *  after birth and lost on death (a recycled slot starts at 0), so it is never
+   *  inherited and can fall; always 0 when culture is off. */
+  readonly knowledge: Float32Array;
 
   /** Per-creature neural-net weights (optional capability); null when brains are off. */
   brainWeights: Float32Array | null = null;
@@ -110,6 +115,7 @@ export class World {
       this.infectionState = new Uint8Array(sharedBuffer, L.infectionState, agentCapacity);
       this.infectionTimer = new Uint16Array(sharedBuffer, L.infectionTimer, agentCapacity);
       this.virulence = new Float32Array(sharedBuffer, L.virulence, agentCapacity);
+      this.knowledge = new Float32Array(sharedBuffer, L.knowledge, agentCapacity);
       this.foodX = new Float32Array(sharedBuffer, L.foodX, foodCapacity);
       this.foodY = new Float32Array(sharedBuffer, L.foodY, foodCapacity);
       this.foodEnergy = new Float32Array(sharedBuffer, L.foodEnergy, foodCapacity);
@@ -134,6 +140,7 @@ export class World {
       this.infectionState = new Uint8Array(agentCapacity);
       this.infectionTimer = new Uint16Array(agentCapacity);
       this.virulence = new Float32Array(agentCapacity);
+      this.knowledge = new Float32Array(agentCapacity);
       this.foodX = new Float32Array(foodCapacity);
       this.foodY = new Float32Array(foodCapacity);
       this.foodEnergy = new Float32Array(foodCapacity);
@@ -201,6 +208,9 @@ export class World {
     this.infectionState[slot] = 0;
     this.infectionTimer[slot] = 0;
     this.virulence[slot] = 0;
+    // Knowledge is non-genetic and lost on death: a freshly spawned (or recycled)
+    // slot starts with zero knowledge, so it is never inherited at birth.
+    this.knowledge[slot] = 0;
     this.population++;
     return slot;
   }
