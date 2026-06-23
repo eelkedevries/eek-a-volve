@@ -1,7 +1,7 @@
 # eek-a-volve — specification
 
-Version: 0.5.1
-Last updated: 2026-06-21
+Version: 0.5.2
+Last updated: 2026-06-23
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
 
@@ -62,7 +62,7 @@ Lineage is tracked for display: alongside the per-creature parent id, a bounded,
 
 The render snapshot is a compact typed array carrying, per visible agent, position, a species colour index, and a scale, plus a small fixed-size header block of aggregate statistics (population total, births and deaths since the previous snapshot, species count, mean of each trait, current tick). The narrator consumes a textual summary derived from the same aggregates.
 
-The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, the time-multiplier bounds, the optional pheromone-trail tunables (a toggle plus cell size, decay, diffusion, and deposit amount), a biome strength (0 = uniform food placement), and a seasonal swing (amplitude, 0 = none; and period in ticks). A run is fully reproducible from this object together with the seed, given the fixed timestep.
+The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, the time-multiplier bounds, the optional pheromone-trail tunables (a toggle plus cell size, decay, diffusion, and deposit amount), a biome strength (0 = uniform food placement), a seasonal swing (amplitude, 0 = none; and period in ticks), and an optional cognition cost (0 = off, the byte-for-byte default) that adds a per-tick metabolic drain proportional to `senseRadius`. A run is fully reproducible from this object together with the seed, given the fixed timestep.
 
 An optional pheromone field (v0.3.2) is a coarse scalar grid over the world: a single typed array sized from the world dimensions and a configurable cell size, with a reused buffer for the diffusion step. It holds a decaying, diffusing trail signal, is allocated once and reused on the per-tick path, and is not part of the render snapshot.
 
@@ -72,7 +72,7 @@ An optional fertility field (v0.3.5) is a coarse, static map of how favourable e
 
 These are the binding simulation laws. They are fixed during a run; only the time multiplier and pause change after start.
 
-Energy budget. Each tick subtracts a baseline metabolic drain scaled by `size`, `speed`, and `metabolicEfficiency`. Eating food adds energy. An agent dies when its energy reaches zero or when it exceeds a maximum age. Selection is therefore implicit and continuous: there is no explicit fitness function and there are no generation boundaries.
+Energy budget. Each tick subtracts a baseline metabolic drain scaled by `size`, `speed`, and `metabolicEfficiency`. Optionally (the `cognitionCost` coupling, default 0 — the byte-for-byte default), the drain includes a further term proportional to `senseRadius`, so perceptual/cognitive investment is bounded by its energy price rather than free. Eating food adds energy. An agent dies when its energy reaches zero or when it exceeds a maximum age. Selection is therefore implicit and continuous: there is no explicit fitness function and there are no generation boundaries.
 
 Behaviour. By default a hand-coded policy parameterised by the agent's traits: move toward the nearest food within `senseRadius`; if a larger, more carnivorous agent is within range, flee; if energy exceeds the reproduction threshold and a compatible neighbour is present, reproduce sexually, or asexually if the configuration selects it. Optionally (the `neuralBrains` capability, default off, v0.4.1), the per-tick movement *heading* is instead produced by a small fixed-topology neural network whose weights are part of the genome and evolve; eating, reproduction, energy, and predation are unchanged. The hand-coded policy is the default and the fallback (optional-capability principle).
 

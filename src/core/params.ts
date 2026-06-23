@@ -74,6 +74,14 @@ export interface SimulationParameters {
   /** Optional capability: run the metabolism pass in a WebAssembly core (experimental, default off). */
   wasmCore: boolean;
 
+  /**
+   * Optional coupling: extra per-tick metabolic drain for cognition, as a
+   * fraction of base drain at maximal `senseRadius` (0 = off, the default, where
+   * cognition is free). Makes perceptual/cognitive investment bounded by its
+   * energy price. See docs-dev/planning/science_integration_plan.md (072).
+   */
+  cognitionCost: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -114,6 +122,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   neuralBrains: false,
   offscreenRender: false,
   wasmCore: false,
+  cognitionCost: 0,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

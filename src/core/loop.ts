@@ -160,9 +160,13 @@ export class Simulation {
           ? this.wasm.predationStep(world)
           : this.predation.step(world, params, agentGrid);
     }
-    // 4. Metabolism, ageing, death (optionally via the WebAssembly core).
+    // 4. Metabolism, ageing, death (optionally via the WebAssembly core). The
+    // optional cognition cost lives only in the TS metabolism pass, so when it is
+    // active the WASM core falls back to TS here (the kernel is not re-derived).
     deaths +=
-      this.wasm !== null ? this.wasm.metabolise(world, params) : metaboliseAndReap(world, params);
+      this.wasm !== null && params.cognitionCost === 0
+        ? this.wasm.metabolise(world, params)
+        : metaboliseAndReap(world, params);
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
     const catastrophe = this.events.last !== null && this.events.last.tick === this.tick;

@@ -117,6 +117,11 @@ This file records what *is* (current reality). The binding design canon is `docs
   trig crossings (~297/tick), only call-overhead is removable (the maths still
   runs), and moving the stream into WASM would add crossings to the TS-side
   passes — so it cannot clear the prompt's "measurably faster" gate.
+- **Science couplings (default-off, reversible)** follow the same optional-capability
+  shape and are sequenced in [`science_integration_plan.md`](science_integration_plan.md).
+  First landed: an optional **cognition cost** (`cognitionCost`, default 0) that makes
+  per-tick metabolic drain scale with `senseRadius`, so perception is bounded by its
+  energy payoff rather than free (prompt 072).
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

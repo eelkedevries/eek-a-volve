@@ -1,10 +1,13 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
-import { SIZE, SPEED, METABOLIC_EFFICIENCY, DISPLAY } from './genome.ts';
+import { SIZE, SPEED, SENSE_RADIUS, METABOLIC_EFFICIENCY, DISPLAY, TRAIT_RANGES } from './genome.ts';
 import { dropCarrion } from './food.ts';
 
 /** Extra metabolic drain a full ornament (`display` = 1) adds, in sexual mode. */
 export const DISPLAY_COST = 0.06;
+
+/** Sense radius at which a full `cognitionCost` applies (the trait's maximum). */
+const SENSE_MAX = TRAIT_RANGES[SENSE_RADIUS].max;
 
 /**
  * Maximum age in ticks before an agent dies of old age. Provisional; tuned for
@@ -32,6 +35,11 @@ export function metabolicCost(
   const speed = world.traits[SPEED][slot];
   const efficiency = world.traits[METABOLIC_EFFICIENCY][slot];
   let cost = (params.baseMetabolicCost * (size + speed)) / efficiency;
+  // Cognition is expensive: a larger sense radius (perceptual/cognitive
+  // investment) drains more energy, so it is bounded by its foraging payoff
+  // rather than free. Off by default — cognitionCost 0 makes the factor exactly
+  // 1, leaving the default run (and the 012 stability test) unchanged.
+  cost *= 1 + params.cognitionCost * (world.traits[SENSE_RADIUS][slot] / SENSE_MAX);
   // Ornament is honest: carrying a costly display drains more energy, but only
   // in sexual mode (so the asexual default — and the 012 stability test — is
   // unchanged; the trait merely drifts there).
