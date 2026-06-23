@@ -87,6 +87,12 @@ function describe(event: SimEvent): { text: string; kind: EventKind; info: strin
         kind: 'death',
         info: `${ticks(event.deaths)} creatures died in quick succession — starvation, predation, or simple bad luck compounding. Their nutrients return to the world.`,
       };
+    case 'plagueDeath':
+      return {
+        text: `A plague sweeps the crowd — ${event.deaths} succumb to the pox.`,
+        kind: 'catastrophe',
+        info: `${ticks(event.deaths)} creatures died of disease in quick succession. Dense crowds pay a contagion tax; the survivors are those the sickness spared or that weathered it.`,
+      };
     case 'nearExtinction':
       return {
         text: 'The world holds its breath: only a handful remain.',
@@ -95,6 +101,13 @@ function describe(event: SimEvent): { text: string; kind: EventKind; info: strin
       };
     case 'obituary': {
       const off = event.offspring === 1 ? '1 offspring' : `${event.offspring} offspring`;
+      if (event.plague) {
+        return {
+          text: `${personalName(event.id)} has succumbed to the pox — ${ticks(event.age)} ticks, ${off}. The sickness took them.`,
+          kind: 'death',
+          info: `A creature the world had been watching died of disease at ${ticks(event.age)} ticks old, leaving ${off}. The contagion frees space and returns nutrients to the living.`,
+        };
+      }
       return {
         text: `${personalName(event.id)} has died — ${ticks(event.age)} ticks, ${off}. The world turns on.`,
         kind: 'death',

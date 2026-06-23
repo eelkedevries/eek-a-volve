@@ -95,6 +95,7 @@ export function createLegend(): Legend {
       row(glyph('◉', 0xcdd9e5), 'Bigger eyes = a wider sense radius'),
       row(glyph('◣', 0xff9d80), 'A toothy maw = a carnivore (high diet)'),
       row(glyph('○', 0x9aa7b4), 'A faded, greyer body = starving'),
+      row(glyph('●', 0x8fbf4a), 'A sickly green cast = infected (when disease is on)'),
     ]),
   );
 
@@ -106,6 +107,7 @@ export function createLegend(): Legend {
       row(glyph('♥', 0xff8fc4), 'Heart sparkle — a pair mates'),
       row(swatch(0xbfffd0), 'Green pop + thread — a birth (parent → child)'),
       row(swatch(0x9aa7b4), 'Grey puff — a death'),
+      row(swatch(0x8fbf4a), 'A green pall over many — a plague die-off'),
     ]),
   );
 

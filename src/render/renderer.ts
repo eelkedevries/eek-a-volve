@@ -20,6 +20,7 @@ import {
   A_DIET,
   A_SENSE,
   A_DISPLAY,
+  A_INFECTED,
   A_ID,
   A_ENERGY,
   unpackStage,
@@ -740,6 +741,7 @@ export class Renderer {
         pop,
         flash,
         view[o + A_DISPLAY],
+        view[o + A_INFECTED],
       );
 
       if (emotesOn) {

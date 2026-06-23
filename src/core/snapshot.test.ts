@@ -19,6 +19,7 @@ import {
   A_ID,
   A_ENERGY,
   A_DISPLAY,
+  A_INFECTED,
   FOOD_X,
   FOOD_TYPE,
   H_TICK,
@@ -100,7 +101,7 @@ describe('snapshot format', () => {
 
   it('appends a normalised display field per agent without disturbing the stride', () => {
     expect(A_DISPLAY).toBe(10);
-    expect(AGENT_STRIDE).toBe(11);
+    expect(AGENT_STRIDE).toBe(12); // display at 10 stays put; the infection cue appended at 11
     const s = sim();
     const w = s.world;
     const out = new Float32Array(snapshotLength(w.agentCapacity, w.foodCapacity));
@@ -111,6 +112,24 @@ describe('snapshot format', () => {
     expect(out[HEADER_LENGTH + A_DISPLAY]).toBeCloseTo(expected, 5);
     expect(out[HEADER_LENGTH + A_DISPLAY]).toBeGreaterThanOrEqual(0);
     expect(out[HEADER_LENGTH + A_DISPLAY]).toBeLessThanOrEqual(1);
+  });
+
+  it('appends an infection cue: 0 when healthy, positive when infected', () => {
+    expect(A_INFECTED).toBe(11);
+    const s = sim(); // default (disease off) — nobody is infected
+    const w = s.world;
+    const out = new Float32Array(snapshotLength(w.agentCapacity, w.foodCapacity));
+    serialiseSnapshot(s, out);
+    // Disease off ⇒ every live agent reads as not sick (cue 0).
+    for (let i = 0; i < w.population; i++) {
+      expect(out[HEADER_LENGTH + i * AGENT_STRIDE + A_INFECTED]).toBe(0);
+    }
+    // Mark the first live agent infected and re-serialise: its cue becomes positive.
+    const first = firstLive(w);
+    w.infectionState[first] = 1;
+    serialiseSnapshot(s, out);
+    expect(out[HEADER_LENGTH + A_INFECTED]).toBeGreaterThan(0);
+    expect(out[HEADER_LENGTH + A_INFECTED]).toBeLessThanOrEqual(1);
   });
 
   it('keeps existing header offsets (trait means) intact for older consumers', () => {

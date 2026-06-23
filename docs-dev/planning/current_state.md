@@ -141,6 +141,12 @@ This file records what *is* (current reality). The binding design canon is `docs
   host harm (a shorter infectious period and higher mortality), shaped so onward
   transmission peaks at an *intermediate* virulence; it mutates by a seeded clamped
   Gaussian step on transmission, drawn only when the toggle is on (prompt 075).
+  Disease is then **surfaced in render/UI** (spec v0.6.2, prompt 076): an appended
+  per-agent infection cue in the snapshot drives a static "sick" (sickly-green)
+  creature tint, a setup-screen Disease chip + advanced tab expose the toggle and
+  rate/virulence parameters, the legend explains the sick and plague visuals, and
+  plague die-offs / infected obituaries route through the existing event pipeline
+  ("succumbed to the pox") — no core rule or outcome changed.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

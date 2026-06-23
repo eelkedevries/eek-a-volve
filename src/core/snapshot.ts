@@ -29,7 +29,13 @@ export const A_DIET = 8;
 export const A_SENSE = 9;
 /** Display/ornament, normalised 0 … 1 — drives the visible crest (051). */
 export const A_DISPLAY = 10;
-export const AGENT_STRIDE = 11;
+/**
+ * Infection cue (v0.6.2): 0 = not visibly sick (susceptible/recovered), else a
+ * sickness intensity in (0, 1] for an infected host — brighter for a more virulent
+ * strain. Appended so existing offsets stay stable; drives the "sick" visual.
+ */
+export const A_INFECTED = 11;
+export const AGENT_STRIDE = 12;
 
 // stateCode packing: (stage << STATE_STAGE_SHIFT) | action
 export const STATE_ACTION_MASK = 0b111;
@@ -76,6 +82,7 @@ export function foodOffset(population: number): number {
 export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
   const w = sim.world;
   const { alive, x, y, vx, vy, energy, age, traits, speciesId, action, id, agentCapacity } = w;
+  const { infectionState, virulence } = w;
   const sizeCol = traits[SIZE];
 
   const sums = new Float64Array(TRAIT_COUNT);
@@ -96,6 +103,11 @@ export function serialiseSnapshot(sim: Simulation, out: Float32Array): number {
     out[offset + A_DIET] = normalise(traits[DIET][s], DIET);
     out[offset + A_SENSE] = normalise(traits[SENSE_RADIUS][s], SENSE_RADIUS);
     out[offset + A_DISPLAY] = normalise(traits[DISPLAY][s], DISPLAY);
+    // Infection cue: 0 unless infected, else a sickness intensity (brighter for a
+    // more virulent strain; virulence is 0 when not evolving, so a plain infection
+    // still shows a clear baseline tell).
+    out[offset + A_INFECTED] =
+      infectionState[s] === 1 ? 0.5 + 0.5 * Math.min(Math.max(virulence[s], 0), 1) : 0;
     offset += AGENT_STRIDE;
     for (let t = 0; t < TRAIT_COUNT; t++) sums[t] += traits[t][s];
     species.add(speciesId[s]);

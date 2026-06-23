@@ -12,6 +12,9 @@ const CREST_COLOUR = 0xffc24d;
 const STARVE_FROM = 0.35;
 /** Mid-grey the body desaturates toward when starving. */
 const STARVE_GREY = 0x6a6a6a;
+/** Sickly green the body tints toward when infected — distinct from the grey of
+ *  starvation and the white of the hunt/damage flash. */
+const SICK_TINT = 0x8fbf4a;
 
 /** Blend `colour` toward `target` by `t` (0…1), per channel. */
 function blend(colour: number, target: number, t: number): number {
@@ -103,6 +106,7 @@ export class CreatureSprite {
     pop: number,
     flash: number,
     display: number,
+    infected: number,
   ): void {
     const v = this.view;
     v.visible = true;
@@ -124,6 +128,10 @@ export class CreatureSprite {
     // Static (no motion), so it is safe under reduced-motion settings.
     const starve = energy < STARVE_FROM ? (STARVE_FROM - Math.max(energy, 0)) / STARVE_FROM : 0;
     let bodyTint = starve > 0 ? blend(tint, STARVE_GREY, 0.7 * starve) : tint;
+    // Sickness tell: an infected creature takes on a static sickly-green cast,
+    // stronger for a more virulent strain — distinct from the grey starvation fade
+    // and the white hunt/damage flash, and safe under reduced motion.
+    if (infected > 0) bodyTint = blend(bodyTint, SICK_TINT, 0.45 + 0.4 * Math.min(infected, 1));
     if (flash > 0) bodyTint = blend(bodyTint, 0xffffff, Math.min(flash, 1) * 0.85); // hunt/damage flash
     this.body.tint = bodyTint;
     this.body.alpha = 1 - 0.6 * starve;

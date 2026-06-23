@@ -26,12 +26,13 @@ const CORE: Partial<Record<Key, SliderDef>> = {
   mutationRate: { label: 'Mutation', min: 0, max: 1, step: 0.01, dec: 2 },
 };
 
-/** The four behaviour chips (design: "Four behavior chips"). */
+/** The behaviour chips (design: "behavior chips"). */
 const CHIPS: { key: Key; label: string; icon: IconName }[] = [
   { key: 'predation', label: 'Predation', icon: 'predation' },
   { key: 'catastrophes', label: 'Catastrophes', icon: 'catastrophe' },
   { key: 'immigration', label: 'Immigration', icon: 'immigration' },
   { key: 'sexualReproduction', label: 'Sexual repro', icon: 'sexual' },
+  { key: 'disease', label: 'Disease', icon: 'disease' },
 ];
 
 /** Advanced disclosure tabs and the parameter rows under each (design: ranges). */
@@ -40,13 +41,25 @@ const ADV_TABS: { id: string; label: string; rows: Key[] }[] = [
   { id: 'food', label: 'Food', rows: ['foodRegenRate', 'biomeStrength', 'seasonAmplitude', 'seasonPeriod'] },
   { id: 'mutation', label: 'Mutation', rows: ['mutationMagnitude'] },
   { id: 'pheromones', label: 'Pheromones', rows: ['pheromones', 'pheromoneCellSize', 'pheromoneDecay', 'pheromoneDiffusion', 'pheromoneDeposit'] },
+  { id: 'disease', label: 'Disease', rows: ['disease', 'transmissionRate', 'recoveryRate', 'diseaseMortality', 'immunityMode', 'virulenceEvolves', 'virulenceTransmissionGain', 'virulenceHarmGain', 'virulenceMutation'] },
   { id: 'world', label: 'World', rows: ['worldWidth', 'worldHeight', 'seed'] },
-  { id: 'behaviour', label: 'Behaviour', rows: ['predation', 'catastrophes', 'immigration', 'sexualReproduction'] },
+  { id: 'behaviour', label: 'Behaviour', rows: ['predation', 'catastrophes', 'immigration', 'sexualReproduction', 'disease'] },
   { id: 'engine', label: 'Engine', rows: ['neuralBrains', 'offscreenRender', 'wasmCore'] },
 ];
 
-/** Per-row metadata: a bounded slider def, or a boolean toggle. */
-const ROWDEF: Partial<Record<Key, SliderDef | { toggle: true; label: string }>> = {
+/** A two-state enum row (rendered as a switch): off-value vs on-value. */
+interface EnumDef {
+  enumLabel: string;
+  /** Value when the switch is off, and when on. */
+  off: string;
+  on: string;
+  /** Caption suffix shown for each state, e.g. "SIS" / "SIR". */
+  offText: string;
+  onText: string;
+}
+
+/** Per-row metadata: a bounded slider def, a boolean toggle, or a two-state enum. */
+const ROWDEF: Partial<Record<Key, SliderDef | { toggle: true; label: string } | EnumDef>> = {
   startingSpeciesCount: { label: 'Starting species', min: 1, max: 12, step: 1 },
   startingEnergy: { label: 'Starting energy', min: 10, max: 150, step: 5 },
   reproductionThreshold: { label: 'Reproduction threshold', min: 20, max: 200, step: 5 },
@@ -62,6 +75,15 @@ const ROWDEF: Partial<Record<Key, SliderDef | { toggle: true; label: string }>> 
   pheromoneDecay: { label: 'Pheromone decay', min: 0, max: 1, step: 0.01, dec: 2 },
   pheromoneDiffusion: { label: 'Pheromone diffusion', min: 0, max: 1, step: 0.01, dec: 2 },
   pheromoneDeposit: { label: 'Pheromone deposit', min: 0, max: 20, step: 0.5, dec: 1 },
+  disease: { toggle: true, label: 'Disease' },
+  transmissionRate: { label: 'Transmission rate', min: 0, max: 1, step: 0.01, dec: 2 },
+  recoveryRate: { label: 'Recovery rate', min: 0.001, max: 0.5, step: 0.001, dec: 3 },
+  diseaseMortality: { label: 'Disease mortality', min: 0, max: 1, step: 0.01, dec: 2 },
+  immunityMode: { enumLabel: 'Immunity (recovered)', off: 'sis', on: 'sir', offText: 'SIS — re-susceptible', onText: 'SIR — immune' },
+  virulenceEvolves: { toggle: true, label: 'Virulence evolves' },
+  virulenceTransmissionGain: { label: 'Virulence → transmission', min: 0, max: 6, step: 0.1, dec: 1 },
+  virulenceHarmGain: { label: 'Virulence → host harm', min: 0, max: 6, step: 0.1, dec: 1 },
+  virulenceMutation: { label: 'Virulence mutation', min: 0, max: 0.3, step: 0.01, dec: 2 },
   worldWidth: { label: 'World width', min: 200, max: 2000, step: 20 },
   worldHeight: { label: 'World height', min: 200, max: 2000, step: 20 },
   seed: { label: 'Seed', min: 1, max: 9999, step: 1 },
@@ -93,8 +115,14 @@ const PRESETS: Record<ViewMode, { partial: Partial<SimulationParameters>; accent
   },
 };
 
-function isToggleDef(def: SliderDef | { toggle: true; label: string }): def is { toggle: true; label: string } {
+type RowDef = SliderDef | { toggle: true; label: string } | EnumDef;
+
+function isToggleDef(def: RowDef): def is { toggle: true; label: string } {
   return 'toggle' in def;
+}
+
+function isEnumDef(def: RowDef): def is EnumDef {
+  return 'enumLabel' in def;
 }
 
 function format(def: SliderDef, value: number): string {
@@ -214,7 +242,9 @@ export function createSetupScreen(
     for (const key of tab.rows) {
       const def = ROWDEF[key];
       if (def === undefined) continue;
-      advContent.appendChild(isToggleDef(def) ? buildToggleRow(key, def.label) : buildAdvSlider(key, def));
+      if (isToggleDef(def)) advContent.appendChild(buildToggleRow(key, def.label));
+      else if (isEnumDef(def)) advContent.appendChild(buildEnumRow(key, def));
+      else advContent.appendChild(buildAdvSlider(key, def));
     }
   }
 
@@ -394,6 +424,33 @@ export function createSetupScreen(
       for (const r of refreshers) r();
     });
     sync();
+    return button;
+  }
+
+  /** A two-state enum row (a labelled switch flipping between two string values). */
+  function buildEnumRow(key: Key, def: EnumDef): HTMLElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ev-toggle-row';
+    const text = document.createElement('span');
+    const track = document.createElement('span');
+    track.className = 'ev-switch';
+    const knob = document.createElement('span');
+    knob.className = 'ev-switch-knob';
+    track.appendChild(knob);
+    button.append(text, track);
+    const sync = (): void => {
+      const on = params[key] === def.on;
+      text.textContent = `${def.enumLabel}: ${on ? def.onText : def.offText}`;
+      button.classList.toggle('is-on', on);
+      button.setAttribute('aria-pressed', String(on));
+    };
+    button.addEventListener('click', () => {
+      (params[key] as string) = params[key] === def.on ? def.off : def.on;
+      sync();
+    });
+    sync();
+    refreshers.push(sync);
     return button;
   }
 

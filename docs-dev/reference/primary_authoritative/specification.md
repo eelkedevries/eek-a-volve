@@ -1,6 +1,6 @@
 # eek-a-volve — specification
 
-Version: 0.6.1
+Version: 0.6.2
 Last updated: 2026-06-23
 
 Binding design canon. When the code and this document conflict, this document is correct. Empty or stubbed items mean "not yet decided" and impose no constraint. This document is intended for `docs-dev/reference/primary_authoritative/specification.md`.
@@ -61,7 +61,7 @@ World state uses a structure-of-arrays layout: parallel typed arrays for positio
 
 Lineage is tracked for display: alongside the per-creature parent id, a bounded, pre-allocated registry remembers recent `id → parent id` links (a fixed-capacity ring; old links are evicted, never grown). It lets the inspector resolve a creature's short ancestry chain back through ancestors that have since died, and is observational metadata only (v0.3.3).
 
-The render snapshot is a compact typed array carrying, per visible agent, position, a species colour index, and a scale, plus a small fixed-size header block of aggregate statistics (population total, births and deaths since the previous snapshot, species count, mean of each trait, current tick). The narrator consumes a textual summary derived from the same aggregates.
+The render snapshot is a compact typed array carrying, per visible agent, position, a species colour index, and a scale, plus a small fixed-size header block of aggregate statistics (population total, births and deaths since the previous snapshot, species count, mean of each trait, current tick). It is append-only; among the appended per-agent fields is an infection cue (0 when not visibly sick, else a sickness intensity for an infected host) that drives the "sick" render (v0.6.2). The narrator consumes a textual summary derived from the same aggregates.
 
 The pre-start parameter set is a single serialisable object: initial population, world dimensions, random seed, food abundance, food regeneration rate, starting energy, baseline metabolism cost, reproduction threshold, mutation rate, mutation magnitude, predation toggle, starting species count, catastrophe toggle, the time-multiplier bounds, the optional pheromone-trail tunables (a toggle plus cell size, decay, diffusion, and deposit amount), a biome strength (0 = uniform food placement), a seasonal swing (amplitude, 0 = none; and period in ticks), and an optional cognition cost (0 = off, the byte-for-byte default) that adds a per-tick metabolic drain proportional to `senseRadius`, and an optional grouping-safety coefficient (0 = off) that lets a dense local conspecific group dilute a prey's per-capita predation risk, and an optional disease block (a `disease` toggle, default off — the byte-for-byte default — plus a `transmissionRate`, `recoveryRate`, `diseaseMortality`, and an `immunityMode` selecting SIR vs SIS) that, when on, runs a density-dependent compartmental infection, with an optional evolving-virulence extension (a `virulenceEvolves` toggle, default off, plus the trade-off shape constants `virulenceTransmissionGain`, `virulenceHarmGain`, and the mutation step `virulenceMutation`). A run is fully reproducible from this object together with the seed, given the fixed timestep.
 

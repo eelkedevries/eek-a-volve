@@ -7,6 +7,7 @@ export type SimEventKind =
   | 'catastrophe'
   | 'species'
   | 'massDeath'
+  | 'plagueDeath'
   | 'nearExtinction'
   | 'obituary';
 
@@ -32,6 +33,8 @@ export interface SimEvent {
   age: number;
   /** Offspring at death (obituary). */
   offspring: number;
+  /** Whether this death/obituary was disease-driven (plague flavour). */
+  plague: boolean;
 }
 
 interface Watch {
@@ -39,10 +42,12 @@ interface Watch {
   slot: number;
   age: number;
   offspring: number;
+  /** Whether the watched creature was infected at its last-seen tick. */
+  infected: boolean;
 }
 
 function blankEvent(): SimEvent {
-  return { kind: 'freak', tick: 0, id: 0, x: 0, y: 0, deaths: 0, count: 0, catastrophe: '', age: 0, offspring: 0 };
+  return { kind: 'freak', tick: 0, id: 0, x: 0, y: 0, deaths: 0, count: 0, catastrophe: '', age: 0, offspring: 0, plague: false };
 }
 
 /**
@@ -77,7 +82,7 @@ export class EventLog {
     e.id = id;
     e.x = x;
     e.y = y;
-    this.watch.push({ id, slot, age: 0, offspring: 0 });
+    this.watch.push({ id, slot, age: 0, offspring: 0, infected: false });
   }
 
   catastrophe(kind: CatastropheKind, deaths: number): void {
@@ -99,6 +104,14 @@ export class EventLog {
     e.deaths = deaths;
   }
 
+  /** A death spike driven mostly by disease (a plague die-off). Observational only. */
+  plagueDeath(deaths: number): void {
+    const e = this.push();
+    e.kind = 'plagueDeath';
+    e.deaths = deaths;
+    e.plague = true;
+  }
+
   nearExtinction(): void {
     const e = this.push();
     e.kind = 'nearExtinction';
@@ -115,12 +128,16 @@ export class EventLog {
       if (world.alive[w.slot] === 1 && world.id[w.slot] === w.id) {
         w.age = world.age[w.slot];
         w.offspring = world.offspringCount[w.slot];
+        // Remember whether it was infected, so its obituary can read as a plague
+        // death (the slot may be freed/reused by the time the death is observed).
+        w.infected = world.infectionState[w.slot] === 1;
       } else {
         const e = this.push();
         e.kind = 'obituary';
         e.id = w.id;
         e.age = w.age;
         e.offspring = w.offspring;
+        e.plague = w.infected;
         this.watch.splice(i, 1);
       }
     }
@@ -156,6 +173,7 @@ export class EventLog {
     e.catastrophe = '';
     e.age = 0;
     e.offspring = 0;
+    e.plague = false;
     return e;
   }
 }

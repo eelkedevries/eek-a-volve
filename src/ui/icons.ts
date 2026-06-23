@@ -24,6 +24,7 @@ const ICONS = {
   catastrophe: { body: '<path d="M14 3l-2 7h5l-9 11 2-8H5z"/>' },
   immigration: { body: '<rect x="4" y="8" width="16" height="11" rx="2"/><path d="M9 8V6a3 3 0 016 0v2"/>' },
   sexual: { body: '<path d="M12 20s-7-4.5-7-10a4 4 0 017-2.5A4 4 0 0119 10c0 5.5-7 10-7 10z"/>' },
+  disease: { body: '<circle cx="12" cy="12" r="5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>' },
 
   // Control bar
   play: { body: '<path d="M8 5l11 7-11 7z"/>', filled: true },

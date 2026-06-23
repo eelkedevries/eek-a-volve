@@ -174,9 +174,11 @@ export class Simulation {
     // 4b. Disease (optional, behind the toggle): infect susceptible grid
     // neighbours, advance infection timers to recovery or disease death (routed
     // through the normal death path so its deaths add into this tick's total).
+    let diseaseDeaths = 0;
     if (params.disease) {
       agentGrid.rebuildFromAgents(world);
-      deaths += this.disease.step(world, params, agentGrid, rng);
+      diseaseDeaths = this.disease.step(world, params, agentGrid, rng);
+      deaths += diseaseDeaths;
     }
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
@@ -197,9 +199,12 @@ export class Simulation {
     }
     // 7. Immigration (optional).
     births += immigrate(world, params, rng);
-    // 8. Mass die-off (a death spike that was not itself a logged catastrophe).
+    // 8. Mass die-off (a death spike that was not itself a logged catastrophe). When
+    // most of the spike was disease, flag it as a plague die-off so the feed reads as
+    // disease — the same spike path, only a different flavour (no outcome change).
     if (!catastrophe && deaths > MASS_DEATH_FLOOR && deaths > world.population * MASS_DEATH_FRACTION) {
-      eventLog.massDeath(deaths);
+      if (diseaseDeaths * 2 > deaths) eventLog.plagueDeath(deaths);
+      else eventLog.massDeath(deaths);
     }
     // 9. Near-extinction detection (on the transition into it) and counters.
     this.nearExtinction = isNearExtinction(world);
