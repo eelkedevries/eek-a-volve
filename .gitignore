@@ -25,3 +25,7 @@ docs-dev/reference/customer/
 .vscode/
 .idea/
 *.log
+
+# Claude Code (local and ephemeral)
+.claude/settings.local.json
+.claude/worktrees/
