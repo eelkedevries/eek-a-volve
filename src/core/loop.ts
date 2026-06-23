@@ -19,6 +19,7 @@ import { BRAIN_WEIGHT_COUNT } from './brain.ts';
 import type { WasmCore } from '../wasm/metabolismCore.ts';
 import { seedFood, regenerateFood, decayCarrion, CARRION_RESERVE } from './food.ts';
 import { spawnRandomAgent, immigrate, isNearExtinction } from './bounds.ts';
+import { RescueTracker, type RescueMetric } from './rescue.ts';
 
 /** Spatial-grid cell size; a few times the typical sense radius keeps queries cheap. */
 export const GRID_CELL_SIZE = 32;
@@ -68,6 +69,10 @@ export class Simulation {
   readonly eventLog = new EventLog();
   /** Running hall-of-fame records, posted to the UI. */
   readonly records = new Records();
+  /** Observational evolutionary-rescue / reversibility metric (v0.7.4). Fed the
+   *  per-tick population (already computed); never read back into a decision, so it
+   *  adds no RNG and leaves determinism and the default run untouched. */
+  private readonly rescueTracker = new RescueTracker();
 
   tick = 0;
   /** Births during the most recent tick. */
@@ -89,6 +94,17 @@ export class Simulation {
   /** The most recent catastrophe event, if any (for display/narration). */
   get lastEvent(): CatastropheEvent | null {
     return this.events.last;
+  }
+
+  /**
+   * Read-only evolutionary-rescue / reversibility metric (v0.7.4): the deepest
+   * population trough seen so far and its tick, the pre-trough baseline, and the
+   * recovery time to a target fraction of that baseline. Derived entirely from the
+   * per-tick population the loop already tracks; observational only (never read back
+   * into a simulation decision), so it does not affect determinism.
+   */
+  get rescue(): RescueMetric {
+    return this.rescueTracker.snapshot();
   }
 
   constructor(
@@ -244,6 +260,10 @@ export class Simulation {
     this.prevNearExtinction = this.nearExtinction;
     this.births = births;
     this.deaths = deaths;
+    // Observational rescue/reversibility metric (v0.7.4): feed this tick's already-
+    // computed population to the tracker. Pure scalar work, no allocation, no RNG,
+    // and never read back into a decision — so determinism is untouched.
+    this.rescueTracker.observe(world.population, this.tick);
     // 10. Obituaries for notable creatures that died this tick, and records.
     eventLog.reconcile(world);
     this.records.update(world, this.tick);

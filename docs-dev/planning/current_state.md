@@ -225,6 +225,21 @@ This file records what *is* (current reality). The binding design canon is `docs
   lost practice lets the trait drift back (tested keeper-vs-loser). `[established]`
   for lactase (s ≈ 0.09–0.19); the knowledge channel remains `[design-abstraction]`.
   Inert (byte-for-byte) when the coupling is 0 or culture is off.
+- **Reversibility metric + honesty benchmark** (spec v0.7.4, prompt 084): an
+  **observational** evolutionary-rescue / reversibility metric (`src/core/rescue.ts`,
+  a read-only `Simulation.rescue` getter) records the deepest population trough and
+  its tick, the pre-trough baseline, and the recovery time to a target fraction of it
+  — fed the per-tick population the loop already computes, so it adds **no** RNG, no
+  hot-loop allocation, and is never read back into a decision (determinism and the
+  default run untouched). Surfaces the collapse-and-recovery U-shape already produced
+  by near-extinction, standing variation, immigration, survivable shocks and the food
+  carrying capacity; it adds no new rule. Two `core/` tests encode the programme-wide
+  **honesty benchmark**: a multi-seed test asserts that cognition (`senseRadius`),
+  disease `resistance`, and `knowledge` each **sometimes regress and sometimes fail to
+  appear** across seeds (none monotone/irreversible by default), and an
+  evolutionary-rescue test shows a deep trough then recovery under a survivable shock,
+  reproducible per seed, with recovery **conditional** (a deep bottleneck that cannot
+  reproduce does not recover), not forced.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or
