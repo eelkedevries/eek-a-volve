@@ -174,6 +174,16 @@ export interface SimulationParameters {
   knowledgeForagingGain: number;
   /** Optional per-tick multiplicative loss of `knowledge` so it can fade without upkeep (inert when `culture` is off). */
   knowledgeDecay: number;
+  /**
+   * The effective (reachable) population size below which knowledge maintenance
+   * fails (the Tasmania coupling, a [debated] interpretation, v0.7.2): when a
+   * creature can reach fewer than this many live neighbours within the copy
+   * radius, copy opportunities are too sparse to offset loss-on-death, so mean
+   * knowledge declines — recovering (a U-shaped, reversible loss, no permanent
+   * "dark age") when the population, and its pool of models, rebounds. Inert when
+   * `culture` is off.
+   */
+  criticalCultureN: number;
 
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
@@ -237,6 +247,7 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   transmissionFidelity: 0.5,
   knowledgeForagingGain: 0.5,
   knowledgeDecay: 0.01,
+  criticalCultureN: 4,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

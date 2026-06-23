@@ -9,6 +9,7 @@ export type SimEventKind =
   | 'massDeath'
   | 'plagueDeath'
   | 'nearExtinction'
+  | 'cultureLoss'
   | 'obituary';
 
 /**
@@ -115,6 +116,16 @@ export class EventLog {
   nearExtinction(): void {
     const e = this.push();
     e.kind = 'nearExtinction';
+  }
+
+  /**
+   * Mean knowledge fell markedly while the effective population was sub-critical
+   * (the Tasmania loss, v0.7.2) — a knowledge-lost moment. Narration metadata only;
+   * never read back into any simulation decision, so determinism is unaffected.
+   */
+  cultureLoss(): void {
+    const e = this.push();
+    e.kind = 'cultureLoss';
   }
 
   /**

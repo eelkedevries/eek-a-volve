@@ -34,6 +34,13 @@ const FOUNDER_AGE_SPREAD = 900;
 const MASS_DEATH_FLOOR = 10;
 const MASS_DEATH_FRACTION = 0.04;
 
+/** Fraction of the recent peak mean knowledge that must be lost to surface a
+ *  "knowledge lost" event (the Tasmania loss, v0.7.2). Narration only. */
+const CULTURE_LOSS_DROP = 0.5;
+/** A peak mean knowledge below this is treated as "no real culture to lose", so a
+ *  loss event only fires once a population has actually built knowledge up. */
+const CULTURE_LOSS_FLOOR = 0.05;
+
 /**
  * One fixed-timestep simulation. It owns the world, the reused spatial grids,
  * behaviour, generator, and counters, so a tick allocates nothing
@@ -72,6 +79,10 @@ export class Simulation {
 
   private prevSpeciesCount = 0;
   private prevNearExtinction = false;
+  /** Recent high-water mark of mean knowledge, for the Tasmania loss event (v0.7.2). */
+  private peakMeanKnowledge = 0;
+  /** Whether a "knowledge lost" event has already fired for the current decline. */
+  private cultureLossFlagged = false;
   /** Optional WebAssembly core; null on the default (TS) path. */
   private readonly wasm: WasmCore | null;
 
@@ -193,9 +204,13 @@ export class Simulation {
     // reachable neighbour's knowledge toward each agent and optionally decay it
     // (the foraging return itself is applied in the behaviour/feeding pass). Its
     // own pass over current positions; draws no RNG and changes nothing when off.
+    // When the reachable population is sub-critical the pass throttles maintenance,
+    // so mean knowledge falls; a marked drop from its recent peak surfaces a
+    // "knowledge lost" event (narration metadata only, never read back).
     if (params.culture) {
       agentGrid.rebuildFromAgents(world);
       this.culture.step(world, params, agentGrid, rng);
+      this.detectCultureLoss(world);
     }
     // 5. Catastrophes (optional, behind the toggle).
     deaths += this.events.step(world, params, rng, this.tick);
@@ -243,6 +258,40 @@ export class Simulation {
   /** Advance the simulation by `ticks` ticks. */
   run(ticks: number): void {
     for (let i = 0; i < ticks; i++) this.step();
+  }
+
+  /**
+   * Surface a "knowledge lost" event (the Tasmania loss, v0.7.2) when mean
+   * knowledge falls markedly from its recent peak — the legible signature of a
+   * sub-critical population failing to maintain its culture. Tracks the peak as a
+   * high-water mark and fires once per decline, re-arming when knowledge recovers
+   * past the peak (so the U-shape can repeat). Narration metadata only: it reads
+   * the world but is never read back into a simulation decision, so determinism is
+   * unaffected.
+   */
+  private detectCultureLoss(world: World): void {
+    const { alive, knowledge, agentCapacity } = world;
+    let sum = 0;
+    let n = 0;
+    for (let s = 0; s < agentCapacity; s++) {
+      if (alive[s] === 0) continue;
+      sum += knowledge[s];
+      n++;
+    }
+    const mean = n > 0 ? sum / n : 0;
+    if (mean > this.peakMeanKnowledge) {
+      // New high-water mark: culture is being built or rebuilt — re-arm the event.
+      this.peakMeanKnowledge = mean;
+      this.cultureLossFlagged = false;
+    } else if (
+      !this.cultureLossFlagged &&
+      this.peakMeanKnowledge > CULTURE_LOSS_FLOOR &&
+      mean < this.peakMeanKnowledge * (1 - CULTURE_LOSS_DROP)
+    ) {
+      // Marked decline from a real peak: a knowledge-lost moment.
+      this.eventLog.cultureLoss();
+      this.cultureLossFlagged = true;
+    }
   }
 
   private seed(): void {

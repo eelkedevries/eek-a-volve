@@ -63,6 +63,17 @@ export const RATCHET_STEEPNESS = 18;
 export const SUBTHRESHOLD_DECAY = 0.2;
 
 /**
+ * Extra per-tick decay imposed when the reachable population is fully sub-critical
+ * (the Tasmania loss, v0.7.2). Scaled by how far the reachable model pool falls
+ * short of `criticalCultureN`: when a creature can reach far fewer than the
+ * critical number of models, copy opportunities are too sparse to offset this
+ * loss, so mean knowledge declines; as the pool rebounds the extra decay relaxes
+ * to zero and copying rebuilds knowledge (a U-shaped, reversible loss — no
+ * absorbing floor). Zero when `criticalCultureN <= 0` (the gate is disabled).
+ */
+export const UNDERPOPULATION_DECAY = 0.5;
+
+/**
  * Longevity weight in [0, 1] of knowledge at a given fidelity: ~0 well below the
  * threshold (gains decay away), ~1 well above it (gains persist and ratchet). A
  * logistic in `fidelity - FIDELITY_THRESHOLD`, so the retained level rises steeply
@@ -115,15 +126,19 @@ export class Culture {
   private world!: World;
   private fidelity = 0;
   private decay = 0;
+  private criticalN = 0;
   /** Start-of-tick knowledge, so a learner copies pre-update values (order-free). */
   private readonly snapshot: Float32Array;
   // Per-agent visitor state (set before each grid query).
   private self = -1;
   private bestKnowledge = 0;
+  /** Count of live neighbours reachable within the copy radius (the local model pool). */
+  private localModels = 0;
 
-  /** Visitor: track the highest start-of-tick knowledge among reachable neighbours. */
+  /** Visitor: track the best reachable knowledge and count the reachable models. */
   private readonly onNeighbour = (id: number, _dist2: number): void => {
     if (id === this.self || this.world.alive[id] === 0) return;
+    this.localModels++;
     const k = this.snapshot[id];
     if (k > this.bestKnowledge) this.bestKnowledge = k;
   };
@@ -141,16 +156,17 @@ export class Culture {
     this.world = world;
     this.fidelity = params.transmissionFidelity;
     this.decay = params.knowledgeDecay;
+    this.criticalN = params.criticalCultureN;
     const { alive, knowledge, x, y, agentCapacity } = world;
 
     // Fidelity-dependent longevity (the cumulative ratchet, v0.7.1): above the
     // fidelity threshold the extra sub-threshold decay vanishes (gains persist and
     // ratchet); below it, it dominates (gains decay away). The retained level
     // therefore rises steeply (≈exponentially) with fidelity around the threshold.
-    // Computed once per tick (the same for every agent), so the pass stays cheap.
+    // The base (fidelity) part is the same for every agent, so compute it once; the
+    // Tasmania part below depends on each creature's reachable population.
     const longevity = longevityFactor(this.fidelity);
-    const effectiveDecay = this.decay + (1 - longevity) * SUBTHRESHOLD_DECAY;
-    const decayKeep = effectiveDecay > 0 ? 1 - effectiveDecay : 1;
+    const baseDecay = this.decay + (1 - longevity) * SUBTHRESHOLD_DECAY;
 
     // Snapshot start-of-tick knowledge so every learner copies the same values,
     // making the pass order-independent (and therefore deterministic).
@@ -161,6 +177,7 @@ export class Culture {
       if (alive[s] === 0) continue;
       this.self = s;
       this.bestKnowledge = 0;
+      this.localModels = 0;
       agentGrid.query(x[s], y[s], COPY_RADIUS, this.onNeighbour);
 
       let k = snapshot[s];
@@ -174,15 +191,26 @@ export class Culture {
       // folded into the same branch, so it adds no extra draw. With no better
       // neighbour the increment alone applies, so a practice can also arise and
       // build from scratch (bounded by the clamp); whether it *persists* is set by
-      // the fidelity-dependent decay below.
+      // the decay below.
       if (rng.next() < this.fidelity) {
         const learned = this.bestKnowledge > own ? own + (this.bestKnowledge - own) * COPY_FRACTION : own;
         k = learned + INNOVATION_INCREMENT;
       }
-      // Fidelity-dependent per-tick decay, so gains accumulate only above the
-      // threshold and are lost below it. Always applied (it is part of the ratchet),
-      // bounding knowledge along with the clamp.
-      k *= decayKeep;
+      // Tasmania maintenance (v0.7.2): tie knowledge maintenance to the *effective*
+      // (reachable) population. When fewer than `criticalCultureN` live neighbours
+      // are reachable, an extra decay term (scaled by the shortfall) is added on top
+      // of the base decay, so loss outpaces the copying above — mean knowledge
+      // falls. As the reachable pool rebounds the extra term relaxes to zero and
+      // copying rebuilds knowledge (a U-shaped, reversible loss, no absorbing
+      // floor). `criticalCultureN <= 0` disables the gate.
+      let decay = baseDecay;
+      if (this.criticalN > 0 && this.localModels < this.criticalN) {
+        const shortfall = 1 - this.localModels / this.criticalN;
+        decay += shortfall * UNDERPOPULATION_DECAY;
+      }
+      // Per-tick decay (the ratchet plus the Tasmania term), bounding knowledge
+      // along with the clamp.
+      if (decay > 0) k *= 1 - decay;
       knowledge[s] = clampKnowledge(k);
     }
   }

@@ -199,6 +199,19 @@ This file records what *is* (current reality). The binding design canon is `docs
   Laland); knowledge stays clamped to [0, 1]. The ratchet is *conditional* (no
   sub-threshold accumulation) and a `[design-abstraction]`, never emergent. Inert
   when culture is off.
+- **Cultural loss below critical N (Tasmania)** (`criticalCultureN`, default 4;
+  spec v0.7.2, prompt 082): knowledge maintenance is tied to the **effective
+  (reachable) population** — when a creature reaches fewer than `criticalCultureN`
+  live neighbours within the copy radius (counted in the same `culture.ts` visitor
+  pass), an extra `UNDERPOPULATION_DECAY` term (scaled by the shortfall) is added on
+  top of the normal decay, so loss outpaces copying and mean knowledge falls;
+  recovery follows when the reachable pool rebounds — a **U-shaped, reversible**
+  loss with no absorbing floor (`criticalCultureN ≤ 0` disables the gate). A marked
+  drop from the recent peak surfaces a new `cultureLoss` ("knowledge lost") event
+  in the `EventLog` (narration metadata only, never read back — determinism
+  unaffected; `storyLog` falls through its `default` for now, no UI added). A
+  `[debated]` coupling in interpretation, `[design-abstraction]` in mechanism. Adds
+  no RNG draw; inert when culture is off.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or
