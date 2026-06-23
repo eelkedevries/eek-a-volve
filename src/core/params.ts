@@ -199,6 +199,47 @@ export interface SimulationParameters {
    */
   geneCultureCoupling: number;
 
+  /**
+   * Transitions / complexity state — a [design-abstraction] / [speculative] capacity
+   * (default off, the byte-for-byte default; v0.8.0). **Detection at a designed
+   * threshold, not emergence**, and **reversible / non-absorbing by construction**.
+   * When on, the world is tiled into coarse regions; a region that sustains high local
+   * density *and* high local mean `knowledge` enters a "complexity" state that raises
+   * local food regeneration ("technology → carrying capacity"), but a degradation
+   * accumulator then lowers local regeneration (overshoot → decline), and an explicit
+   * degradation hazard forces the region to exit and recover (so it can re-enter). It
+   * modifies only food regeneration / the local fertility used for placement, keeps
+   * both population bounds intact, and can never force guaranteed extinction. Needs the
+   * culture channel to be meaningful (the detector gates on `knowledge`). Draws the
+   * seeded generator only when on; completely inert (no region state, no RNG, food
+   * regeneration unaltered) when off. Runs in the TypeScript core only — the WASM
+   * food-regeneration kernel falls back to TypeScript whenever this is on. See
+   * docs-dev/planning/science_integration_plan.md (085).
+   */
+  transitions: boolean;
+  /** Local live-agent density (per region) at or above which the complexity threshold
+   *  may be met (inert when `transitions` is off). */
+  transitionDensity: number;
+  /** Local mean `knowledge` (per region) at or above which the complexity threshold may
+   *  be met (inert when `transitions` is off). */
+  transitionKnowledge: number;
+  /** Sustained window: consecutive ticks a region must stay above both cutoffs before it
+   *  enters the complexity state — the "designed threshold" (inert when off). */
+  transitionWindow: number;
+  /** Technology boost to local food regeneration while a region is in the complexity
+   *  state, before degradation erodes it (inert when `transitions` is off). */
+  transitionTechnologyGain: number;
+  /** Per-tick environmental degradation accumulated while a region is active; it lowers
+   *  local regeneration and drives the overshoot→decline (inert when off). */
+  transitionDegradationRate: number;
+  /** Per-tick recovery of the degradation accumulator while a region is inactive (the
+   *  land heals so a collapsed region can re-enter — non-absorbing; inert when off). */
+  transitionRecoveryRate: number;
+  /** Degradation level at which the exit hazard fires: an active region that reaches it
+   *  leaves the complexity state, guaranteeing the state is non-absorbing (inert when
+   *  off). */
+  transitionDegradationExit: number;
+
   /** Bounds on the post-start time multiplier (ticks per frame). */
   minTimeMultiplier: number;
   maxTimeMultiplier: number;
@@ -263,6 +304,18 @@ export const DEFAULT_PARAMETERS: SimulationParameters = {
   knowledgeDecay: 0.01,
   criticalCultureN: 4,
   geneCultureCoupling: 0,
+  // Transitions / complexity ([design-abstraction] / [speculative]): off by default, so
+  // no region state is computed, no RNG is drawn, and food regeneration is unaltered —
+  // the run is byte-for-byte unchanged. The rest are sensible values used only when
+  // `transitions` is on; not added to COMMUNITY_PRESET or SWARM_PRESET.
+  transitions: false,
+  transitionDensity: 14,
+  transitionKnowledge: 0.45,
+  transitionWindow: 30,
+  transitionTechnologyGain: 1.6,
+  transitionDegradationRate: 0.012,
+  transitionRecoveryRate: 0.02,
+  transitionDegradationExit: 1.4,
   minTimeMultiplier: 0.25,
   maxTimeMultiplier: 16,
 };

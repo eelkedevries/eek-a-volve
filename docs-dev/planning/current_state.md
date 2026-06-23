@@ -240,6 +240,29 @@ This file records what *is* (current reality). The binding design canon is `docs
   evolutionary-rescue test shows a deep trough then recovery under a survivable shock,
   reproducible per seed, with recovery **conditional** (a deep bottleneck that cannot
   reproduce does not recover), not forced.
+- **Transitions / complexity state** (`transitions`, default off; spec v0.8.0, prompt
+  085): the **most speculative** capacity, shipped only as a clearly labelled
+  **[design-abstraction] / [speculative]** capacity — **never** "emergent". A new
+  `src/core/transitions.ts` pass tiles the world into a fixed 6×6 grid of coarse
+  regions (pre-allocated per-region scalars, allocation-free) and runs a per-region
+  detector over existing fields: a region enters a local "complexity" state when its
+  live-agent density **and** mean `knowledge` stay above cutoffs (`transitionDensity`,
+  `transitionKnowledge`) for a sustained window (`transitionWindow`) — detection at a
+  modeller-set threshold, not emergence. While active, local food regeneration is
+  raised (`transitionTechnologyGain`, a small globally-capped lift concentrated into
+  active regions by region-weighted placement in `food.ts`), but a degradation
+  accumulator (`transitionDegradationRate`) lowers it, forcing overshoot→decline; an
+  explicit degradation hazard (`transitionDegradationExit`) makes the state
+  **non-absorbing** — a region exits and its land heals (`transitionRecoveryRate`), so
+  collapse and re-emergence are both reachable (tests confirm regions that enter are
+  observed to exit). It modifies only food regeneration / placement fertility, keeps
+  **both** population bounds intact (food cap + hard ceiling), and can never force
+  guaranteed extinction. Draws the seeded RNG only when on (a bounded per-active-region
+  degradation jitter); completely inert (no region state, no RNG, food regen unaltered)
+  when off, so the default run is byte-for-byte unchanged. Runs **TS-only**: the WASM
+  food-regen kernel returns false whenever `transitions` is on, falling back to the TS
+  regeneration (the kernel is not extended). The agent↔civilisation coupling stays out
+  of scope.
 - Tuning constants (`MAX_POPULATION`, food energy, mutation scaling,
   `DEFAULT_PARAMETERS`, …) live in `src/core/` and proved **stable without tuning**
   — default runs hold within bounds over thousands of ticks, no extinction or

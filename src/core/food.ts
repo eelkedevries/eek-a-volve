@@ -1,6 +1,7 @@
 import type { World } from './world.ts';
 import type { SimulationParameters } from './params.ts';
 import type { Rng } from './rng.ts';
+import type { Transitions } from './transitions.ts';
 import { fertilityAt } from './biome.ts';
 
 export const PLANT = 0;
@@ -8,6 +9,21 @@ export const CARRION = 1;
 
 /** Maximum rejection-sampling attempts when biasing food toward fertile regions. */
 const BIOME_MAX_TRIES = 8;
+
+/** Maximum rejection-sampling attempts when biasing food by the transitions
+ *  per-region regeneration multiplier (the complexity-state local effect, v0.8.0). */
+const TRANSITION_MAX_TRIES = 8;
+
+/**
+ * Small, fixed upper bound on the *extra* plants regenerated per tick while any region
+ * is in the complexity state (the local "technology → carrying capacity" lift). It is a
+ * single global cap — not per-region — so the total food *flux* rises only modestly
+ * however many regions activate, keeping the global population bounded near the
+ * baseline while the lift is concentrated locally by the placement bias. The overshoot
+ * and decline are therefore **local** (a region tracks its own food), not a global
+ * explosion; both population bounds remain intact.
+ */
+const TRANSITION_EXTRA_CAP = 2;
 
 /**
  * Deterministic seasonal multiplier on the food regeneration rate at `tick`
@@ -63,6 +79,50 @@ function placePlant(world: World, params: SimulationParameters, rng: Rng): numbe
   return slot;
 }
 
+/**
+ * Place one plant biased by the transitions per-region regeneration multiplier
+ * (v0.8.0): a complexity-state region (multiplier > 1) accepts candidates readily so
+ * food clusters there (technology → local carrying capacity), while a degraded region
+ * (multiplier < 1) rejects most candidates so it is starved of replenishment and its
+ * local population declines. Mirrors the biome rejection-sampling idiom; like it, a
+ * plant that exhausts its tries still places at the last candidate, so a slot is never
+ * wasted. Used only when `transitions` is on (which also forces the TS regen path), so
+ * the off path is byte-for-byte unchanged.
+ */
+function placePlantTransitions(
+  world: World,
+  params: SimulationParameters,
+  rng: Rng,
+  transitions: Transitions,
+): number {
+  const slot = world.spawnFood();
+  if (slot === -1) return -1;
+  let px = rng.next() * params.worldWidth;
+  let py = rng.next() * params.worldHeight;
+  for (let tries = 0; tries < TRANSITION_MAX_TRIES; tries++) {
+    // Accept with probability = the region's regeneration multiplier (clamped to a
+    // probability): certain in a boosted region, increasingly rejected as a region
+    // degrades. Biomes, if also on, are folded in multiplicatively.
+    let accept = transitions.regionRegenMultiplier(px, py);
+    if (params.biomeStrength > 0) {
+      const b = params.biomeStrength;
+      const f = fertilityAt(px, py, params.worldWidth, params.worldHeight, params.seed);
+      accept *= 1 - b + b * f;
+    }
+    if (accept > 1) accept = 1;
+    if (rng.next() < accept) break;
+    px = rng.next() * params.worldWidth;
+    py = rng.next() * params.worldHeight;
+  }
+  world.foodX[slot] = px;
+  world.foodY[slot] = py;
+  world.foodType[slot] = PLANT;
+  world.foodEnergy[slot] = PLANT_ENERGY;
+  world.foodDecay[slot] = 0;
+  world.plantCount++;
+  return slot;
+}
+
 /** Fill the world with plants up to the carrying capacity (used when a run starts). */
 export function seedFood(world: World, params: SimulationParameters, rng: Rng): void {
   const cap = plantCapacity(world, params);
@@ -75,12 +135,20 @@ export function seedFood(world: World, params: SimulationParameters, rng: Rng): 
  * Regenerate plants for one tick: add `foodRegenRate` plants (its fractional part
  * resolved by one deterministic draw), never beyond the plant carrying capacity
  * (specification: Domain rules → Population bounds).
+ *
+ * When `transitions` is supplied (the complexity-state coupling is on, v0.8.0), active
+ * regions get a few extra plants (the local technology lift) and placement is biased by
+ * the per-region multiplier so food clusters in active regions and is withheld from
+ * degraded ones — but the global plant cap is unchanged, so both population bounds still
+ * hold. Omitting `transitions` (the default) leaves the regeneration path byte-for-byte
+ * unchanged.
  */
 export function regenerateFood(
   world: World,
   params: SimulationParameters,
   rng: Rng,
   tick = 0,
+  transitions?: Transitions,
 ): void {
   const cap = plantCapacity(world, params);
   // The season only scales the rate when enabled, so the off path is unchanged.
@@ -89,6 +157,20 @@ export function regenerateFood(
   let count = Math.floor(rate);
   const frac = rate - count;
   if (frac > 0 && rng.next() < frac) count++;
+  if (transitions !== undefined) {
+    // Local technology lift: a small, *globally capped* number of extra plants when any
+    // region is active (so the total food flux rises only modestly, keeping the global
+    // population bounded), with placement biased by the per-region sampler so the lift
+    // concentrates in active regions and is withheld from degraded ones — a *local*
+    // overshoot/decline, not a global explosion. The global plant cap still bounds the
+    // standing pool, so both population bounds hold.
+    if (transitions.activeRegionCount() > 0) count += TRANSITION_EXTRA_CAP;
+    while (count > 0 && world.plantCount < cap) {
+      if (placePlantTransitions(world, params, rng, transitions) === -1) break;
+      count--;
+    }
+    return;
+  }
   while (count > 0 && world.plantCount < cap) {
     if (placePlant(world, params, rng) === -1) break;
     count--;

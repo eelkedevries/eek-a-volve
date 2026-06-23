@@ -297,6 +297,10 @@ export function createWasmCore(
     },
 
     regenerateFood(world: World, params: SimulationParameters, tick: number): boolean {
+      // Transitions / complexity-state regeneration is region-weighted and has no kernel
+      // implementation, so the run falls back to TypeScript food regeneration whenever
+      // `transitions` is on (WASM-fallback rule); nothing is placed here.
+      if (params.transitions) return false;
       // Seasonal rate is computed here in JS (same `seasonalFactor`); biome fertility
       // is host-computed via the imported `jsFertility` — both keep the kernel
       // bit-identical to the TS placement.

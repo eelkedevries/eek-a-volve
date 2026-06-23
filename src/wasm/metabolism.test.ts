@@ -61,6 +61,9 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
     expect(core.regenerateFood(w, params(), 0)).toBe(true);
     expect(core.regenerateFood(w, params({ seasonAmplitude: 0.5, seasonPeriod: 400 }), 100)).toBe(true);
     expect(core.regenerateFood(w, params({ biomeStrength: 0.5 }), 0)).toBe(true);
+    // Transitions (085) has no kernel implementation, so the WASM regen returns false
+    // and the caller falls back to TypeScript (WASM-fallback rule).
+    expect(core.regenerateFood(w, params({ transitions: true }), 0)).toBe(false);
   });
 
   it('reproduces seasonal and biome full runs identically (WASM regen vs TS)', () => {
@@ -278,6 +281,48 @@ describe('wasm metabolism core (zero-copy shared memory)', () => {
       }
     }
   });
+
+  it('stays identical with transitions on (food regen falls back to TS, shared RNG)', () => {
+    // Transitions (085) makes food regeneration region-weighted, which the kernel cannot
+    // do, so the WASM regen path returns false and the run uses TypeScript regeneration
+    // — while the behaviour/metabolism kernels still run in WASM (culture is off here, so
+    // they are not themselves forced to TS). The two cores must match bit-for-bit, which
+    // verifies the regen fallback keeps the shared RNG stream in lockstep.
+    const p = params({
+      seed: 23,
+      worldWidth: 200,
+      worldHeight: 200,
+      initialPopulation: 140,
+      foodAbundance: 220,
+      foodRegenRate: 4,
+      transitions: true,
+      transitionDensity: 12,
+    });
+    const ts = createSimulation(p);
+    const wasm = createSimulation(
+      p,
+      undefined,
+      createWasmCore(wasmBytes, MAX_POPULATION, p.foodAbundance + CARRION_RESERVE, p.worldWidth, p.worldHeight, GRID_CELL_SIZE, 24),
+    );
+    for (let i = 0; i < 300; i++) {
+      ts.step();
+      wasm.step();
+    }
+    expect(wasm.world.population).toBe(ts.world.population);
+    expect(wasm.world.foodCount).toBe(ts.world.foodCount);
+    for (let s = 0; s < ts.world.agentCapacity; s++) {
+      expect(wasm.world.alive[s]).toBe(ts.world.alive[s]);
+      if (ts.world.alive[s]) {
+        expect(wasm.world.x[s]).toBe(ts.world.x[s]);
+        expect(wasm.world.energy[s]).toBe(ts.world.energy[s]);
+      }
+    }
+    // The TS-regenerated food must match between the two cores too.
+    for (let f = 0; f < ts.world.foodCapacity; f++) {
+      expect(wasm.world.foodAlive[f]).toBe(ts.world.foodAlive[f]);
+      if (ts.world.foodAlive[f]) expect(wasm.world.foodX[f]).toBe(ts.world.foodX[f]);
+    }
+  }, 30000);
 
   it('reproduces a full run identically with the WASM core vs the TS core', () => {
     const p = params({

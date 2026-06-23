@@ -4,6 +4,7 @@ import { Behaviour } from './behaviour.ts';
 import { Predation } from './predation.ts';
 import { Disease, seedInfections } from './disease.ts';
 import { Culture } from './culture.ts';
+import { Transitions } from './transitions.ts';
 import { Speciation } from './speciation.ts';
 import { Events, type CatastropheEvent } from './events.ts';
 import { EventLog } from './eventlog.ts';
@@ -63,6 +64,9 @@ export class Simulation {
   private readonly predation: Predation;
   private readonly disease: Disease;
   private readonly culture: Culture;
+  /** Optional transitions / complexity-state pass ([design-abstraction] / [speculative],
+   *  v0.8.0); inert unless `params.transitions`. */
+  readonly transitions: Transitions;
   private readonly speciation: Speciation;
   private readonly events = new Events();
   /** Bounded log of notable moments, drained by the worker for the UI and narrator. */
@@ -142,6 +146,7 @@ export class Simulation {
     this.predation = new Predation();
     this.disease = new Disease(params.maxPopulation);
     this.culture = new Culture(params.maxPopulation);
+    this.transitions = new Transitions(params.worldWidth, params.worldHeight);
     this.speciation = new Speciation();
     if (params.neuralBrains) this.world.enableBrains(BRAIN_WEIGHT_COUNT);
     if (population !== undefined && population.length > 0) this.seedFromPopulation(population);
@@ -234,9 +239,22 @@ export class Simulation {
     if (catastrophe && this.events.last !== null) {
       eventLog.catastrophe(this.events.last.kind, this.events.last.deaths);
     }
-    // 6. Food regeneration (seasonally modulated) and carrion decay.
-    if (this.wasm === null || !this.wasm.regenerateFood(world, params, this.tick)) {
-      regenerateFood(world, params, rng, this.tick);
+    // 5b. Transitions / complexity state (optional, behind the toggle): a per-region
+    // detector over current density + mean knowledge flips a local complexity state
+    // that raises then degrades local food regeneration (overshoot/decline/recovery),
+    // with an explicit degradation hazard keeping it non-absorbing. Updates per-region
+    // scalars the food pass consults; draws RNG only when on, and changes nothing when
+    // off. Run before food regeneration so this tick's regen reflects the new state.
+    if (params.transitions) this.transitions.step(world, params, rng);
+    // 6. Food regeneration (seasonally modulated) and carrion decay. When transitions is
+    // on, food regeneration runs in TypeScript (the WASM kernel has no region logic, so
+    // it returns false and we fall back) and is biased by the per-region multiplier.
+    if (
+      this.wasm === null ||
+      params.transitions ||
+      !this.wasm.regenerateFood(world, params, this.tick)
+    ) {
+      regenerateFood(world, params, rng, this.tick, params.transitions ? this.transitions : undefined);
     }
     if (this.wasm !== null) this.wasm.decayCarrion(world);
     else decayCarrion(world);
